@@ -1,0 +1,369 @@
+/* Gotya shared responsive improvements */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    width: 100%;
+    max-width: 100%;
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+}
+
+body {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+}
+
+img, video, iframe, canvas, svg {
+    max-width: 100%;
+}
+
+img, video {
+    height: auto;
+}
+
+input, textarea, select, button {
+    max-width: 100%;
+    font: inherit;
+}
+
+input, textarea, select {
+    min-width: 0;
+}
+
+button, input[type="submit"], input[type="button"] {
+    touch-action: manipulation;
+}
+
+a, button, input[type="submit"] {
+    -webkit-tap-highlight-color: transparent;
+}
+
+pre, code {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 768px) {
+    body {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    header, nav, main, footer {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    main {
+        width: 100%;
+    }
+
+    form {
+        max-width: 100%;
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    textarea, select {
+        width: 100%;
+        min-height: 42px;
+    }
+
+    textarea {
+        resize: vertical;
+    }
+
+    button, input[type="submit"], input[type="button"] {
+        min-height: 40px;
+    }
+
+    table {
+        max-width: 100%;
+    }
+
+    .page-layout {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 12px !important;
+        width: 100%;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .left-sidebar {
+        position: static !important;
+        top: auto !important;
+        width: 100%;
+    }
+
+    .right-sidebar {
+        display: none !important;
+    }
+
+    .card, .side-card, .composer, .post-card, .post {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .post img, .post-card img, main img {
+        max-width: 100%;
+        object-fit: contain;
+    }
+
+    .searchform {
+        width: 100%;
+        max-width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .searchform input {
+        flex: 1 1 160px;
+    }
+
+    .topbar {
+        max-width: 100%;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .profile-picture-form {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 15px;
+    }
+
+    main {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    h1 {
+        font-size: clamp(1.45rem, 6vw, 2rem);
+        overflow-wrap: anywhere;
+    }
+
+    h2 {
+        font-size: clamp(1.2rem, 5vw, 1.6rem);
+        overflow-wrap: anywhere;
+    }
+
+    .page-layout {
+        padding-left: 7px;
+        padding-right: 7px;
+        gap: 9px !important;
+    }
+
+    .side-link {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .side-icon {
+        flex-shrink: 0;
+    }
+
+    .actions {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .actions button, .actions input[type="submit"] {
+        min-height: 40px;
+    }
+
+    .composer textarea {
+        min-height: 80px;
+    }
+
+    .profile-picture-form input[type="file"] {
+        width: 100%;
+        font-size: 14px;
+    }
+}
+
+/* GOTYA FEED POLISH */
+body {
+    color: #1c1e21;
+    background: #f0f2f5;
+}
+
+header {
+    box-shadow: 0 2px 12px rgba(24, 119, 242, 0.07);
+}
+
+header h1 {
+    letter-spacing: -1.2px;
+}
+
+.page-layout {
+    align-items: start;
+}
+
+.side-card,
+.card {
+    border: 1px solid rgba(228, 230, 235, 0.9);
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.045);
+    transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.side-link {
+    transition: background 160ms ease, color 160ms ease;
+}
+
+.side-link:hover {
+    background: #e7f3ff;
+    color: #1877f2;
+}
+
+.feed-heading {
+    font-weight: 800;
+    letter-spacing: -0.8px;
+}
+
+.feed-subtitle {
+    line-height: 1.6;
+}
+
+.card textarea {
+    border: 1px solid #d8dce3;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.card textarea:focus {
+    border-color: #1877f2;
+    box-shadow: 0 0 0 3px rgba(24, 119, 242, 0.12);
+}
+
+.post-author-row {
+    align-items: center;
+}
+
+.post-avatar {
+    border: 2px solid #e7f3ff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+}
+
+.post-author-details .author {
+    font-size: 15px;
+}
+
+.date {
+    line-height: 1.5;
+}
+
+.content {
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
+.actions {
+    align-items: center;
+}
+
+.like-button,
+.comment-icon-button {
+    transition: background 160ms ease, transform 160ms ease;
+}
+
+.comment {
+    border: 1px solid rgba(228, 230, 235, 0.75);
+}
+
+.comment-form textarea {
+    background: #f7f8fa;
+}
+
+.welcome-card {
+    border: 0;
+    background: linear-gradient(135deg, #1877f2, #609cff);
+}
+
+button:focus-visible,
+a:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid rgba(24, 119, 242, 0.35);
+    outline-offset: 2px;
+}
+
+@media (min-width: 701px) {
+    .card:hover,
+    .side-card:hover {
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.055);
+    }
+}
+
+@media (max-width: 700px) {
+    .page-layout {
+        margin-top: 12px;
+    }
+
+    .feed-heading {
+        margin-bottom: 8px;
+    }
+
+    .feed-subtitle {
+        margin-top: 0;
+        margin-bottom: 16px;
+    }
+
+    .card {
+        padding: 14px;
+        border-radius: 14px;
+    }
+
+    .composer-title {
+        align-items: center;
+    }
+
+    .composer-title label {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        line-height: 1.4;
+    }
+
+    .publish button {
+        width: 100%;
+    }
+
+    .comment-form {
+        align-items: stretch;
+    }
+
+    .comment-form button {
+        align-self: center;
+    }
+}
+
+@media (max-width: 420px) {
+    .post-avatar {
+        width: 40px;
+        height: 40px;
+        flex-basis: 40px;
+    }
+
+    .actions {
+        gap: 6px;
+    }
+
+    .comment {
+        padding: 10px;
+    }
+}
+
+/* Temporary Gotya click troubleshooting */
+a,
+button,
+input,
+select,
+textarea,
+summary,
+[role="button"] {
+    pointer-events: auto !important;
+}

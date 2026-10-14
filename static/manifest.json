@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "Gotya",
+  "short_name": "Gotya",
+  "description": "Connect with your world on Gotya.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f0f2f5",
+  "theme_color": "#1877f2",
+  "icons": [
+    {
+      "src": "/static/gotya-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

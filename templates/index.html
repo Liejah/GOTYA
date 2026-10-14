@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <meta name="theme-color" content="#1877f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Gotya">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1877f2">
+    <title>Gotya | Connect with your world</title>
+
+    <style>
+        :root {
+            --blue: #1877f2;
+            --background: #f0f2f5;
+            --card: #ffffff;
+            --text: #1c1e21;
+            --muted: #65676b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--background);
+            color: var(--text);
+        }
+
+        header {
+            height: 64px;
+            background: var(--card);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 5%;
+            box-shadow: 0 1px 5px #00000012;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            color: var(--blue);
+            font-size: 25px;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .header-note {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 35px auto;
+            padding: 0 18px;
+            display: grid;
+            grid-template-columns: 0.9fr 1.4fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px #0000000a;
+        }
+
+        .welcome {
+            background: linear-gradient(145deg, #ffffff, #e7f0ff);
+        }
+
+        h1 {
+            font-size: 34px;
+            line-height: 1.15;
+            margin: 0 0 15px;
+        }
+
+        h2 {
+            font-size: 19px;
+            margin-top: 0;
+        }
+
+        p {
+            line-height: 1.65;
+            color: var(--muted);
+        }
+
+        .button {
+            display: inline-block;
+            padding: 13px 20px;
+            background: var(--blue);
+            color: white;
+            text-decoration: none;
+            border-radius: 9px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .button:hover {
+            background: #0866d5;
+        }
+
+        .feature {
+            display: flex;
+            gap: 14px;
+            padding: 15px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+
+        .feature:last-child {
+            border-bottom: none;
+        }
+
+        .feature-icon {
+            width: 43px;
+            height: 43px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            background: #e7f0ff;
+            display: grid;
+            place-items: center;
+            font-size: 21px;
+        }
+
+        .feature strong {
+            display: block;
+            margin: 3px 0;
+        }
+
+        .feature p {
+            margin: 5px 0 0;
+            font-size: 14px;
+        }
+
+        .status {
+            color: #16803c;
+            font-size: 13px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 700px) {
+            header {
+                height: 58px;
+                padding: 0 18px;
+            }
+
+            .logo {
+                font-size: 23px;
+            }
+
+            .header-note {
+                display: none;
+            }
+
+            main {
+                grid-template-columns: 1fr;
+                margin: 18px auto;
+                gap: 0;
+                padding: 0 12px;
+            }
+
+            .card {
+                padding: 21px;
+                border-radius: 13px;
+            }
+
+            h1 {
+                font-size: 29px;
+            }
+        }
+    </style>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
+</head>
+
+<body>
+    <header>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <meta name="theme-color" content="#1877f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Gotya">
+        <div class="logo">Gotya</div>
+        <div class="header-note">Your people. Your world.</div>
+    </header>
+
+    <main>
+        <section class="card welcome">
+            <h1>Connect with your world.</h1>
+
+            <p>
+                Share your moments, meet new people, and stay
+                connected with the people who matter to you.
+            </p>
+
+            <div class="status">● Your community starts here</div>
+
+            <a class="button" href="#features">Explore Gotya</a>
+        </section>
+
+        <section class="card" id="features">
+            <h2>Everything in one place</h2>
+
+            <div class="feature">
+                <div class="feature-icon">👤</div>
+                <div>
+                    <strong>Your profile</strong>
+                    <p>Create your profile and personalize your account.</p>
+                </div>
+            </div>
+
+            <div class="feature">
+                <div class="feature-icon">📰</div>
+                <div>
+                    <strong>Social feed</strong>
+                    <p>Share posts, photos, and everyday moments.</p>
+                </div>
+            </div>
+
+            <div class="feature">
+                <div class="feature-icon">💬</div>
+                <div>
+                    <strong>Private messaging</strong>
+                    <p>Chat with friends and join group conversations.</p>
+                </div>
+            </div>
+
+            <div class="feature">
+                <div class="feature-icon">🔔</div>
+                <div>
+                    <strong>Notifications</strong>
+                    <p>Keep up with messages and activity.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        Gotya &copy; 2026 — Made to bring people together.
+    </footer>
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js")
+            .catch(error => console.error("Gotya service worker registration failed:", error));
+    });
+}
+</script>
+</body>
+</html>

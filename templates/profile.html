@@ -1,0 +1,713 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <meta name="theme-color" content="#1877f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Gotya">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | Gotya</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            color: #1c1e21;
+        }
+        header {
+            background: white;
+            padding: 16px 24px;
+            box-shadow: 0 2px 8px #00000010;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand { color: #1877f2; font-size: 24px; font-weight: bold; }
+        .logout {
+            background: #e4e6eb;
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        main { width: min(700px, 92%); margin: 32px auto; }
+        .card {
+            background: white;
+            padding: 28px;
+            margin-bottom: 20px;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px #00000008;
+        }
+        .avatar {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            margin-bottom: 18px;
+            background: #dbeafe;
+            color: #1877f2;
+            font-size: 36px;
+            font-weight: bold;
+        }
+        h1 { margin: 0 0 8px; overflow-wrap: anywhere; }
+        .muted { color: #65676b; overflow-wrap: anywhere; }
+        .status {
+            display: inline-block;
+            background: #e7f3ff;
+            color: #1877f2;
+            padding: 7px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        a { color: #1877f2; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        @media (max-width: 480px) {
+            header { padding: 14px; }
+            .brand { font-size: 21px; }
+            .card { padding: 22px; }
+        }
+    
+        .avatar { overflow: hidden; }
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .profile-picture-form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .profile-picture-form input[type="file"] {
+            max-width: 100%;
+        }
+        .profile-picture-form button {
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 16px;
+            background: #1877f2;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .profile-picture-form button:hover { background: #166fe5; }
+        .upload-help {
+            color: #65676b;
+            font-size: 13px;
+            text-align: left;
+        }
+        .flash-message {
+            padding: 11px 14px;
+            margin: 12px 0;
+            border-radius: 8px;
+            background: #e7f3ff;
+            color: #1c1e21;
+            overflow-wrap: anywhere;
+        }
+
+    
+/* GOTYA PROFILE POLISH */
+header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    min-height: 66px;
+}
+
+.brand {
+    letter-spacing: -0.8px;
+}
+
+main {
+    max-width: 700px;
+}
+
+.card {
+    border: 1px solid #e4e6eb;
+    border-radius: 18px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.045);
+}
+
+.card:first-child {
+    background:
+        radial-gradient(circle at top right, #e7f3ff 0, transparent 42%),
+        #ffffff;
+}
+
+.avatar {
+    width: 112px;
+    height: 112px;
+    border: 4px solid #ffffff;
+    box-shadow: 0 3px 14px rgba(24, 119, 242, 0.18);
+    font-size: 42px;
+}
+
+h1 {
+    letter-spacing: -0.7px;
+}
+
+.status {
+    margin-top: 8px;
+    font-weight: 700;
+}
+
+.profile-picture-form {
+    padding: 16px;
+    border: 1px dashed #c7d9f5;
+    border-radius: 14px;
+    background: #f7faff;
+}
+
+.profile-picture-form input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #e4e6eb;
+    border-radius: 9px;
+    background: #ffffff;
+}
+
+.profile-picture-form button {
+    min-height: 42px;
+    transition: background 160ms ease, transform 160ms ease;
+}
+
+.profile-picture-form button:hover {
+    transform: translateY(-1px);
+}
+
+.upload-help {
+    line-height: 1.6;
+}
+
+.flash-message {
+    border: 1px solid #c9e0ff;
+}
+
+@media (max-width: 480px) {
+    header {
+        padding: 12px 14px;
+    }
+
+    main {
+        width: calc(100% - 20px);
+        margin: 18px auto;
+    }
+
+    .card {
+        padding: 18px;
+        margin-bottom: 14px;
+        border-radius: 15px;
+    }
+
+    .avatar {
+        width: 96px;
+        height: 96px;
+        font-size: 36px;
+    }
+
+    .profile-picture-form {
+        padding: 12px;
+    }
+
+    .profile-picture-form button {
+        width: 100%;
+    }
+}
+
+
+/* GOTYA PROFILE MOBILE POLISH */
+@media (max-width: 600px) {
+    body {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    header {
+        padding: 12px 14px;
+        gap: 10px;
+    }
+
+    main {
+        width: 100%;
+        max-width: 100%;
+        gap: 16px;
+    }
+
+    .card {
+        padding: 20px 16px;
+        border-radius: 18px;
+    }
+
+    .avatar {
+        width: 96px;
+        height: 96px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .profile-picture-form {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .profile-picture-form input[type="file"] {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .profile-picture-form button {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    .dashboard-heading {
+        align-items: flex-start;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .stat-card {
+        overflow-wrap: anywhere;
+    }
+
+    .quick-link {
+        min-width: 0;
+    }
+
+    .quick-link small {
+        overflow-wrap: anywhere;
+    }
+}
+
+
+/* FACEBOOK-STYLE GOTYA PROFILE */
+.profile-cover {
+    position: relative;
+    height: clamp(180px, 30vw, 300px);
+    margin: 0 0 76px;
+    overflow: visible;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #1877f2, #78b7ff 58%, #dbeafe);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
+}
+.profile-cover-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: 18px;
+}
+.profile-cover-placeholder {
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-weight: 800;
+    font-size: clamp(1.2rem, 4vw, 2rem);
+    letter-spacing: .04em;
+}
+.profile-cover .cover-upload {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    z-index: 2;
+    margin: 0;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 9px;
+    background: white;
+    color: #174ea6;
+    font-weight: 700;
+    cursor: pointer;
+}
+.profile-identity {
+    position: absolute;
+    left: 24px;
+    bottom: -65px;
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    max-width: calc(100% - 48px);
+}
+.profile-identity .avatar {
+    flex: 0 0 112px;
+    margin: 0;
+    background: #dbeafe;
+}
+.profile-identity-text {
+    min-width: 0;
+    padding-bottom: 8px;
+}
+.profile-identity-text h1 {
+    overflow-wrap: anywhere;
+    margin-bottom: 5px;
+}
+.profile-editor-card h2 { margin-top: 0; }
+.profile-editor-form {
+    display: grid;
+    gap: 14px;
+}
+.profile-editor-form label {
+    display: grid;
+    gap: 7px;
+    font-weight: 700;
+    color: #344054;
+}
+.profile-editor-form input,
+.profile-editor-form textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 13px;
+    border: 1px solid #d0d5dd;
+    border-radius: 10px;
+    background: #fff;
+    color: #1c1e21;
+    font: inherit;
+}
+.profile-editor-form textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+.profile-editor-form input:focus,
+.profile-editor-form textarea:focus {
+    outline: 2px solid #b6d4fe;
+    border-color: #1877f2;
+}
+.profile-editor-form button {
+    min-height: 44px;
+    padding: 11px 16px;
+    border: 0;
+    border-radius: 10px;
+    background: #1877f2;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+}
+.profile-editor-form button:hover { background: #166fe5; }
+.cover-upload-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    align-items: center;
+}
+.cover-upload-form input {
+    max-width: 100%;
+    min-width: 0;
+    color: #344054;
+}
+.cover-upload-form button {
+    border: 0;
+    border-radius: 9px;
+    background: #1877f2;
+    color: white;
+    padding: 10px 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.profile-bio {
+    margin: 8px 0 0;
+    color: #65676b;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+@media (max-width: 600px) {
+    .profile-cover {
+        height: 185px;
+        margin-bottom: 105px;
+        border-radius: 14px;
+    }
+    .profile-cover-image { border-radius: 14px; }
+    .profile-identity {
+        left: 12px;
+        bottom: -94px;
+        right: 12px;
+        max-width: none;
+        align-items: center;
+        flex-direction: column;
+        gap: 7px;
+        text-align: center;
+    }
+    .profile-identity .avatar {
+        flex-basis: auto;
+        width: 96px;
+        height: 96px;
+    }
+    .profile-identity-text { padding: 0; }
+    .profile-identity-text h1 { font-size: 1.45rem; }
+    .profile-cover .cover-upload {
+        right: 8px;
+        bottom: 8px;
+        padding: 8px 10px;
+        font-size: .8rem;
+    }
+    .cover-upload-form {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .cover-upload-form button { min-height: 42px; }
+}
+
+/* GOTYA PROFILE DASHBOARD */
+.dashboard-card { text-align: left; }
+.dashboard-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.dashboard-heading h2 { margin: 4px 0 6px; }
+.eyebrow {
+    margin: 0;
+    color: #1877f2;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .15em;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 24px 0 28px;
+}
+.stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+    padding: 18px;
+    color: #172033;
+    text-decoration: none;
+    background: #f4f7ff;
+    border: 1px solid #e4eaff;
+    border-radius: 17px;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 22px rgba(24, 119, 242, .12);
+}
+.stat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 5px 9px;
+    border-radius: 8px;
+    background: #e2ebff;
+    color: #155bd5;
+    font-size: .65rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+}
+.stat-number { font-size: 1.8rem; line-height: 1.1; }
+.stat-label { color: #657087; font-size: .85rem; }
+.quick-links-title { margin: 0 0 12px; }
+.quick-links { display: grid; gap: 10px; }
+.quick-link {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 14px;
+    color: #172033;
+    text-decoration: none;
+    border: 1px solid #e7eaf0;
+    border-radius: 14px;
+    background: #fff;
+    transition: background .18s ease, border-color .18s ease;
+}
+.quick-link:hover {
+    background: #f5f8ff;
+    border-color: #b9d0ff;
+}
+.quick-link > span:first-child {
+    display: grid;
+    place-items: center;
+    width: 66px;
+    min-height: 38px;
+    padding: 5px;
+    box-sizing: border-box;
+    flex: 0 0 66px;
+    border-radius: 10px;
+    background: #eaf1ff;
+    color: #1877f2;
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+.quick-link > span:nth-child(2) {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+.quick-link small { color: #687386; line-height: 1.4; }
+.link-arrow { margin-left: auto; color: #8b95a7; font-size: 1.6rem; }
+@media (max-width: 480px) {
+    .stats-grid { gap: 7px; }
+    .stat-card { padding: 12px 9px; border-radius: 13px; }
+    .stat-number { font-size: 1.5rem; }
+    .stat-label { font-size: .75rem; }
+    .dashboard-heading .status { font-size: .75rem; }
+    .quick-link { padding: 11px; }
+}
+\n
+        .edit-profile-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 12px;
+            padding: 9px 14px;
+            border-radius: 8px;
+            background: #e7f3ff;
+            color: #1877f2;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .edit-profile-button:hover {
+            background: #dbeafe;
+            text-decoration: none;
+        }
+        .flash-message {
+            margin: 0 0 16px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            background: #e7f3ff;
+            color: #1877f2;
+            overflow-wrap: anywhere;
+        }
+
+    </style>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
+</head>
+<body>
+    <header>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <meta name="theme-color" content="#1877f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Gotya">
+        <div class="brand">Gotya</div>
+
+        <form method="POST" action="{{ url_for('logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="logout" type="submit">Log Out</button>
+        </form>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <div class="flash-message" role="status">{{ message }}</div>
+                {% endfor %}
+            {% endwith %}
+        <section class="profile-cover" aria-label="Profile cover photo">
+            {% if user.cover_photo %}
+                <img class="profile-cover-image"
+                     src="{{ url_for('cover_photo_file', filename=user.cover_photo) }}"
+                     alt="{{ user.username }}'s cover photo">
+            {% else %}
+                <div class="profile-cover-placeholder">GOTYA</div>
+            {% endif %}
+
+            <div class="profile-identity">
+                <div class="avatar">
+                    {% if user.profile_picture %}
+                        <img src="{{ url_for('profile_picture_file', filename=user.profile_picture) }}"
+                             alt="{{ user.username }}'s profile picture">
+                    {% else %}
+                        {{ user.username[0]|upper }}
+                    {% endif %}
+                </div>
+                <div class="profile-identity-text">
+                    <a class="edit-profile-button"
+                       href="{{ url_for('edit_profile') }}"
+                       aria-label="Edit profile">
+                        <span aria-hidden="true">&#9998;</span> Edit profile
+                    </a>
+
+                    <h1>{{ user.username }}</h1>
+                    <p class="muted" style="margin:0;">{{ friend_count }} friends</p>
+                    {% if user.bio %}
+                        <p class="profile-bio">{{ user.bio }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="card dashboard-card">
+            <div class="dashboard-heading">
+                <div>
+                    <p class="eyebrow">YOUR SPACE</p>
+                    <h2>Your Gotya dashboard</h2>
+                    <p class="muted">Your activity, your people, your community.</p>
+                </div>
+                <span class="status">Account active</span>
+            </div>
+
+            <div class="stats-grid">
+                <a class="stat-card" href="{{ url_for('feed') }}">
+                    <span class="stat-icon" aria-hidden="true">POST</span>
+                    <strong class="stat-number">{{ post_count }}</strong>
+                    <span class="stat-label">Posts</span>
+                </a>
+                <a class="stat-card" href="{{ url_for('friends') }}">
+                    <span class="stat-icon" aria-hidden="true">PEOPLE</span>
+                    <strong class="stat-number">{{ friend_count }}</strong>
+                    <span class="stat-label">Friends</span>
+                </a>
+                <a class="stat-card" href="{{ url_for('feed') }}">
+                    <span class="stat-icon" aria-hidden="true">LIKES</span>
+                    <strong class="stat-number">{{ likes_received }}</strong>
+                    <span class="stat-label">Likes received</span>
+                </a>
+            </div>
+
+            <h3 class="quick-links-title">Quick access</h3>
+            <nav class="quick-links" aria-label="Social navigation">
+                <a class="quick-link primary-link" href="{{ url_for('feed') }}">
+                    <span aria-hidden="true">FEED</span>
+                    <span><strong>News Feed</strong><small>See posts and share an update</small></span>
+                    <span class="link-arrow" aria-hidden="true">&gt;</span>
+                </a>
+                <a class="quick-link" href="{{ url_for('friends') }}">
+                    <span aria-hidden="true">FRIENDS</span>
+                    <span><strong>Find Friends</strong><small>Connect with other people</small></span>
+                    <span class="link-arrow" aria-hidden="true">&gt;</span>
+                </a>
+                <a class="quick-link" href="{{ url_for('messages') }}">
+                    <span aria-hidden="true">CHAT</span>
+                    <span><strong>Messages</strong><small>Open your private conversations</small></span>
+                    <span class="link-arrow" aria-hidden="true">&gt;</span>
+                </a>
+            </nav>
+        </section>
+    </main>
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js")
+            .catch(error => console.error("Gotya service worker registration failed:", error));
+    });
+}
+</script>
+</body>
+</html>
+

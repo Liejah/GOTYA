@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1877f2">
+    <title>Edit Profile | Gotya</title>
+    <style>
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            color: #1c1e21;
+        }
+        header {
+            background: white;
+            padding: 16px 24px;
+            box-shadow: 0 2px 8px #00000010;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand { color: #1877f2; font-size: 24px; font-weight: bold; }
+        .logout {
+            background: #e4e6eb;
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        main { width: min(700px, 92%); margin: 32px auto; }
+        .card {
+            background: white;
+            padding: 28px;
+            margin-bottom: 20px;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px #00000008;
+        }
+        .avatar {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            margin-bottom: 18px;
+            background: #dbeafe;
+            color: #1877f2;
+            font-size: 36px;
+            font-weight: bold;
+        }
+        h1 { margin: 0 0 8px; overflow-wrap: anywhere; }
+        .muted { color: #65676b; overflow-wrap: anywhere; }
+        .status {
+            display: inline-block;
+            background: #e7f3ff;
+            color: #1877f2;
+            padding: 7px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        a { color: #1877f2; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        @media (max-width: 480px) {
+            header { padding: 14px; }
+            .brand { font-size: 21px; }
+            .card { padding: 22px; }
+        }
+    
+        .avatar { overflow: hidden; }
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .profile-picture-form {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .profile-picture-form input[type="file"] {
+            max-width: 100%;
+        }
+        .profile-picture-form button {
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 16px;
+            background: #1877f2;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .profile-picture-form button:hover { background: #166fe5; }
+        .upload-help {
+            color: #65676b;
+            font-size: 13px;
+            text-align: left;
+        }
+        .flash-message {
+            padding: 11px 14px;
+            margin: 12px 0;
+            border-radius: 8px;
+            background: #e7f3ff;
+            color: #1c1e21;
+            overflow-wrap: anywhere;
+        }
+
+    
+/* GOTYA PROFILE POLISH */
+header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    min-height: 66px;
+}
+
+.brand {
+    letter-spacing: -0.8px;
+}
+
+main {
+    max-width: 700px;
+}
+
+.card {
+    border: 1px solid #e4e6eb;
+    border-radius: 18px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.045);
+}
+
+.card:first-child {
+    background:
+        radial-gradient(circle at top right, #e7f3ff 0, transparent 42%),
+        #ffffff;
+}
+
+.avatar {
+    width: 112px;
+    height: 112px;
+    border: 4px solid #ffffff;
+    box-shadow: 0 3px 14px rgba(24, 119, 242, 0.18);
+    font-size: 42px;
+}
+
+h1 {
+    letter-spacing: -0.7px;
+}
+
+.status {
+    margin-top: 8px;
+    font-weight: 700;
+}
+
+.profile-picture-form {
+    padding: 16px;
+    border: 1px dashed #c7d9f5;
+    border-radius: 14px;
+    background: #f7faff;
+}
+
+.profile-picture-form input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #e4e6eb;
+    border-radius: 9px;
+    background: #ffffff;
+}
+
+.profile-picture-form button {
+    min-height: 42px;
+    transition: background 160ms ease, transform 160ms ease;
+}
+
+.profile-picture-form button:hover {
+    transform: translateY(-1px);
+}
+
+.upload-help {
+    line-height: 1.6;
+}
+
+.flash-message {
+    border: 1px solid #c9e0ff;
+}
+
+@media (max-width: 480px) {
+    header {
+        padding: 12px 14px;
+    }
+
+    main {
+        width: calc(100% - 20px);
+        margin: 18px auto;
+    }
+
+    .card {
+        padding: 18px;
+        margin-bottom: 14px;
+        border-radius: 15px;
+    }
+
+    .avatar {
+        width: 96px;
+        height: 96px;
+        font-size: 36px;
+    }
+
+    .profile-picture-form {
+        padding: 12px;
+    }
+
+    .profile-picture-form button {
+        width: 100%;
+    }
+}
+
+
+/* GOTYA PROFILE MOBILE POLISH */
+@media (max-width: 600px) {
+    body {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    header {
+        padding: 12px 14px;
+        gap: 10px;
+    }
+
+    main {
+        width: 100%;
+        max-width: 100%;
+        gap: 16px;
+    }
+
+    .card {
+        padding: 20px 16px;
+        border-radius: 18px;
+    }
+
+    .avatar {
+        width: 96px;
+        height: 96px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .profile-picture-form {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .profile-picture-form input[type="file"] {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .profile-picture-form button {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    .dashboard-heading {
+        align-items: flex-start;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .stat-card {
+        overflow-wrap: anywhere;
+    }
+
+    .quick-link {
+        min-width: 0;
+    }
+
+    .quick-link small {
+        overflow-wrap: anywhere;
+    }
+}
+
+
+/* FACEBOOK-STYLE GOTYA PROFILE */
+.profile-cover {
+    position: relative;
+    height: clamp(180px, 30vw, 300px);
+    margin: 0 0 76px;
+    overflow: visible;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #1877f2, #78b7ff 58%, #dbeafe);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
+}
+.profile-cover-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: 18px;
+}
+.profile-cover-placeholder {
+    height: 100%;
+    display: grid;
+    place-items: center;
+    color: white;
+    font-weight: 800;
+    font-size: clamp(1.2rem, 4vw, 2rem);
+    letter-spacing: .04em;
+}
+.profile-cover .cover-upload {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    z-index: 2;
+    margin: 0;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 9px;
+    background: white;
+    color: #174ea6;
+    font-weight: 700;
+    cursor: pointer;
+}
+.profile-identity {
+    position: absolute;
+    left: 24px;
+    bottom: -65px;
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    max-width: calc(100% - 48px);
+}
+.profile-identity .avatar {
+    flex: 0 0 112px;
+    margin: 0;
+    background: #dbeafe;
+}
+.profile-identity-text {
+    min-width: 0;
+    padding-bottom: 8px;
+}
+.profile-identity-text h1 {
+    overflow-wrap: anywhere;
+    margin-bottom: 5px;
+}
+.profile-editor-card h2 { margin-top: 0; }
+.profile-editor-form {
+    display: grid;
+    gap: 14px;
+}
+.profile-editor-form label {
+    display: grid;
+    gap: 7px;
+    font-weight: 700;
+    color: #344054;
+}
+.profile-editor-form input,
+.profile-editor-form textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 13px;
+    border: 1px solid #d0d5dd;
+    border-radius: 10px;
+    background: #fff;
+    color: #1c1e21;
+    font: inherit;
+}
+.profile-editor-form textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+.profile-editor-form input:focus,
+.profile-editor-form textarea:focus {
+    outline: 2px solid #b6d4fe;
+    border-color: #1877f2;
+}
+.profile-editor-form button {
+    min-height: 44px;
+    padding: 11px 16px;
+    border: 0;
+    border-radius: 10px;
+    background: #1877f2;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+}
+.profile-editor-form button:hover { background: #166fe5; }
+.cover-upload-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    align-items: center;
+}
+.cover-upload-form input {
+    max-width: 100%;
+    min-width: 0;
+    color: #344054;
+}
+.cover-upload-form button {
+    border: 0;
+    border-radius: 9px;
+    background: #1877f2;
+    color: white;
+    padding: 10px 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.profile-bio {
+    margin: 8px 0 0;
+    color: #65676b;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+@media (max-width: 600px) {
+    .profile-cover {
+        height: 185px;
+        margin-bottom: 105px;
+        border-radius: 14px;
+    }
+    .profile-cover-image { border-radius: 14px; }
+    .profile-identity {
+        left: 12px;
+        bottom: -94px;
+        right: 12px;
+        max-width: none;
+        align-items: center;
+        flex-direction: column;
+        gap: 7px;
+        text-align: center;
+    }
+    .profile-identity .avatar {
+        flex-basis: auto;
+        width: 96px;
+        height: 96px;
+    }
+    .profile-identity-text { padding: 0; }
+    .profile-identity-text h1 { font-size: 1.45rem; }
+    .profile-cover .cover-upload {
+        right: 8px;
+        bottom: 8px;
+        padding: 8px 10px;
+        font-size: .8rem;
+    }
+    .cover-upload-form {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .cover-upload-form button { min-height: 42px; }
+}
+
+/* GOTYA PROFILE DASHBOARD */
+.dashboard-card { text-align: left; }
+.dashboard-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.dashboard-heading h2 { margin: 4px 0 6px; }
+.eyebrow {
+    margin: 0;
+    color: #1877f2;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .15em;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 24px 0 28px;
+}
+.stat-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+    padding: 18px;
+    color: #172033;
+    text-decoration: none;
+    background: #f4f7ff;
+    border: 1px solid #e4eaff;
+    border-radius: 17px;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 22px rgba(24, 119, 242, .12);
+}
+.stat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 5px 9px;
+    border-radius: 8px;
+    background: #e2ebff;
+    color: #155bd5;
+    font-size: .65rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+}
+.stat-number { font-size: 1.8rem; line-height: 1.1; }
+.stat-label { color: #657087; font-size: .85rem; }
+.quick-links-title { margin: 0 0 12px; }
+.quick-links { display: grid; gap: 10px; }
+.quick-link {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 14px;
+    color: #172033;
+    text-decoration: none;
+    border: 1px solid #e7eaf0;
+    border-radius: 14px;
+    background: #fff;
+    transition: background .18s ease, border-color .18s ease;
+}
+.quick-link:hover {
+    background: #f5f8ff;
+    border-color: #b9d0ff;
+}
+.quick-link > span:first-child {
+    display: grid;
+    place-items: center;
+    width: 66px;
+    min-height: 38px;
+    padding: 5px;
+    box-sizing: border-box;
+    flex: 0 0 66px;
+    border-radius: 10px;
+    background: #eaf1ff;
+    color: #1877f2;
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+.quick-link > span:nth-child(2) {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+.quick-link small { color: #687386; line-height: 1.4; }
+.link-arrow { margin-left: auto; color: #8b95a7; font-size: 1.6rem; }
+@media (max-width: 480px) {
+    .stats-grid { gap: 7px; }
+    .stat-card { padding: 12px 9px; border-radius: 13px; }
+    .stat-number { font-size: 1.5rem; }
+    .stat-label { font-size: .75rem; }
+    .dashboard-heading .status { font-size: .75rem; }
+    .quick-link { padding: 11px; }
+}
+\n
+        .edit-actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
+        .edit-actions button, .edit-actions a {
+            display:inline-block; border:0; border-radius:8px;
+            padding:12px 18px; font-weight:bold; cursor:pointer;
+            font-size:14px; text-decoration:none;
+        }
+        .save-button { background:#1877f2; color:white; }
+        .cancel-button { background:#e4e6eb; color:#1c1e21; }
+        .editor-field { display:block; margin:18px 0; font-weight:bold; }
+        .editor-field input, .editor-field textarea {
+            display:block; width:100%; margin-top:8px; padding:12px;
+            border:1px solid #ccd0d5; border-radius:8px;
+            font:inherit; font-weight:normal;
+        }
+        .editor-field textarea { min-height:110px; resize:vertical; }
+        .editor-section { border-top:1px solid #e4e6eb; padding-top:18px; margin-top:22px; }
+        .editor-section button { background:#1877f2; color:white; border:0; border-radius:8px; padding:11px 15px; cursor:pointer; }
+        .current-photo { max-width:100%; max-height:180px; border-radius:12px; display:block; margin:12px 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">Gotya</div>
+        <a href="{{ url_for('profile') }}">Back to profile</a>
+    </header>
+
+    <main>
+        <section class="card">
+            <h1>Edit profile</h1>
+            <p class="muted">Update your information and photos. Your changes will appear on your profile.</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <div class="flash-message" role="status">{{ message }}</div>
+                {% endfor %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('profile') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="save_profile">
+
+                <label class="editor-field" for="edit_username">Username
+                    <input id="edit_username" name="username" type="text"
+                           minlength="3" maxlength="30" required
+                           value="{{ user.username }}" autocomplete="username">
+                </label>
+
+                <label class="editor-field" for="edit_email">Email address
+                    <input id="edit_email" name="email" type="email"
+                           maxlength="254" required
+                           value="{{ user.email }}" autocomplete="email">
+                </label>
+
+                <label class="editor-field" for="edit_bio">Bio
+                    <textarea id="edit_bio" name="bio" maxlength="500"
+                              placeholder="Tell your friends a little about yourself...">{{ user.bio or '' }}</textarea>
+                </label>
+
+                <div class="edit-actions">
+                    <button class="save-button" type="submit">Save profile</button>
+                    <a class="cancel-button" href="{{ url_for('profile') }}">Cancel</a>
+                </div>
+            </form>
+
+            <div class="editor-section">
+                <h2>Profile picture</h2>
+                {% if user.profile_picture %}
+                    <img class="current-photo"
+                         src="{{ url_for('profile_picture_file', filename=user.profile_picture) }}"
+                         alt="Current profile picture">
+                {% endif %}
+                <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="editor-field" for="profile_picture">Choose a new profile picture
+                        <input id="profile_picture" type="file" name="profile_picture"
+                               accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
+                               required>
+                    </label>
+                    <button type="submit">Upload profile picture</button>
+                </form>
+                <p class="muted">JPG, PNG, WEBP, or GIF ? maximum 5 MB.</p>
+            </div>
+
+            <div class="editor-section">
+                <h2>Cover photo</h2>
+                {% if user.cover_photo %}
+                    <img class="current-photo"
+                         src="{{ url_for('cover_photo_file', filename=user.cover_photo) }}"
+                         alt="Current cover photo">
+                {% endif %}
+                <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="cover_photo">
+                    <label class="editor-field" for="cover_photo">Choose a new cover photo
+                        <input id="cover_photo" type="file" name="cover_photo"
+                               accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif"
+                               required>
+                    </label>
+                    <button type="submit">Upload cover photo</button>
+                </form>
+                <p class="muted">JPG, PNG, WEBP, or GIF ? maximum 8 MB.</p>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,37 @@
+
+.env
+.venv/
+__pycache__/
+*.py[cod]
+instance/
+connecthub.db
+# Local secrets and virtual environment
+# Local database and database backups
+*.db
+*.sqlite
+*.sqlite3
+# User uploads and generated files
+uploads/
+# Local backups and editor temporary files
+*_backup_*.py
+*_before_*.py
+*_backup_*.html
+*_before_*.html
+*.bak
+*.tmp
+# Historical project backups - keep locally, never commit
+backup_before_*/
+mobile_design_backup_*/
+mobile_template_backup_*/
+*_backup_*.db
+*_before_*.db
+app_before_*.py
+app_before_*
+profile_before_*.html
+profile_before_*
+.gitignore_backup_*
+*.before_home_login
+
+# Additional temporary and historical backup files
+*.before_*
+*_before_*
