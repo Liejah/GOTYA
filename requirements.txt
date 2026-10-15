@@ -13,3 +13,5 @@ gunicorn==23.0.0
 psycopg[binary]>=3.2,<4
 
 supabase==2.32.0
+
+pywebpush>=2.0.0,<3.0.0

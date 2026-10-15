@@ -35,3 +35,5 @@ profile_before_*
 # Additional temporary and historical backup files
 *.before_*
 *_before_*
+
+.vapid_private_key

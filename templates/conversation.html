@@ -1357,6 +1357,135 @@ if ("serviceWorker" in navigator) {
 </script>
 
 
+<!-- GOTYA_BACKGROUND_PUSH_CONTROLS_BEGIN -->
+<style>
+  #gotyaEnablePushNotifications {
+    position: fixed;
+    right: 16px;
+    bottom: 18px;
+    z-index: 9990;
+    max-width: calc(100vw - 32px);
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 16px;
+    background: #1877f2;
+    color: #fff;
+    font: 600 14px system-ui, sans-serif;
+    box-shadow: 0 4px 14px rgba(0,0,0,.2);
+    cursor: pointer;
+  }
+  #gotyaPushStatus {
+    position: fixed;
+    right: 16px;
+    bottom: 72px;
+    z-index: 9990;
+    max-width: calc(100vw - 32px);
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: #fff;
+    color: #222;
+    box-shadow: 0 2px 10px rgba(0,0,0,.15);
+    font: 13px system-ui, sans-serif;
+    display: none;
+  }
+</style>
+<button id="gotyaEnablePushNotifications" type="button">
+  Enable background notifications
+</button>
+<div id="gotyaPushStatus" role="status" aria-live="polite"></div>
+<script>
+(() => {
+  "use strict";
+
+  const button = document.getElementById("gotyaEnablePushNotifications");
+  const status = document.getElementById("gotyaPushStatus");
+  const csrfToken =
+    document.querySelector('input[name="csrf_token"]')?.value || "";
+
+  function showStatus(message) {
+    status.textContent = message;
+    status.style.display = "block";
+  }
+
+  function decodeBase64Url(value) {
+    const padded = value.replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(padded + "=".repeat((4 - padded.length % 4) % 4));
+    return Uint8Array.from(binary, character => character.charCodeAt(0));
+  }
+
+  async function enablePush() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      showStatus("This browser does not support background push notifications.");
+      return;
+    }
+
+    if (!csrfToken) {
+      showStatus("Security token missing. Refresh this page and try again.");
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Enabling…";
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        showStatus("Notifications are blocked. Allow them in your browser settings.");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+
+      const keyResponse = await fetch("/push/vapid-public-key", {
+        credentials: "same-origin"
+      });
+      if (!keyResponse.ok) {
+        throw new Error("Could not load the push configuration.");
+      }
+
+      const keyData = await keyResponse.json();
+      if (!keyData.publicKey) {
+        throw new Error("Push notifications are not configured on the server.");
+      }
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeBase64Url(keyData.publicKey)
+        });
+      }
+
+      const response = await fetch("/push/subscribe", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken
+        },
+        body: JSON.stringify({ subscription: subscription.toJSON() })
+      });
+
+      if (!response.ok) {
+        throw new Error("The server could not save this device subscription.");
+      }
+
+      button.textContent = "Background notifications enabled";
+      showStatus("This device is subscribed to Gotya notifications.");
+    } catch (error) {
+      console.error("Gotya push subscription failed:", error);
+      button.textContent = "Enable background notifications";
+      showStatus(error.message || "Could not enable notifications. Please try again.");
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  button.addEventListener("click", enablePush);
+})();
+</script>
+<!-- GOTYA_BACKGROUND_PUSH_CONTROLS_END -->
 <!-- GOTYA_VIDEO_CALL_JS_BEGIN -->
 <script>
 (() => {
@@ -1856,12 +1985,3 @@ if ("serviceWorker" in navigator) {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-

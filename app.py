@@ -20,6 +20,8 @@ from flask_login import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from pywebpush import webpush, WebPushException
+from py_vapid import Vapid
 import uuid
 from sqlalchemy.exc import IntegrityError
 
@@ -67,6 +69,13 @@ def download_from_supabase(storage_path):
 
 
 app = Flask(__name__)
+
+# Web Push configuration. The private key must never be sent to the browser.
+app.config["VAPID_PUBLIC_KEY"] = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+app.config["VAPID_PRIVATE_KEY"] = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+app.config["VAPID_SUBJECT"] = os.environ.get(
+    "VAPID_SUBJECT", "mailto:admin@example.com"
+).strip()
 
 secret_key = os.environ.get("SECRET_KEY")
 if not secret_key:
@@ -247,6 +256,27 @@ class Message(db.Model):
 
 
 
+
+class PushSubscription(db.Model):
+    __tablename__ = "push_subscription"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    endpoint = db.Column(db.Text, nullable=False, unique=True)
+    p256dh = db.Column(db.String(255), nullable=False)
+    auth = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+
+    user = db.relationship("User")
 
 class VideoCall(db.Model):
     __tablename__ = "video_call"
@@ -769,6 +799,15 @@ def send_friend_request(user_id):
         if existing.status == "declined" and existing.requester_id == current_user.id:
             existing.status = "pending"
             db.session.commit()
+            try:
+                send_push_notification(
+                    target.id,
+                    f"New friend request from {current_user.username}",
+                    "You received a friend request.",
+                    url_for("friends"),
+                )
+            except Exception:
+                app.logger.exception("Could not send friend-request push notification.")
             flash("Friend request sent again.", "success")
         elif existing.status == "declined" and existing.recipient_id == current_user.id:
             existing.requester_id, existing.recipient_id = (
@@ -776,6 +815,15 @@ def send_friend_request(user_id):
             )
             existing.status = "pending"
             db.session.commit()
+            try:
+                send_push_notification(
+                    target.id,
+                    f"New friend request from {current_user.username}",
+                    "You received a friend request.",
+                    url_for("friends"),
+                )
+            except Exception:
+                app.logger.exception("Could not send friend-request push notification.")
             flash("Friend request sent.", "success")
         else:
             flash("A request or friendship already exists.", "error")
@@ -786,6 +834,15 @@ def send_friend_request(user_id):
             status="pending"
         ))
         db.session.commit()
+        try:
+            send_push_notification(
+                target.id,
+                f"New friend request from {current_user.username}",
+                "You received a friend request.",
+                url_for("friends"),
+            )
+        except Exception:
+            app.logger.exception("Could not send friend-request push notification.")
         flash("Friend request sent!", "success")
 
     return redirect(url_for("friends", q=request.form.get("q", "")))
@@ -1032,6 +1089,19 @@ def conversation(user_id):
                             ))
 
                     db.session.commit()
+                    try:
+                        message_preview = content.strip() if content.strip() else "Sent you an attachment."
+                        if len(message_preview) > 160:
+                            message_preview = message_preview[:157] + "..."
+
+                        send_push_notification(
+                            person.id,
+                            f"New message from {current_user.username}",
+                            message_preview,
+                            url_for("conversation", user_id=current_user.id),
+                        )
+                    except Exception:
+                        app.logger.exception("Could not send message push notification.")
                 except Exception:
                     db.session.rollback()
                     for saved_path in saved_paths:
@@ -1990,6 +2060,123 @@ def video_call_signals(call_id):
     return jsonify({"ok": True, "id": signal.id}), 201
 
 
+def send_push_notification(user_id, title, body, target_url="/"):
+    """Send best-effort Web Push notifications to a user's registered devices."""
+    if not (
+        app.config.get("VAPID_PUBLIC_KEY")
+        and app.config.get("VAPID_PRIVATE_KEY")
+        and app.config.get("VAPID_SUBJECT")
+    ):
+        app.logger.warning("Web Push is not fully configured.")
+        return
+
+    subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
+
+    for subscription in subscriptions:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": subscription.endpoint,
+                    "keys": {
+                        "p256dh": subscription.p256dh,
+                        "auth": subscription.auth,
+                    },
+                },
+                data=__import__("json").dumps({
+                    "title": str(title)[:120],
+                    "body": str(body)[:300],
+                    "url": target_url if (
+                        isinstance(target_url, str)
+                        and target_url.startswith("/")
+                        and not target_url.startswith("//")
+                    ) else "/",
+                }),
+                vapid_private_key=app.config["VAPID_PRIVATE_KEY"],
+                vapid_claims={
+                    "sub": app.config["VAPID_SUBJECT"],
+                },
+                ttl=60 * 60,
+            )
+        except WebPushException as exc:
+            status_code = getattr(
+                getattr(exc, "response", None), "status_code", None
+            )
+            if status_code in (404, 410):
+                try:
+                    db.session.delete(subscription)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                    app.logger.exception("Could not remove expired push subscription.")
+            else:
+                app.logger.warning(
+                    "Web Push delivery failed (HTTP %s).", status_code
+                )
+        except Exception:
+            app.logger.exception("Unexpected Web Push delivery failure.")
+
+@app.route("/push/vapid-public-key", methods=["GET"])
+@login_required
+def push_vapid_public_key():
+    public_key = app.config.get("VAPID_PUBLIC_KEY", "")
+    if not public_key:
+        return jsonify({"error": "Push notifications are not configured."}), 503
+    return jsonify({"publicKey": public_key})
+
+
+@app.route("/push/subscribe", methods=["POST"])
+@login_required
+def push_subscription_api():
+    data = request.get_json(silent=True) or {}
+    subscription = data.get("subscription") or {}
+    keys = subscription.get("keys") or {}
+    endpoint = subscription.get("endpoint")
+    p256dh = keys.get("p256dh")
+    auth = keys.get("auth")
+
+    if not all(isinstance(value, str) and value.strip() for value in
+               (endpoint, p256dh, auth)):
+        return jsonify({"error": "Invalid push subscription."}), 400
+
+    if not endpoint.startswith("https://") or len(endpoint) > 4096:
+        return jsonify({"error": "Invalid push endpoint."}), 400
+
+    if len(p256dh) > 255 or len(auth) > 255:
+        return jsonify({"error": "Invalid subscription keys."}), 400
+
+    existing = PushSubscription.query.filter_by(endpoint=endpoint).first()
+    if existing:
+        existing.user_id = current_user.id
+        existing.p256dh = p256dh
+        existing.auth = auth
+    else:
+        db.session.add(PushSubscription(
+            user_id=current_user.id,
+            endpoint=endpoint,
+            p256dh=p256dh,
+            auth=auth,
+        ))
+
+    db.session.commit()
+    return jsonify({"ok": True}), 201
+
+
+@app.route("/push/unsubscribe", methods=["POST"])
+@login_required
+def push_unsubscribe_api():
+    data = request.get_json(silent=True) or {}
+    endpoint = data.get("endpoint")
+
+    if not isinstance(endpoint, str) or not endpoint.startswith("https://"):
+        return jsonify({"error": "Invalid push endpoint."}), 400
+
+    PushSubscription.query.filter_by(
+        user_id=current_user.id,
+        endpoint=endpoint,
+    ).delete(synchronize_session=False)
+    db.session.commit()
+    return jsonify({"ok": True})
+
 @app.route("/sw.js")
 def gotya_service_worker():
     response = send_from_directory(
@@ -2080,5 +2267,3 @@ if __name__ == "__main__":
         else:
             print("Message delivery timestamp column already exists.")
     app.run(host="0.0.0.0", port=5000, debug=False)
-
-

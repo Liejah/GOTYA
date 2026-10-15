@@ -1,4 +1,4 @@
-const CACHE_NAME = "gotya-static-v1";
+﻿const CACHE_NAME = "gotya-static-v1";
 const STATIC_FILES = [
   "/static/mobile.css",
   "/static/gotya-icon.svg"
@@ -23,6 +23,42 @@ self.addEventListener("activate", event => {
   );
 });
 
+
+self.addEventListener("push", event => {
+  let payload = {};
+
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (_) {
+    payload = {
+      title: "Gotya",
+      body: event.data ? event.data.text() : "You have a new notification."
+    };
+  }
+
+  const title = typeof payload.title === "string" && payload.title
+    ? payload.title
+    : "Gotya";
+
+  const options = {
+    body: typeof payload.body === "string"
+      ? payload.body
+      : "You have a new notification.",
+    icon: "/static/gotya-icon.svg",
+    badge: "/static/gotya-icon.svg",
+    data: {
+      url: typeof payload.url === "string" &&
+           payload.url.startsWith("/") &&
+           !payload.url.startsWith("//")
+        ? payload.url
+        : "/"
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
 
 self.addEventListener("notificationclick", event => {
   event.notification.close();
