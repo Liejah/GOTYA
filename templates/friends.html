@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <link rel="manifest" href="/static/manifest.json">
@@ -38,7 +38,7 @@ h2{font-size:19px;margin:0 0 16px}
 .count{color:var(--muted);font-size:13px;font-weight:600;margin-left:5px}
 .person{display:flex;align-items:center;gap:13px;padding:13px 0;border-top:1px solid var(--line)}
 .person:first-of-type{border-top:0}
-.avatar{height:49px;width:49px;border-radius:50%;background:linear-gradient(135deg,#1877f2,#78b5ff);display:flex;align-items:center;justify-content:center;color:white;font-size:20px;font-weight:800;overflow:hidden;flex-shrink:0}
+.avatar{height:49px;width:49px;border-radius:50%;background:linear-gradient(135deg,#1877f2,#78b5ff);display:flex;align-items:center;justify-content:center;color:white;font-size:20px;font-weight:800;overflow:visible;position:relative;flex-shrink:0}
 .avatar img{width:100%;height:100%;object-fit:cover}
 .person-info{flex:1;min-width:0}
 .person-name{font-weight:800;overflow-wrap:anywhere}
@@ -50,6 +50,72 @@ h2{font-size:19px;margin:0 0 16px}
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:700px){.topbar{align-items:flex-start;flex-direction:column;padding:12px 15px}nav{width:100%}nav a{padding:9px 10px}.columns{grid-template-columns:1fr}main{margin:20px auto;padding:0 12px 35px}.searchbox,.panel{padding:16px;border-radius:15px}.person{align-items:flex-start}.actions{justify-content:flex-start}.actions button{padding:10px 11px}}
 @media(max-width:390px){.searchform{flex-direction:column}.searchform button{width:100%}.person{gap:9px}.avatar{width:43px;height:43px}.actions{width:100%}.actions button{flex:1}}
+
+/* Messenger-style online indicator */
+.avatar img{border-radius:50%}
+.active-dot[hidden]{display:none!important;}
+.active-dot{
+ display:block;
+ position:absolute;
+ right:0;
+ bottom:0;
+ width:13px;
+ height:13px;
+ border-radius:50%;
+ background:#1877f2;
+ border:2px solid #fff;
+ box-shadow:0 0 0 1px #ffffff55;
+ z-index:2;
+ pointer-events:none;
+}
+
+
+/* GOTYA NOTIFICATION WIDGET */
+.gotya-notification-widget{
+ position:fixed;right:20px;bottom:20px;z-index:1000;
+ font-family:Inter,"Segoe UI",Arial,sans-serif;
+}
+.gotya-notification-bell{
+ width:54px;height:54px;border-radius:50%;
+ box-shadow:0 5px 18px #17203330;font-size:21px;
+ display:flex;align-items:center;justify-content:center;
+ position:relative;
+}
+.gotya-notification-count{
+ position:absolute;right:-3px;top:-4px;
+ min-width:21px;height:21px;padding:0 5px;
+ border-radius:20px;background:#e53952;color:#fff;
+ border:2px solid #fff;font-size:11px;font-weight:800;
+ display:flex;align-items:center;justify-content:center;
+}
+.gotya-notification-panel{
+ position:absolute;right:0;bottom:65px;
+ width:min(360px,calc(100vw - 28px));max-height:65vh;
+ overflow:auto;background:#fff;border:1px solid #e5e9f0;
+ border-radius:17px;box-shadow:0 12px 38px #17203325;
+ color:#172033;
+}
+.gotya-notification-head{
+ padding:15px;border-bottom:1px solid #e5e9f0;
+ display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.gotya-notification-head strong{font-size:17px}
+.gotya-notification-enable{font-size:12px;padding:8px 10px}
+.gotya-notification-item{
+ display:block;padding:13px 15px;border-bottom:1px solid #edf0f5;
+ color:inherit;text-decoration:none;overflow-wrap:anywhere;
+}
+.gotya-notification-item:hover{background:#f4f8ff}
+.gotya-notification-item strong{display:block;font-size:14px;margin-bottom:4px}
+.gotya-notification-item span{display:block;color:#687386;font-size:13px;line-height:1.4}
+.gotya-notification-empty{padding:24px 15px;text-align:center;color:#687386;font-size:14px}
+.gotya-notification-status{padding:9px 15px;font-size:12px;color:#687386}
+@media(max-width:600px){
+ .gotya-notification-widget{right:14px;bottom:14px}
+ .gotya-notification-bell{width:50px;height:50px}
+ .gotya-notification-panel{bottom:60px;max-height:60vh}
+}
+
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
@@ -75,6 +141,28 @@ h2{font-size:19px;margin:0 0 16px}
   </nav>
  </div>
 </header>
+
+<div class="gotya-notification-widget" id="gotyaNotificationWidget">
+  <section class="gotya-notification-panel" id="gotyaNotificationPanel" hidden>
+    <div class="gotya-notification-head">
+      <strong>Notifications</strong>
+      <button type="button" class="secondary gotya-notification-enable"
+              id="gotyaNotificationEnable">Enable browser alerts</button>
+    </div>
+    <div id="gotyaNotificationList">
+      <div class="gotya-notification-empty">Loading notifications…</div>
+    </div>
+    <div class="gotya-notification-status" id="gotyaNotificationStatus"
+         role="status">Browser alerts are optional.</div>
+  </section>
+  <button type="button" class="gotya-notification-bell"
+          id="gotyaNotificationToggle" aria-label="Open notifications"
+          aria-expanded="false" aria-controls="gotyaNotificationPanel">
+    <span aria-hidden="true">♧</span>
+    <span class="gotya-notification-count" id="gotyaNotificationCount" hidden>0</span>
+  </button>
+</div>
+
 <main>
  <div class="heading"><h1>Your people. Your community.</h1><p>Find people, grow your circle, and stay connected.</p></div>
 
@@ -166,7 +254,7 @@ h2{font-size:19px;margin:0 0 16px}
   <h2>Your friends <span class="count">{{ friends|length }}</span></h2>
   {% for person in friends %}
   <div class="person">
-   <div class="avatar">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div>
+   <div class="avatar" data-user-id="{{ person.id }}">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}<span class="active-dot" hidden aria-label="Online"></span></div>
    <div class="person-info"><div class="person-name">{{ person.username }}</div><div class="person-sub">You're connected</div></div>
    <form method="post" action="{{ url_for('remove_friend', user_id=person.id) }}" onsubmit="return confirm('Remove this friend?')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -184,5 +272,325 @@ if ("serviceWorker" in navigator) {
     });
 }
 </script>
+
+<script id="gotya-global-presence">
+(() => {
+  if (window.__gotyaGlobalPresenceStarted) return;
+  window.__gotyaGlobalPresenceStarted = true;
+
+  const csrfToken = {{ csrf_token() | tojson }};
+  let stopped = false;
+  let running = false;
+
+  async function heartbeat() {
+    if (stopped || running) return;
+    running = true;
+
+    try {
+      const response = await fetch("/presence/heartbeat", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": csrfToken,
+          "Accept": "application/json"
+        }
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        console.warn("Gotya presence heartbeat was not accepted.");
+      }
+    } catch (error) {
+      console.warn("Gotya presence heartbeat failed:", error);
+    } finally {
+      running = false;
+    }
+  }
+
+  heartbeat();
+  const timer = setInterval(heartbeat, 15000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) heartbeat();
+  });
+
+  window.addEventListener("pagehide", () => {
+    stopped = true;
+    clearInterval(timer);
+  });
+})();
+</script>
+
+
+<script id="gotya-friend-active-dots">
+(() => {
+  if (window.__gotyaFriendActiveDotsStarted) return;
+  window.__gotyaFriendActiveDotsStarted = true;
+  let stopped = false;
+
+  async function updateDots() {
+    if (stopped) return;
+    const avatars = document.querySelectorAll(".avatar[data-user-id]");
+
+    await Promise.all(Array.from(avatars, async avatar => {
+      const id = avatar.dataset.userId;
+      if (!id) return;
+
+      try {
+        const response = await fetch(
+          `/users/${encodeURIComponent(id)}/presence`,
+          { credentials: "same-origin", cache: "no-store" }
+        );
+        let dot = avatar.querySelector(".active-dot");
+        if (!response.ok) {
+          if (dot) dot.hidden = true;
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!dot) {
+          dot = document.createElement("span");
+          dot.className = "active-dot";
+          dot.setAttribute("aria-label", "Online");
+          avatar.appendChild(dot);
+        }
+
+        dot.hidden = data.active !== true;
+        dot.title = data.active === true ? "Online" : "";
+      } catch (error) {
+        const dot = avatar.querySelector(".active-dot");
+        if (dot) dot.hidden = true;
+        console.warn("Gotya friend presence check failed:", error);
+      }
+    }));
+  }
+
+  updateDots();
+  const timer = setInterval(updateDots, 5000);
+  document.addEventListener("visibilitychange", updateDots);
+  window.addEventListener("pagehide", () => {
+    stopped = true;
+    clearInterval(timer);
+  });
+})();
+</script>
+
+
+<script id="gotya-notification-live">
+(() => {
+  const toggle = document.getElementById("gotyaNotificationToggle");
+  const panel = document.getElementById("gotyaNotificationPanel");
+  const list = document.getElementById("gotyaNotificationList");
+  const countBadge = document.getElementById("gotyaNotificationCount");
+  const enableButton = document.getElementById("gotyaNotificationEnable");
+  const status = document.getElementById("gotyaNotificationStatus");
+  if (!toggle || !panel || !list || !countBadge || !enableButton || !status) return;
+
+  const storageKey = "gotya-notification-seen-v1";
+  let initialized = false;
+  let previousKeys = new Set();
+  let polling = false;
+
+  function readSeen() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      return new Set(Array.isArray(parsed) ? parsed : []);
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  function saveSeen(keys) {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify([...keys].slice(-300)));
+    } catch (_) {}
+  }
+
+  function addItem(container, title, detail, href, key, kind) {
+    const a = document.createElement("a");
+    a.className = "gotya-notification-item";
+    a.href = href;
+    a.dataset.notificationKey = key;
+
+    const strong = document.createElement("strong");
+    strong.textContent = title;
+    const span = document.createElement("span");
+    span.textContent = detail || "";
+    a.append(strong, span);
+    container.appendChild(a);
+  }
+
+  function makeNotifications(data) {
+    const items = [];
+    (data.unread_messages || []).forEach(message => {
+      items.push({
+        key: "message:" + message.id,
+        title: "Message from " + (message.sender_name || "a friend"),
+        detail: message.preview || "You received a message.",
+        href: "/messages/" + encodeURIComponent(message.sender_id),
+        kind: "message"
+      });
+    });
+    (data.pending_friend_requests || []).forEach(request => {
+      items.push({
+        key: "friend:" + request.id,
+        title: "Friend request",
+        detail: (request.sender_name || "Someone") + " wants to connect with you.",
+        href: "/friends",
+        kind: "friend"
+      });
+    });
+    if (data.incoming_call) {
+      const call = data.incoming_call;
+      items.push({
+        key: "call:" + call.id,
+        title: "Incoming video call",
+        detail: (call.caller_name || "A friend") + " is calling you.",
+        href: "/messages/" + encodeURIComponent(call.caller_id),
+        kind: "call"
+      });
+    }
+    return items;
+  }
+
+  function browserAlert(item) {
+    if (!document.hidden || !("Notification" in window) ||
+        Notification.permission !== "granted") return;
+
+    const options = {
+      body: item.detail,
+      icon: "/static/gotya-icon.svg",
+      tag: item.key,
+      data: { url: item.href }
+    };
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then(registration => registration.showNotification(item.title, options))
+        .catch(() => {});
+    } else {
+      try {
+        const notification = new Notification(item.title, options);
+        notification.onclick = () => {
+          window.focus();
+          window.location.href = item.href;
+        };
+      } catch (_) {}
+    }
+  }
+
+  function updatePermissionText() {
+    if (!("Notification" in window)) {
+      status.textContent = "Browser notifications are not supported here.";
+      enableButton.disabled = true;
+      return;
+    }
+    if (Notification.permission === "granted") {
+      status.textContent = "Browser alerts are enabled.";
+      enableButton.textContent = "Alerts enabled";
+      enableButton.disabled = true;
+    } else if (Notification.permission === "denied") {
+      status.textContent = "Alerts are blocked by browser settings. Allow them in site settings to enable.";
+    } else {
+      status.textContent = "Browser alerts are optional. Click Enable browser alerts to allow them.";
+    }
+  }
+
+  toggle.addEventListener("click", () => {
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    toggle.setAttribute("aria-expanded", String(opening));
+    if (opening) poll();
+  });
+
+  enableButton.addEventListener("click", async () => {
+    if (!("Notification" in window)) {
+      updatePermissionText();
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      updatePermissionText();
+      if (permission === "granted") {
+        status.textContent = "Browser alerts enabled. Keep this browser running to receive background-tab alerts.";
+      }
+    } catch (_) {
+      status.textContent = "Could not request permission. Check your browser's site settings.";
+    }
+  });
+
+  list.addEventListener("click", event => {
+    const link = event.target.closest("a[data-notification-key]");
+    if (!link) return;
+    const seen = readSeen();
+    seen.add(link.dataset.notificationKey);
+    saveSeen(seen);
+  });
+
+  async function poll() {
+    if (polling || !document.visibilityState) return;
+    polling = true;
+    try {
+      const response = await fetch("/notifications/updates", {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error("Notification request failed");
+      const data = await response.json();
+      const items = makeNotifications(data);
+
+      const total = Math.max(0, Number(data.unread_count) || 0) +
+        (data.pending_friend_requests || []).length +
+        (data.incoming_call ? 1 : 0);
+      countBadge.textContent = total > 99 ? "99+" : String(total);
+      countBadge.hidden = total === 0;
+      toggle.setAttribute("aria-label", total ? "Open notifications, " + total + " unread" : "Open notifications");
+
+      list.replaceChildren();
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "gotya-notification-empty";
+        empty.textContent = "You're all caught up.";
+        list.appendChild(empty);
+      } else {
+        items.forEach(item => addItem(list, item.title, item.detail, item.href, item.key, item.kind));
+      }
+
+      const currentKeys = new Set(items.map(item => item.key));
+      if (initialized) {
+        const seen = readSeen();
+        items.forEach(item => {
+          if (!previousKeys.has(item.key) && !seen.has(item.key)) {
+            browserAlert(item);
+          }
+        });
+      } else {
+        initialized = true;
+      }
+      previousKeys = currentKeys;
+      updatePermissionText();
+    } catch (error) {
+      status.textContent = "Couldn't refresh notifications. Check your connection and try again.";
+    } finally {
+      polling = false;
+    }
+  }
+
+  updatePermissionText();
+  poll();
+  window.setInterval(poll, 10000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) poll();
+  });
+})();
+</script>
+
 </body>
 </html>
+
+
+
+
+

@@ -708,6 +708,54 @@ if ("serviceWorker" in navigator) {
     });
 }
 </script>
+
+<script id="gotya-global-presence">
+(() => {
+  if (window.__gotyaGlobalPresenceStarted) return;
+  window.__gotyaGlobalPresenceStarted = true;
+
+  const csrfToken = {{ csrf_token() | tojson }};
+  let stopped = false;
+  let running = false;
+
+  async function heartbeat() {
+    if (stopped || running) return;
+    running = true;
+
+    try {
+      const response = await fetch("/presence/heartbeat", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": csrfToken,
+          "Accept": "application/json"
+        }
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        console.warn("Gotya presence heartbeat was not accepted.");
+      }
+    } catch (error) {
+      console.warn("Gotya presence heartbeat failed:", error);
+    } finally {
+      running = false;
+    }
+  }
+
+  heartbeat();
+  const timer = setInterval(heartbeat, 15000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) heartbeat();
+  });
+
+  window.addEventListener("pagehide", () => {
+    stopped = true;
+    clearInterval(timer);
+  });
+})();
+</script>
+
 </body>
 </html>
 

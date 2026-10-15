@@ -1,10 +1,13 @@
-
+﻿
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+from io import BytesIO
+import mimetypes
+from supabase import create_client
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from flask_login import (
@@ -27,6 +30,42 @@ COVER_PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_PICTURE_DIR.mkdir(parents=True, exist_ok=True)
 load_dotenv(BASE_DIR / ".env")
 
+# --------------------------------------------------------
+# SUPABASE PRIVATE FILE STORAGE
+# --------------------------------------------------------
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SECRET_KEY = os.environ.get("SUPABASE_SECRET_KEY")
+SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "gotya-uploads")
+
+supabase_storage = None
+
+if SUPABASE_URL and SUPABASE_SECRET_KEY:
+    supabase_storage = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
+
+
+def upload_to_supabase(storage_path, file_bytes, content_type):
+    """Upload a file to the private Supabase bucket."""
+    if supabase_storage is None:
+        raise RuntimeError("Supabase storage is not configured.")
+
+    return supabase_storage.storage.from_(SUPABASE_BUCKET).upload(
+        storage_path,
+        file_bytes,
+        {"content-type": content_type, "upsert": "true"}
+    )
+
+
+def download_from_supabase(storage_path):
+    """Download a file from the private Supabase bucket."""
+    if supabase_storage is None:
+        raise RuntimeError("Supabase storage is not configured.")
+
+    return supabase_storage.storage.from_(SUPABASE_BUCKET).download(
+        storage_path
+    )
+
+
 app = Flask(__name__)
 
 secret_key = os.environ.get("SECRET_KEY")
@@ -34,9 +73,22 @@ if not secret_key:
     raise RuntimeError("SECRET_KEY is missing. Check your .env file.")
 
 app.config["SECRET_KEY"] = secret_key
-app.config["SQLALCHEMY_DATABASE_URI"] = (
-    "sqlite:///" + (BASE_DIR / "connecthub.db").as_posix()
-)
+database_url = os.environ.get("DATABASE_URL")
+
+if database_url:
+    if database_url.startswith("postgres://"):
+        database_url = database_url.replace(
+            "postgres://", "postgresql+psycopg://", 1
+        )
+    elif database_url.startswith("postgresql://"):
+        database_url = database_url.replace(
+            "postgresql://", "postgresql+psycopg://", 1
+        )
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        "sqlite:///" + (BASE_DIR / "connecthub.db").as_posix()
+    )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Protect session cookies.
@@ -59,6 +111,7 @@ class User(UserMixin, db.Model):
     profile_picture = db.Column(db.String(255), nullable=True)
     bio = db.Column(db.String(500), nullable=True)
     cover_photo = db.Column(db.String(255), nullable=True)
+    last_seen = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -176,6 +229,11 @@ class Message(db.Model):
         db.DateTime, nullable=False, default=db.func.current_timestamp()
     )
     read_at = db.Column(db.DateTime, nullable=True)
+    delivered_at = db.Column(db.DateTime, nullable=True)
+    attachment_filename = db.Column(db.String(255), nullable=True)
+    attachment_original_name = db.Column(db.String(255), nullable=True)
+    attachment_mimetype = db.Column(db.String(120), nullable=True)
+    attachment_size = db.Column(db.Integer, nullable=True)
 
     sender = db.relationship("User", foreign_keys=[sender_id])
     recipient = db.relationship("User", foreign_keys=[recipient_id])
@@ -188,6 +246,121 @@ class Message(db.Model):
     )
 
 
+
+
+class VideoCall(db.Model):
+    __tablename__ = "video_call"
+
+    id = db.Column(db.String(36), primary_key=True)
+    caller_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    recipient_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    status = db.Column(
+        db.String(20), nullable=False, default="ringing", index=True
+    )
+    offer_sdp = db.Column(db.Text, nullable=True)
+    answer_sdp = db.Column(db.Text, nullable=True)
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow
+    )
+    ended_by = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=True
+    )
+
+    caller = db.relationship("User", foreign_keys=[caller_id])
+    recipient = db.relationship("User", foreign_keys=[recipient_id])
+    ender = db.relationship("User", foreign_keys=[ended_by])
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "caller_id != recipient_id",
+            name="ck_video_call_not_self"
+        ),
+        db.CheckConstraint(
+            "status IN ('ringing', 'accepted', 'declined', 'ended', 'missed')",
+            name="ck_video_call_status"
+        ),
+    )
+
+
+class VideoCallSignal(db.Model):
+    __tablename__ = "video_call_signal"
+
+    id = db.Column(db.Integer, primary_key=True)
+    call_id = db.Column(
+        db.String(36),
+        db.ForeignKey("video_call.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    sender_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    kind = db.Column(db.String(20), nullable=False)
+    payload = db.Column(db.Text, nullable=False)
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    call = db.relationship("VideoCall", backref="signals")
+    sender = db.relationship("User", foreign_keys=[sender_id])
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "kind IN ('ice-candidate')",
+            name="ck_video_call_signal_kind"
+        ),
+    )
+
+
+class LiveLocationShare(db.Model):
+    __tablename__ = "live_location_share"
+
+    id = db.Column(db.Integer, primary_key=True)
+    sharer_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    recipient_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    duration_hours = db.Column(db.Integer, nullable=True)
+    started_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow
+    )
+    expires_at = db.Column(db.DateTime, nullable=True, index=True)
+    stopped_at = db.Column(db.DateTime, nullable=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=True)
+
+    sharer = db.relationship("User", foreign_keys=[sharer_id])
+    recipient = db.relationship("User", foreign_keys=[recipient_id])
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "sharer_id != recipient_id",
+            name="ck_live_location_not_self"
+        ),
+        db.CheckConstraint(
+            "duration_hours IS NULL OR duration_hours IN (1, 8, 24)",
+            name="ck_live_location_duration"
+        ),
+        db.CheckConstraint(
+            "latitude IS NULL OR (latitude >= -90 AND latitude <= 90)",
+            name="ck_live_location_latitude"
+        ),
+        db.CheckConstraint(
+            "longitude IS NULL OR (longitude >= -180 AND longitude <= 180)",
+            name="ck_live_location_longitude"
+        ),
+    )
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -195,6 +368,8 @@ def load_user(user_id):
 
 @app.route("/")
 def home():
+    if current_user.is_authenticated:
+        return redirect(url_for("messages"))
     return redirect(url_for("login"))
 
 
@@ -206,7 +381,7 @@ def health():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
-        return redirect(url_for("profile"))
+        return redirect(url_for("messages"))
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -241,7 +416,7 @@ def register():
                 db.session.commit()
                 login_user(user)
                 flash("Your ConnectHub account has been created!", "success")
-                return redirect(url_for("profile"))
+                return redirect(url_for("messages"))
             except IntegrityError:
                 db.session.rollback()
                 existing_username = User.query.filter(
@@ -267,7 +442,7 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for("profile"))
+        return redirect(url_for("messages"))
 
     if request.method == "POST":
         identity = request.form.get("identity", "").strip()
@@ -282,7 +457,7 @@ def login():
 
         if user and user.check_password(password):
             login_user(user)
-            return redirect(url_for("profile"))
+            return redirect(url_for("messages"))
 
         flash("Invalid username/email or password.", "error")
 
@@ -379,7 +554,17 @@ def profile():
             destination = COVER_PHOTO_DIR / filename
 
             try:
-                cover_file.save(destination)
+                cover_file.stream.seek(0)
+                file_bytes = cover_file.read()
+                content_type = cover_file.mimetype or "application/octet-stream"
+
+                upload_to_supabase(
+                    "cover_photos/" + filename,
+                    file_bytes,
+                    content_type
+                )
+                destination.write_bytes(file_bytes)
+
                 current_user.cover_photo = filename
                 db.session.commit()
                 flash("Cover photo updated successfully!", "success")
@@ -417,7 +602,17 @@ def profile():
         destination = PROFILE_PICTURE_DIR / filename
 
         try:
-            uploaded_file.save(destination)
+            uploaded_file.stream.seek(0)
+            file_bytes = uploaded_file.read()
+            content_type = uploaded_file.mimetype or "application/octet-stream"
+
+            upload_to_supabase(
+                "profile_pictures/" + filename,
+                file_bytes,
+                content_type
+            )
+            destination.write_bytes(file_bytes)
+
             current_user.profile_picture = filename
             db.session.commit()
         except Exception:
@@ -458,13 +653,31 @@ def profile():
 @app.route("/profile-pictures/<path:filename>")
 @login_required
 def profile_picture_file(filename):
-    return send_from_directory(PROFILE_PICTURE_DIR, filename)
+    try:
+        file_bytes = download_from_supabase("profile_pictures/" + filename)
+        return send_file(
+            BytesIO(file_bytes),
+            mimetype=mimetypes.guess_type(filename)[0] or "application/octet-stream",
+            download_name=filename
+        )
+    except Exception:
+        app.logger.exception("Supabase profile-picture retrieval failed")
+        return send_from_directory(PROFILE_PICTURE_DIR, filename)
 
 
 @app.route("/cover-photos/<path:filename>")
 @login_required
 def cover_photo_file(filename):
-    return send_from_directory(COVER_PHOTO_DIR, filename)
+    try:
+        file_bytes = download_from_supabase("cover_photos/" + filename)
+        return send_file(
+            BytesIO(file_bytes),
+            mimetype=mimetypes.guess_type(filename)[0] or "application/octet-stream",
+            download_name=filename
+        )
+    except Exception:
+        app.logger.exception("Supabase cover-photo retrieval failed")
+        return send_from_directory(COVER_PHOTO_DIR, filename)
 
 
 @app.route("/friends", methods=["GET"])
@@ -723,22 +936,117 @@ def conversation(user_id):
 
     if request.method == "POST":
         content = request.form.get("content", "").strip()
+        photo_uploads = [
+            item for item in request.files.getlist("photos")
+            if item and item.filename
+        ]
+        single_upload = request.files.get("attachment")
+        has_single_upload = bool(single_upload and single_upload.filename)
 
-        if not content:
-            flash("Write a message before sending.", "error")
+        allowed_extensions = {
+            "jpg", "jpeg", "png", "gif", "webp",
+            "pdf", "txt", "csv", "doc", "docx",
+            "xls", "xlsx", "ppt", "pptx", "zip"
+        }
+        image_extensions = {"jpg", "jpeg", "png", "gif", "webp"}
+
+        uploads = photo_uploads[:]
+        if has_single_upload:
+            uploads.append(single_upload)
+
+        if len(photo_uploads) > 30:
+            flash("You can send up to 30 pictures at once.", "error")
+        elif photo_uploads and has_single_upload:
+            flash("Send pictures or a document in separate messages.", "error")
+        elif not content and not uploads:
+            flash("Write a message or choose a picture or file.", "error")
         elif len(content) > 2000:
             flash("Messages cannot exceed 2000 characters.", "error")
         else:
-            message = Message(
-                sender_id=current_user.id,
-                recipient_id=person.id,
-                content=content
-            )
-            db.session.add(message)
-            db.session.commit()
-            return redirect(
-                url_for("conversation", user_id=person.id) + "#latest"
-            )
+            prepared = []
+            error = None
+
+            for upload in uploads:
+                original_name = secure_filename(upload.filename or "")
+                if not original_name or "." not in original_name:
+                    error = "Please choose a valid filename."
+                    break
+
+                extension = original_name.rsplit(".", 1)[1].lower()
+                allowed = image_extensions if upload in photo_uploads else allowed_extensions
+                if extension not in allowed:
+                    error = "That file type is not allowed."
+                    break
+
+                upload.stream.seek(0, os.SEEK_END)
+                file_size = upload.stream.tell()
+                upload.stream.seek(0)
+                if file_size > 15 * 1024 * 1024:
+                    error = "Each file must be 15 MB or smaller."
+                    break
+
+                prepared.append((upload, original_name, extension, file_size))
+
+            if error:
+                flash(error, "error")
+            else:
+                attachment_dir = BASE_DIR / "uploads" / "message_attachments"
+                attachment_dir.mkdir(parents=True, exist_ok=True)
+                saved_paths = []
+                remote_paths = []
+
+                try:
+                    if not prepared:
+                        db.session.add(Message(
+                            sender_id=current_user.id,
+                            recipient_id=person.id,
+                            content=content
+                        ))
+                    else:
+                        for index, (upload, original_name, extension, file_size) in enumerate(prepared):
+                            stored_name = uuid.uuid4().hex + "." + extension
+                            saved_path = attachment_dir / stored_name
+                            remote_path = "message_attachments/" + stored_name
+
+                            upload.stream.seek(0)
+                            file_bytes = upload.read()
+                            content_type = (
+                                "image/" + ("jpeg" if extension in {"jpg", "jpeg"} else extension)
+                                if extension in image_extensions
+                                else (upload.mimetype or "application/octet-stream")
+                            )
+
+                            upload_to_supabase(remote_path, file_bytes, content_type)
+                            remote_paths.append(remote_path)
+                            saved_path.write_bytes(file_bytes)
+                            saved_paths.append(saved_path)
+
+                            db.session.add(Message(
+                                sender_id=current_user.id,
+                                recipient_id=person.id,
+                                content=content if index == 0 else "",
+                                attachment_filename=stored_name,
+                                attachment_original_name=original_name,
+                                attachment_mimetype=content_type,
+                                attachment_size=file_size
+                            ))
+
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                    for saved_path in saved_paths:
+                        if saved_path.exists():
+                            saved_path.unlink()
+                    if remote_paths and supabase_storage is not None:
+                        try:
+                            supabase_storage.storage.from_(SUPABASE_BUCKET).remove(remote_paths)
+                        except Exception:
+                            app.logger.exception("Supabase attachment cleanup failed")
+                    raise
+
+                return redirect(
+                    url_for("conversation", user_id=person.id) + "#latest"
+                )
 
     unread = Message.query.filter_by(
         sender_id=person.id,
@@ -768,6 +1076,499 @@ def conversation(user_id):
     return render_template(
         "conversation.html", person=person, history=history
     )
+
+
+
+
+
+# Temporary typing signals for the single-process local development server.
+_chat_typing = {}
+
+
+def _chat_friendship_exists(first_id, second_id):
+    return Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            db.and_(
+                Friendship.requester_id == first_id,
+                Friendship.recipient_id == second_id
+            ),
+            db.and_(
+                Friendship.requester_id == second_id,
+                Friendship.recipient_id == first_id
+            )
+        )
+    ).first() is not None
+
+
+@app.route("/messages/<int:user_id>/updates", methods=["GET"])
+@login_required
+def conversation_updates(user_id):
+    person = db.session.get(User, user_id)
+    if (
+        person is None
+        or person.id == current_user.id
+        or not _chat_friendship_exists(current_user.id, user_id)
+    ):
+        return jsonify({"error": "Conversation unavailable."}), 403
+
+    try:
+        after_id = max(0, int(request.args.get("after_id", "0")))
+    except (TypeError, ValueError):
+        after_id = 0
+
+    now = datetime.utcnow()
+
+    # Acknowledging a message here means this recipient's open chat
+    # has received it. Since this endpoint is polled by the open chat,
+    # incoming messages are also marked read.
+    incoming_unacknowledged = Message.query.filter(
+        Message.sender_id == person.id,
+        Message.recipient_id == current_user.id,
+        db.or_(
+            Message.delivered_at.is_(None),
+            Message.read_at.is_(None)
+        )
+    ).all()
+
+    for item in incoming_unacknowledged:
+        if item.delivered_at is None:
+            item.delivered_at = now
+        if item.read_at is None:
+            item.read_at = now
+
+    if incoming_unacknowledged:
+        db.session.commit()
+
+    conversation_filter = db.or_(
+        db.and_(
+            Message.sender_id == current_user.id,
+            Message.recipient_id == person.id
+        ),
+        db.and_(
+            Message.sender_id == person.id,
+            Message.recipient_id == current_user.id
+        )
+    )
+
+    new_messages = Message.query.filter(
+        conversation_filter,
+        Message.id > after_id
+    ).order_by(Message.id.asc()).limit(100).all()
+
+    outgoing = Message.query.filter_by(
+        sender_id=current_user.id,
+        recipient_id=person.id
+    ).order_by(Message.id.desc()).limit(100).all()
+
+    def message_data(item):
+        return {
+            "id": item.id,
+            "sender_id": item.sender_id,
+            "content": item.content or "",
+            "created_at": item.created_at.strftime("%b %d · %I:%M %p"),
+            "created_at_iso": item.created_at.isoformat(),
+            "attachment_url": (
+                url_for("message_attachment_file", message_id=item.id)
+                if item.attachment_filename else None
+            ),
+            "attachment_name": item.attachment_original_name,
+            "attachment_mimetype": item.attachment_mimetype,
+            "attachment_size": item.attachment_size,
+            "delivered_at": (
+                item.delivered_at.strftime("%b %d · %I:%M %p")
+                if item.delivered_at else None
+            ),
+            "read_at": (
+                item.read_at.strftime("%b %d · %I:%M %p")
+                if item.read_at else None
+            )
+        }
+
+    typing_key = (person.id, current_user.id)
+    typing_entry = _chat_typing.get(typing_key)
+    is_typing = False
+
+    if typing_entry:
+        age = (now - typing_entry).total_seconds()
+        is_typing = 0 <= age < 6
+        if not is_typing:
+            _chat_typing.pop(typing_key, None)
+
+    return jsonify({
+        "messages": [message_data(item) for item in new_messages],
+        "receipts": [message_data(item) for item in outgoing],
+        "typing": is_typing
+    })
+
+
+@app.route("/messages/inbox-updates", methods=["GET"])
+@login_required
+def inbox_updates():
+    accepted = Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            Friendship.requester_id == current_user.id,
+            Friendship.recipient_id == current_user.id
+        )
+    ).all()
+
+    friend_ids = {
+        item.recipient_id if item.requester_id == current_user.id
+        else item.requester_id
+        for item in accepted
+    }
+
+    friends = User.query.filter(
+        User.id.in_(friend_ids)
+    ).all() if friend_ids else []
+
+    conversations = []
+
+    for person in friends:
+        latest = Message.query.filter(
+            db.or_(
+                db.and_(
+                    Message.sender_id == current_user.id,
+                    Message.recipient_id == person.id
+                ),
+                db.and_(
+                    Message.sender_id == person.id,
+                    Message.recipient_id == current_user.id
+                )
+            )
+        ).order_by(
+            Message.created_at.desc(), Message.id.desc()
+        ).first()
+
+        unread = Message.query.filter_by(
+            sender_id=person.id,
+            recipient_id=current_user.id,
+            read_at=None
+        ).count()
+
+        if latest:
+            preview = latest.content or ""
+            if not preview and latest.attachment_filename:
+                preview = "Sent an attachment"
+            if latest.sender_id == current_user.id:
+                preview = "You: " + preview
+        else:
+            preview = "You're friends — say hello!"
+
+        conversations.append({
+            "user_id": person.id,
+            "username": person.username,
+            "profile_picture": (
+                url_for(
+                    "profile_picture_file",
+                    filename=person.profile_picture
+                ) if person.profile_picture else None
+            ),
+            "preview": preview,
+            "unread": unread,
+            "latest_id": latest.id if latest else 0,
+            "latest_at": (
+                latest.created_at.isoformat() if latest else ""
+            )
+        })
+
+    conversations.sort(
+        key=lambda item: (item["latest_at"], item["latest_id"]),
+        reverse=True
+    )
+
+    # Acknowledge delivery for messages received by the active inbox.
+    pending_delivery = Message.query.filter(
+        Message.recipient_id == current_user.id,
+        Message.delivered_at.is_(None)
+    ).all()
+
+    if pending_delivery:
+        delivered_time = datetime.utcnow()
+        for message in pending_delivery:
+            message.delivered_at = delivered_time
+        db.session.commit()
+
+    unread_count = Message.query.filter_by(
+        recipient_id=current_user.id,
+        read_at=None
+    ).count()
+
+    return jsonify({
+        "conversations": conversations,
+        "unread_count": unread_count
+    })
+
+
+@app.route("/messages/<int:user_id>/typing", methods=["POST"])
+@login_required
+def conversation_typing(user_id):
+    person = db.session.get(User, user_id)
+    if (
+        person is None
+        or person.id == current_user.id
+        or not _chat_friendship_exists(current_user.id, user_id)
+    ):
+        return jsonify({"error": "Conversation unavailable."}), 403
+
+    payload = request.get_json(silent=True) or {}
+    key = (current_user.id, person.id)
+
+    if payload.get("typing") is True:
+        _chat_typing[key] = datetime.utcnow()
+    else:
+        _chat_typing.pop(key, None)
+
+    return jsonify({"ok": True})
+
+@app.route("/presence/heartbeat", methods=["POST"])
+@login_required
+def presence_heartbeat():
+    current_user.last_seen = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/users/<int:user_id>/presence", methods=["GET"])
+@login_required
+def user_presence(user_id):
+    person = db.session.get(User, user_id)
+
+    if (
+        person is None
+        or person.id == current_user.id
+        or not _chat_friendship_exists(current_user.id, person.id)
+    ):
+        return jsonify({"error": "Presence unavailable."}), 403
+
+    now = datetime.utcnow()
+    last_seen = person.last_seen
+    seconds_ago = (
+        max(0, int((now - last_seen).total_seconds()))
+        if last_seen else None
+    )
+    active = seconds_ago is not None and seconds_ago < 300
+
+    offline_since = (
+        (last_seen + timedelta(seconds=300)).isoformat() + "Z"
+        if last_seen else None
+    )
+
+    return jsonify({
+        "active": active,
+        "last_seen_seconds": seconds_ago,
+        "offline_since": offline_since
+    })
+
+
+def _location_friends(first_id, second_id):
+    if first_id == second_id:
+        return False
+
+    return Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            db.and_(
+                Friendship.requester_id == first_id,
+                Friendship.recipient_id == second_id
+            ),
+            db.and_(
+                Friendship.requester_id == second_id,
+                Friendship.recipient_id == first_id
+            )
+        )
+    ).first() is not None
+
+
+def _location_is_active(share, now=None):
+    now = now or datetime.utcnow()
+    return (
+        share.stopped_at is None
+        and (share.expires_at is None or share.expires_at > now)
+    )
+
+
+@app.route("/messages/<int:user_id>/location/start", methods=["POST"])
+@login_required
+def start_location_share(user_id):
+    person = db.session.get(User, user_id)
+    if person is None or not _location_friends(current_user.id, user_id):
+        return jsonify(error="Location sharing is only available between accepted friends."), 403
+
+    data = request.get_json(silent=True) or {}
+    duration = data.get("duration_hours")
+
+    if duration in ("unlimited", None):
+        duration_hours = None
+    else:
+        try:
+            duration_hours = int(duration)
+        except (TypeError, ValueError):
+            return jsonify(error="Choose a valid sharing duration."), 400
+
+        if duration_hours not in (1, 8, 24):
+            return jsonify(error="Duration must be 1, 8, 24 hours, or unlimited."), 400
+
+    now = datetime.utcnow()
+
+    # End any previous active share from this sender to this recipient.
+    previous = LiveLocationShare.query.filter_by(
+        sharer_id=current_user.id,
+        recipient_id=person.id,
+        stopped_at=None
+    ).all()
+
+    for old_share in previous:
+        old_share.stopped_at = now
+
+    share = LiveLocationShare(
+        sharer_id=current_user.id,
+        recipient_id=person.id,
+        duration_hours=duration_hours,
+        started_at=now,
+        expires_at=(
+            None if duration_hours is None
+            else now + __import__("datetime").timedelta(hours=duration_hours)
+        )
+    )
+    db.session.add(share)
+    db.session.commit()
+
+    return jsonify(
+        ok=True,
+        share_id=share.id,
+        expires_at=share.expires_at.isoformat() if share.expires_at else None
+    )
+
+
+@app.route("/location-shares/<int:share_id>/update", methods=["POST"])
+@login_required
+def update_shared_location(share_id):
+    share = db.session.get(LiveLocationShare, share_id)
+
+    if (
+        share is None
+        or share.sharer_id != current_user.id
+        or not _location_is_active(share)
+        or not _location_friends(share.sharer_id, share.recipient_id)
+    ):
+        return jsonify(error="This location share is no longer active."), 403
+
+    data = request.get_json(silent=True) or {}
+    try:
+        latitude = float(data.get("latitude"))
+        longitude = float(data.get("longitude"))
+    except (TypeError, ValueError):
+        return jsonify(error="Valid coordinates are required."), 400
+
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return jsonify(error="Coordinates are outside the valid range."), 400
+
+    share.latitude = latitude
+    share.longitude = longitude
+    share.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify(ok=True)
+
+
+@app.route("/location-shares/<int:share_id>/stop", methods=["POST"])
+@login_required
+def stop_location_share(share_id):
+    share = db.session.get(LiveLocationShare, share_id)
+
+    if share is None or share.sharer_id != current_user.id:
+        return jsonify(error="You cannot stop someone else's location share."), 403
+
+    if share.stopped_at is None:
+        share.stopped_at = datetime.utcnow()
+        db.session.commit()
+
+    return jsonify(ok=True)
+
+
+@app.route("/messages/<int:user_id>/location/status")
+@login_required
+def location_share_status(user_id):
+    person = db.session.get(User, user_id)
+    if person is None or person.id == current_user.id:
+        return jsonify(error="Friend not found."), 404
+
+    if not _location_friends(current_user.id, person.id):
+        return jsonify(error="Location sharing is only available between accepted friends."), 403
+
+    now = datetime.utcnow()
+    outgoing = LiveLocationShare.query.filter_by(
+        sharer_id=current_user.id,
+        recipient_id=user_id,
+        stopped_at=None
+    ).order_by(LiveLocationShare.id.desc()).first()
+
+    incoming = LiveLocationShare.query.filter_by(
+        sharer_id=user_id,
+        recipient_id=current_user.id,
+        stopped_at=None
+    ).order_by(LiveLocationShare.id.desc()).first()
+
+    def public_share(share, is_mine):
+        if share is None or not _location_is_active(share, now):
+            return None
+
+        result = {
+            "id": share.id,
+            "mine": is_mine,
+            "expires_at": share.expires_at.isoformat() if share.expires_at else None,
+            "updated_at": share.updated_at.isoformat() if share.updated_at else None,
+            "has_location": share.latitude is not None and share.longitude is not None
+        }
+        if result["has_location"]:
+            result["latitude"] = share.latitude
+            result["longitude"] = share.longitude
+        return result
+
+    return jsonify(
+        outgoing=public_share(outgoing, True),
+        incoming=public_share(incoming, False)
+    )
+
+
+@app.route("/message-attachments/<int:message_id>")
+@login_required
+def message_attachment_file(message_id):
+    message = db.session.get(Message, message_id)
+    if message is None or not message.attachment_filename:
+        flash("Attachment not found.", "error")
+        return redirect(url_for("messages"))
+
+    if current_user.id not in (message.sender_id, message.recipient_id):
+        flash("You cannot access that attachment.", "error")
+        return redirect(url_for("messages"))
+
+    attachment_dir = BASE_DIR / "uploads" / "message_attachments"
+    is_image = (message.attachment_mimetype or "").startswith("image/")
+
+    try:
+        file_bytes = download_from_supabase(
+            "message_attachments/" + message.attachment_filename
+        )
+        return send_file(
+            BytesIO(file_bytes),
+            mimetype=message.attachment_mimetype or (
+                mimetypes.guess_type(message.attachment_filename)[0]
+                or "application/octet-stream"
+            ),
+            as_attachment=not is_image,
+            download_name=message.attachment_original_name or "attachment"
+        )
+    except Exception:
+        app.logger.exception("Supabase message-attachment retrieval failed")
+        return send_from_directory(
+            attachment_dir,
+            message.attachment_filename,
+            as_attachment=not is_image,
+            download_name=message.attachment_original_name or "attachment"
+        )
 
 
 @app.route("/logout", methods=["POST"])
@@ -852,6 +1653,343 @@ def add_comment(post_id):
 
 
 
+
+# ------------------------------------------------------------
+@app.route("/notifications/updates", methods=["GET"])
+@login_required
+def notifications_updates():
+    """Read-only summary of notifications for the signed-in user."""
+
+    unread_count = Message.query.filter(
+        Message.recipient_id == current_user.id,
+        Message.read_at.is_(None)
+    ).count()
+
+    unread_messages = Message.query.filter(
+        Message.recipient_id == current_user.id,
+        Message.read_at.is_(None)
+    ).order_by(Message.created_at.desc()).limit(20).all()
+
+    message_items = [
+        {
+            "id": message.id,
+            "sender_id": message.sender_id,
+            "sender_name": message.sender.username,
+            "preview": (
+                message.content[:160]
+                if message.content else "Sent an attachment"
+            ),
+            "created_at": message.created_at.isoformat() + "Z",
+        }
+        for message in unread_messages
+    ]
+
+    pending_requests = Friendship.query.filter_by(
+        recipient_id=current_user.id,
+        status="pending"
+    ).order_by(Friendship.created_at.desc()).limit(20).all()
+
+    friend_request_items = [
+        {
+            "id": friendship.id,
+            "sender_id": friendship.requester_id,
+            "sender_name": friendship.requester.username,
+            "created_at": friendship.created_at.isoformat() + "Z",
+        }
+        for friendship in pending_requests
+    ]
+
+    call = VideoCall.query.filter_by(
+        recipient_id=current_user.id,
+        status="ringing"
+    ).order_by(VideoCall.created_at.desc()).first()
+
+    incoming_call = None
+    if call is not None and video_call_access(call):
+        incoming_call = {
+            "id": call.id,
+            "caller_id": call.caller_id,
+            "caller_name": call.caller.username,
+            "created_at": call.created_at.isoformat() + "Z",
+        }
+
+    return jsonify({
+        "unread_count": unread_count,
+        "unread_messages": message_items,
+        "pending_friend_requests": friend_request_items,
+        "incoming_call": incoming_call,
+    })
+
+
+# GOTYA VIDEO CALL API
+# Authenticated, accepted-friend-only call signaling.
+# ------------------------------------------------------------
+
+def video_call_are_friends(first_id, second_id):
+    return Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            db.and_(
+                Friendship.requester_id == first_id,
+                Friendship.recipient_id == second_id
+            ),
+            db.and_(
+                Friendship.requester_id == second_id,
+                Friendship.recipient_id == first_id
+            )
+        )
+    ).first() is not None
+
+
+def video_call_access(call):
+    if call is None:
+        return False
+    if current_user.id not in (call.caller_id, call.recipient_id):
+        return False
+    return video_call_are_friends(call.caller_id, call.recipient_id)
+
+
+def video_call_json(call):
+    return {
+        "id": call.id,
+        "caller_id": call.caller_id,
+        "recipient_id": call.recipient_id,
+        "status": call.status,
+        "offer_sdp": call.offer_sdp,
+        "answer_sdp": call.answer_sdp,
+        "created_at": call.created_at.isoformat() + "Z",
+        "updated_at": call.updated_at.isoformat() + "Z",
+    }
+
+
+@app.route("/calls/<int:user_id>/start", methods=["POST"])
+@login_required
+def video_call_start(user_id):
+    if user_id == current_user.id:
+        return jsonify({"error": "You cannot call yourself."}), 400
+
+    person = db.session.get(User, user_id)
+    if person is None or not video_call_are_friends(current_user.id, user_id):
+        return jsonify({"error": "You can call accepted friends only."}), 403
+
+    active = VideoCall.query.filter(
+        VideoCall.status.in_(("ringing", "accepted")),
+        db.or_(
+            db.and_(
+                VideoCall.caller_id == current_user.id,
+                VideoCall.recipient_id == user_id
+            ),
+            db.and_(
+                VideoCall.caller_id == user_id,
+                VideoCall.recipient_id == current_user.id
+            ),
+            VideoCall.caller_id == current_user.id,
+            VideoCall.recipient_id == current_user.id
+        )
+    ).first()
+
+    if active:
+        return jsonify({
+            "error": "One of you is already in a call.",
+            "call_id": active.id
+        }), 409
+
+    call = VideoCall(
+        id=str(uuid.uuid4()),
+        caller_id=current_user.id,
+        recipient_id=user_id,
+        status="ringing",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.session.add(call)
+    db.session.commit()
+    return jsonify({"call": video_call_json(call)}), 201
+
+
+@app.route("/calls/incoming", methods=["GET"])
+@login_required
+def video_call_incoming():
+    call = VideoCall.query.filter_by(
+        recipient_id=current_user.id,
+        status="ringing"
+    ).order_by(VideoCall.created_at.desc()).first()
+
+    if call is None or not video_call_access(call):
+        return jsonify({"call": None})
+
+    return jsonify({
+        "call": video_call_json(call),
+        "caller_name": call.caller.username
+    })
+
+
+@app.route("/calls/<call_id>", methods=["GET"])
+@login_required
+def video_call_get(call_id):
+    call = db.session.get(VideoCall, call_id)
+    if not video_call_access(call):
+        return jsonify({"error": "Call not found or access denied."}), 404
+    return jsonify({"call": video_call_json(call)})
+
+
+@app.route("/calls/<call_id>/accept", methods=["POST"])
+@login_required
+def video_call_accept(call_id):
+    call = db.session.get(VideoCall, call_id)
+    if not video_call_access(call):
+        return jsonify({"error": "Call not found or access denied."}), 404
+    if current_user.id != call.recipient_id:
+        return jsonify({"error": "Only the invited user can accept."}), 403
+    if call.status != "ringing":
+        return jsonify({"error": "This call is no longer ringing."}), 409
+
+    call.status = "accepted"
+    call.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"call": video_call_json(call)})
+
+
+@app.route("/calls/<call_id>/decline", methods=["POST"])
+@login_required
+def video_call_decline(call_id):
+    call = db.session.get(VideoCall, call_id)
+    if not video_call_access(call):
+        return jsonify({"error": "Call not found or access denied."}), 404
+    if current_user.id != call.recipient_id:
+        return jsonify({"error": "Only the invited user can decline."}), 403
+    if call.status != "ringing":
+        return jsonify({"error": "This call is no longer ringing."}), 409
+
+    call.status = "declined"
+    call.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"call": video_call_json(call)})
+
+
+@app.route("/calls/<call_id>/end", methods=["POST"])
+@login_required
+def video_call_end(call_id):
+    call = db.session.get(VideoCall, call_id)
+    if not video_call_access(call):
+        return jsonify({"error": "Call not found or access denied."}), 404
+    if call.status not in ("ringing", "accepted"):
+        return jsonify({"call": video_call_json(call)})
+
+    call.status = "ended"
+    call.ended_by = current_user.id
+    call.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"call": video_call_json(call)})
+
+
+@app.route("/calls/<call_id>/offer", methods=["POST"])
+@login_required
+def video_call_offer(call_id):
+    call = db.session.get(VideoCall, call_id)
+    if not video_call_access(call):
+        return jsonify({"error": "Call not found or access denied."}), 404
+    if current_user.id != call.caller_id:
+        return jsonify({"error": "Only the caller can submit the offer."}), 403
+    if call.status != "accepted":
+        return jsonify({"error": "The call must be accepted first."}), 409
+
+    data = request.get_json(silent=True) or {}
+    sdp = data.get("sdp")
+    if not isinstance(sdp, str) or not sdp or len(sdp) > 100000:
+        return jsonify({"error": "Invalid connection offer."}), 400
+
+    call.offer_sdp = sdp
+    call.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/calls/<call_id>/answer", methods=["POST"])
+@login_required
+def video_call_answer(call_id):
+    call = db.session.get(VideoCall, call_id)
+    if not video_call_access(call):
+        return jsonify({"error": "Call not found or access denied."}), 404
+    if current_user.id != call.recipient_id:
+        return jsonify({"error": "Only the invited user can submit the answer."}), 403
+    if call.status != "accepted":
+        return jsonify({"error": "The call must be accepted first."}), 409
+    if not call.offer_sdp:
+        return jsonify({"error": "The caller has not sent an offer yet."}), 409
+
+    data = request.get_json(silent=True) or {}
+    sdp = data.get("sdp")
+    if not isinstance(sdp, str) or not sdp or len(sdp) > 100000:
+        return jsonify({"error": "Invalid connection answer."}), 400
+
+    call.answer_sdp = sdp
+    call.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/calls/<call_id>/signals", methods=["GET", "POST"])
+@login_required
+def video_call_signals(call_id):
+    call = db.session.get(VideoCall, call_id)
+    if not video_call_access(call):
+        return jsonify({"error": "Call not found or access denied."}), 404
+
+    if call.status != "accepted":
+        return jsonify({"signals": []}) if request.method == "GET" else (
+            jsonify({"error": "The call is not active."}), 409
+        )
+
+    if request.method == "GET":
+        try:
+            after_id = max(0, int(request.args.get("after", "0")))
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid signal cursor."}), 400
+
+        signals = VideoCallSignal.query.filter(
+            VideoCallSignal.call_id == call.id,
+            VideoCallSignal.id > after_id,
+            VideoCallSignal.sender_id != current_user.id
+        ).order_by(VideoCallSignal.id.asc()).limit(100).all()
+
+        return jsonify({
+            "signals": [
+                {
+                    "id": item.id,
+                    "kind": item.kind,
+                    "payload": item.payload,
+                    "sender_id": item.sender_id
+                }
+                for item in signals
+            ]
+        })
+
+    data = request.get_json(silent=True) or {}
+    kind = data.get("kind")
+    payload = data.get("payload")
+
+    if kind != "ice-candidate":
+        return jsonify({"error": "Unsupported signal type."}), 400
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Invalid ICE candidate."}), 400
+
+    import json
+    encoded = json.dumps(payload, separators=(",", ":"))
+    if len(encoded) > 10000:
+        return jsonify({"error": "ICE candidate is too large."}), 400
+
+    signal = VideoCallSignal(
+        call_id=call.id,
+        sender_id=current_user.id,
+        kind=kind,
+        payload=encoded
+    )
+    db.session.add(signal)
+    db.session.commit()
+    return jsonify({"ok": True, "id": signal.id}), 201
+
+
 @app.route("/sw.js")
 def gotya_service_worker():
     response = send_from_directory(
@@ -865,6 +2003,21 @@ def gotya_service_worker():
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+
+        # Safely add last_seen without resetting existing user data.
+        columns = {
+            column["name"]
+            for column in db.inspect(db.engine).get_columns("user")
+        }
+
+        if "last_seen" not in columns:
+            with db.engine.begin() as connection:
+                connection.execute(
+                    db.text("ALTER TABLE user ADD COLUMN last_seen DATETIME")
+                )
+            print("Added last_seen column without resetting user data.")
+        else:
+            print("Last-seen database column already exists.")
 
         # Safely add the profile-picture column to existing databases.
         columns = {
@@ -909,5 +2062,23 @@ if __name__ == "__main__":
             else:
                 print("Cover-photo database column already exists.")
 
+        # Safely add message delivery timestamps without resetting chat history.
+        message_columns = {
+            column["name"]
+            for column in db.inspect(db.engine).get_columns("message")
+        }
+
+        if "delivered_at" not in message_columns:
+            with db.engine.begin() as connection:
+                connection.execute(
+                    db.text(
+                        "ALTER TABLE message "
+                        "ADD COLUMN delivered_at DATETIME"
+                    )
+                )
+            print("Added delivered_at column without resetting messages.")
+        else:
+            print("Message delivery timestamp column already exists.")
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 

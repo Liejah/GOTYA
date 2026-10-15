@@ -23,6 +23,35 @@ self.addEventListener("activate", event => {
   );
 });
 
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+
+  const target = event.notification.data && event.notification.data.url;
+  if (!target || typeof target !== "string" || !target.startsWith("/")) return;
+
+  event.waitUntil((async () => {
+    const url = new URL(target, self.location.origin);
+    if (url.origin !== self.location.origin) return;
+
+    const windows = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true
+    });
+
+    for (const client of windows) {
+      if ("focus" in client) {
+        await client.navigate(url.href);
+        return client.focus();
+      }
+    }
+
+    if (self.clients.openWindow) {
+      return self.clients.openWindow(url.href);
+    }
+  })());
+});
+
 self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
