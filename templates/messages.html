@@ -113,6 +113,73 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
  .gotya-notification-panel{bottom:60px;max-height:60vh}
 }
 
+
+/* GOTYA LIVE TOAST POPUPS */
+#gotyaToastContainer {
+  position: fixed;
+  right: 16px;
+  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(370px, calc(100vw - 28px));
+  pointer-events: none;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+}
+.gotya-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e4eaf2;
+  border-radius: 15px;
+  background: #fff;
+  color: #182230;
+  box-shadow: 0 10px 35px rgba(15, 23, 42, .20);
+  pointer-events: auto;
+  animation: gotyaToastIn .22s ease-out;
+}
+.gotya-toast-link {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.gotya-toast-link strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+.gotya-toast-link span {
+  display: block;
+  color: #596579;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.gotya-toast-dismiss {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  background: #f0f2f5;
+  color: #344054;
+  padding: 5px 9px;
+  font-size: 18px;
+  cursor: pointer;
+}
+@keyframes gotyaToastIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 600px) {
+  #gotyaToastContainer {
+    right: 10px;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 20px);
+  }
+}
+
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
@@ -568,6 +635,44 @@ if ("serviceWorker" in navigator) {
     return items;
   }
 
+
+  function showToast(item) {
+    if (document.hidden) return;
+    const container = document.getElementById("gotyaToastContainer");
+    if (!container) return;
+
+    const toast = document.createElement("div");
+    toast.className = "gotya-toast";
+
+    const link = document.createElement("a");
+    link.className = "gotya-toast-link";
+    link.href = item.href;
+
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+
+    const detail = document.createElement("span");
+    detail.textContent = item.detail || "You have a new notification.";
+
+    link.append(title, detail);
+
+    const dismiss = document.createElement("button");
+    dismiss.className = "gotya-toast-dismiss";
+    dismiss.type = "button";
+    dismiss.setAttribute("aria-label", "Dismiss notification");
+    dismiss.textContent = "\u00d7";
+    dismiss.addEventListener("click", () => toast.remove());
+
+    toast.append(link, dismiss);
+    container.appendChild(toast);
+
+    while (container.children.length > 4) {
+      container.firstElementChild.remove();
+    }
+
+    window.setTimeout(() => toast.remove(), 7000);
+  }
+
   function browserAlert(item) {
     if (!document.hidden || !("Notification" in window) ||
         Notification.permission !== "granted") return;
@@ -678,6 +783,7 @@ if ("serviceWorker" in navigator) {
         const seen = readSeen();
         items.forEach(item => {
           if (!previousKeys.has(item.key) && !seen.has(item.key)) {
+            showToast(item);
             browserAlert(item);
           }
         });
@@ -702,6 +808,7 @@ if ("serviceWorker" in navigator) {
 })();
 </script>
 
+<div id="gotyaToastContainer" aria-live="polite" aria-atomic="false"></div>
 </body>
 </html>
 
