@@ -1975,13 +1975,81 @@ def video_call_end(call_id):
     call = db.session.get(VideoCall, call_id)
     if not video_call_access(call):
         return jsonify({"error": "Call not found or access denied."}), 404
+
     if call.status not in ("ringing", "accepted"):
         return jsonify({"call": video_call_json(call)})
 
+    was_accepted = call.status == "accepted"
+    ended_at = datetime.utcnow()
+    other_user_id = (
+        call.recipient_id
+        if current_user.id == call.caller_id
+        else call.caller_id
+    )
+
+    if was_accepted:
+        started_at = call.updated_at
+
+        # Prefer the browser's actual connected time when available.
+        data = request.get_json(silent=True) or {}
+        connected_at = data.get("connected_at")
+
+        if isinstance(connected_at, str):
+            try:
+                candidate = datetime.fromisoformat(
+                    connected_at.replace("Z", "+00:00")
+                )
+                if candidate.tzinfo is not None:
+                    candidate = candidate.replace(tzinfo=None)
+
+                if call.created_at <= candidate <= ended_at:
+                    started_at = candidate
+            except (TypeError, ValueError):
+                app.logger.warning("Invalid connected_at supplied for call %s.", call.id)
+
+        duration_seconds = max(
+            0, int((ended_at - started_at).total_seconds())
+        )
+        minutes, seconds = divmod(duration_seconds, 60)
+
+        # Display Philippine time (UTC+8) in the chat summary.
+        timedelta = __import__("datetime").timedelta
+        started_pht = started_at + timedelta(hours=8)
+        ended_pht = ended_at + timedelta(hours=8)
+
+        summary = (
+            "Call Ended\n"
+            f"{minutes}m {seconds:02d}s \u00b7 {started_pht.strftime('%I:%M %p').lstrip('0')}"
+        )
+
+        db.session.add(Message(
+            sender_id=current_user.id,
+            recipient_id=other_user_id,
+            content=summary,
+        ))
+
     call.status = "ended"
     call.ended_by = current_user.id
-    call.updated_at = datetime.utcnow()
-    db.session.commit()
+    call.updated_at = ended_at
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Could not save the ended call.")
+        return jsonify({"error": "Could not save the call ending."}), 500
+
+    if was_accepted:
+        try:
+            send_push_notification(
+                other_user_id,
+                "Video call ended",
+                f"{current_user.username} ended the call. {minutes}m {seconds:02d}s.",
+                url_for("conversation", user_id=current_user.id),
+            )
+        except Exception:
+            app.logger.exception("Could not send call-ended notification.")
+
     return jsonify({"call": video_call_json(call)})
 
 
