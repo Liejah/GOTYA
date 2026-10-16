@@ -196,7 +196,7 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
 <nav>
 <a href="{{ url_for('feed') }}">Feed</a>
 <a href="{{ url_for('friends') }}">Friends</a>
-<a class="active" id="messagesNavLink" href="{{ url_for('messages') }}">Messages{% if unread_count %} Â· {{ unread_count }}{% endif %}</a>
+<a class="active" id="messagesNavLink" href="{{ url_for('messages') }}">Messages{% if unread_count %} · {{ unread_count }}{% endif %}</a>
 <a href="{{ url_for('profile') }}">Profile</a>
 <form action="{{ url_for('logout') }}" method="post" style="display:inline">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -247,13 +247,13 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
 <div class="preview">
 {% if last_message %}
 {% if last_message.sender_id == current_user.id %}You: {% endif %}{{ last_message.content }}
-{% else %}You're friends â€” say hello!{% endif %}
+{% else %}You're friends — say hello!{% endif %}
 </div>
-</div><span class="arrow">â€º</span>
+</div><span class="arrow">›</span>
 </a>
 {% endfor %}
 {% else %}
-<div class="empty"><div class="empty-icon">â™¡</div><strong>Your inbox starts here</strong>You don't have any conversations yet. Visit Friends to connect with someone, then start chatting.</div>
+<div class="empty"><div class="empty-icon">♡</div><strong>Your inbox starts here</strong>You don't have any conversations yet. Visit Friends to connect with someone, then start chatting.</div>
 {% endif %}
 </section>
 </main>
@@ -270,7 +270,7 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
 
   function updateUnreadCount(count) {
     const unread = Number(count) || 0;
-    navLink.textContent = unread > 0 ? `Messages Â· ${unread}` : "Messages";
+    navLink.textContent = unread > 0 ? `Messages · ${unread}` : "Messages";
     unreadBadge.textContent = `${unread} unread`;
     unreadBadge.hidden = unread === 0;
   }
@@ -310,7 +310,7 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
 
     const arrow = document.createElement("span");
     arrow.className = "arrow";
-    arrow.textContent = "â€º";
+    arrow.textContent = "›";
 
     link.append(avatar, info, arrow);
     return link;

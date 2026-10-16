@@ -605,7 +605,7 @@ main {
 {% if history %}
 {% for item in history %}
 {% if loop.first or (item.created_at - loop.previtem.created_at).total_seconds() >= 600 %}
-<div class="time-separator">{{ item.created_at.strftime('%b %d Â· %I:%M %p') }}</div>
+<div class="time-separator">{{ item.created_at.strftime('%b %d · %I:%M %p') }}</div>
 {% endif %}
 <div class="message-row {{ 'mine' if item.sender_id == current_user.id else '' }}" data-message-id="{{ item.id }}" data-sender-id="{{ item.sender_id }}" data-created-at="{{ item.created_at.isoformat() }}">
 <div class="bubble{% if item.attachment_filename and item.attachment_mimetype and item.attachment_mimetype.startswith('image/') and not item.content %} image-only-bubble{% endif %}">
@@ -650,7 +650,7 @@ main {
 
   <div id="plusMenu" class="plus-menu" hidden>
     <button type="button" class="plus-menu-item" id="openLocationOptions">
-      <span class="menu-icon location-menu-icon" aria-hidden="true">âŒ–</span>
+      <span class="menu-icon location-menu-icon" aria-hidden="true">⌖</span>
       <span>Send live location</span>
     </button>
     <button type="button" class="plus-menu-item" id="openAttachmentOptions">
@@ -658,7 +658,7 @@ main {
       <span>Attach photos or files</span>
     </button>
     <button type="button" class="plus-menu-item" id="startVoiceRecording">
-      <span class="menu-icon voice-menu-icon" aria-hidden="true">â™«</span>
+      <span class="menu-icon voice-menu-icon" aria-hidden="true">♫</span>
       <span>Voice message</span>
     </button>
   </div>
@@ -967,7 +967,7 @@ if (input) {
     }
 
     startButton.disabled = true;
-    status.textContent = "Requesting your location permission?";
+    status.textContent = "Requesting your location permission...";
 
     navigator.geolocation.getCurrentPosition(async position => {
       try {
@@ -978,7 +978,7 @@ if (input) {
 
         activeShareId = data.share_id;
         stopButton.hidden = false;
-        status.textContent = "Location sharing started. Sending updates?";
+        status.textContent = "Location sharing started. Sending updates...";
         await sendPosition(position, activeShareId);
 
         const shareId = activeShareId;
@@ -1174,7 +1174,7 @@ if (input) {
       if (!receipt) continue;
 
       if (message.read_at) {
-        receipt.textContent = "Seen at " + message.read_at.split(" Â· ").pop();
+        receipt.textContent = "Seen at " + message.read_at.split(" · ").pop();
       } else if (message.delivered_at) {
         receipt.textContent = "Delivered";
       } else {
@@ -1675,7 +1675,7 @@ if ("serviceWorker" in navigator) {
       if (pc.connectionState === "connected") {
         setStatus("Connected");
       } else if (pc.connectionState === "connecting") {
-        setStatus("Connecting video and audio?");
+        setStatus("Connecting video and audio...");
       } else if (pc.connectionState === "failed") {
         setStatus("Connection failed. Your network may require a TURN relay.");
       } else if (pc.connectionState === "disconnected") {
@@ -1691,7 +1691,7 @@ if ("serviceWorker" in navigator) {
 
     startButton.disabled = true;
     showPanel();
-    setStatus("Sending call invitation?");
+    setStatus("Sending call invitation...");
 
     try {
       const data = await api("/calls/" + recipientId + "/start", "POST", {});
@@ -1759,7 +1759,7 @@ if ("serviceWorker" in navigator) {
 
     const id = callId;
     finished = true;
-    setStatus("Ending call?");
+    setStatus("Ending call...");
 
     try {
       await api("/calls/" + encodeURIComponent(id) + "/end", "POST", {});
@@ -1810,7 +1810,7 @@ if ("serviceWorker" in navigator) {
         await peer.setLocalDescription(offer);
         await api("/calls/" + encodeURIComponent(callId) + "/offer",
           "POST", { sdp: peer.localDescription.sdp });
-        setStatus("Offer sent. Connecting?");
+        setStatus("Offer sent. Connecting...");
       } catch (error) {
         setStatus("Could not start connection: " + error.message);
       } finally {
@@ -1833,7 +1833,7 @@ if ("serviceWorker" in navigator) {
         await api("/calls/" + encodeURIComponent(callId) + "/answer",
           "POST", { sdp: peer.localDescription.sdp });
 
-        setStatus("Answer sent. Connecting?");
+        setStatus("Answer sent. Connecting...");
       } catch (error) {
         setStatus("Could not answer call: " + error.message);
       }
@@ -1848,7 +1848,7 @@ if ("serviceWorker" in navigator) {
           });
           answerApplied = true;
           remoteDescriptionSet = true;
-          setStatus("Connecting video and audio?");
+          setStatus("Connecting video and audio...");
         }
       } catch (error) {
         setStatus("Could not apply call answer: " + error.message);
