@@ -270,9 +270,16 @@
     <nav>
         <a href="{{ url_for('profile') }}">Profile</a>
         &nbsp; | &nbsp;
-        <a href="{{ url_for('feed') }}">Feed</a>
-        &nbsp; | &nbsp;
-        <form method="POST" action="{{ url_for('logout') }}" style="display:inline">
+
+<a href="{{ url_for('feed') }}">Feed</a>
+&nbsp; | &nbsp;
+<a href="{{ url_for('settings') }}" aria-label="Settings" title="Settings"
+   style="display:inline-flex;align-items:center;gap:5px;">
+    <span aria-hidden="true">&#9881;</span>
+    <span>Settings</span>
+</a>
+&nbsp; | &nbsp;
+<form method="POST" action="{{ url_for('logout') }}" style="display:inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit">Log out</button>
         </form>

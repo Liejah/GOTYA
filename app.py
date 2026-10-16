@@ -1649,6 +1649,38 @@ def logout():
     return redirect(url_for("home"))
 
 
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    if request.method == "POST":
+        action = request.form.get("action", "").strip()
+
+        if action == "change_password":
+            current_password = request.form.get("current_password", "")
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+
+            if not current_user.check_password(current_password):
+                flash("Your current password is incorrect.", "error")
+            elif len(new_password) < 12:
+                flash("Your new password must be at least 12 characters long.", "error")
+            elif new_password != confirm_password:
+                flash("The new passwords do not match.", "error")
+            elif current_user.check_password(new_password):
+                flash("Choose a password different from your current password.", "error")
+            else:
+                current_user.set_password(new_password)
+                db.session.commit()
+                flash("Your password has been changed successfully.", "success")
+
+            return redirect(url_for("settings", _anchor="password"))
+
+        flash("That settings action is not available yet.", "error")
+        return redirect(url_for("settings"))
+
+    return render_template("settings.html", user=current_user)
+
+
 @app.route("/feed", methods=["GET", "POST"])
 @login_required
 def feed():

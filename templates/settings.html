@@ -1,0 +1,341 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1877f2">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <title>Gotya | Settings</title>
+    <style>
+        :root {
+            --brand: #1877f2;
+            --page: #f0f2f5;
+            --surface: #ffffff;
+            --text: #1c1e21;
+            --muted: #65676b;
+            --line: #e4e6eb;
+            --soft-blue: #e7f3ff;
+        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            background: var(--page);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            min-height: 64px;
+            padding: 12px max(18px, calc((100vw - 1050px)/2));
+            background: var(--surface);
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+        header h1 {
+            margin: 0;
+            color: var(--brand);
+            font-size: 26px;
+            letter-spacing: -1px;
+        }
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        a { color: var(--brand); text-decoration: none; }
+        nav a { color: var(--muted); font-weight: 700; font-size: 14px; }
+        nav a:hover { color: var(--brand); }
+        button, .button {
+            border: 0;
+            border-radius: 8px;
+            padding: 11px 15px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button.primary, .button.primary { background: var(--brand); color: white; }
+        button.secondary { background: #e4e6eb; color: var(--text); }
+        main { width: min(760px, 100%); margin: 28px auto; padding: 0 16px 40px; }
+        .page-title { margin: 0 0 6px; font-size: 28px; }
+        .subtitle { margin: 0 0 22px; color: var(--muted); line-height: 1.5; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px #00000008;
+            scroll-margin-top: 90px;
+        }
+        .card h2 { margin: 0 0 8px; font-size: 19px; }
+        .description { color: var(--muted); line-height: 1.5; margin: 0 0 18px; }
+        .detail {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--line);
+            overflow-wrap: anywhere;
+        }
+        .detail:last-child { border-bottom: 0; }
+        .detail-label { color: var(--muted); }
+        .field { margin: 14px 0; }
+        label { display: block; margin-bottom: 7px; font-size: 14px; font-weight: 700; }
+        input[type="password"] {
+            width: 100%;
+            border: 1px solid #ccd0d5;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+            background: white;
+            color: var(--text);
+        }
+        input:focus { outline: 2px solid #b3d4ff; border-color: var(--brand); }
+        .notice {
+            padding: 12px 14px;
+            border-radius: 9px;
+            margin: 0 0 12px;
+            line-height: 1.45;
+            background: var(--soft-blue);
+        }
+        .notice.error { background: #ffebe9; color: #a12622; }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 0;
+            border-top: 1px solid var(--line);
+        }
+        .setting-row strong { display: block; margin-bottom: 5px; }
+        .setting-row small { color: var(--muted); line-height: 1.45; display: block; }
+        .status { color: var(--muted); font-size: 13px; margin-top: 12px; }
+        .danger { border-color: #f2c6c4; }
+        .danger h2 { color: #b42318; }
+        @media (max-width: 520px) {
+            header { align-items: flex-start; flex-direction: column; }
+            nav { gap: 12px; }
+            main { margin-top: 20px; }
+            .card { padding: 17px; }
+            .page-title { font-size: 25px; }
+            .detail { flex-direction: column; gap: 5px; }
+            .setting-row { align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Gotya</h1>
+    <nav aria-label="Main navigation">
+        <a href="{{ url_for('feed') }}">Feed</a>
+        <a href="{{ url_for('profile') }}">Profile</a>
+        <a href="{{ url_for('messages') }}">Messages</a>
+    </nav>
+</header>
+
+<main>
+    <h1 class="page-title">Settings</h1>
+    <p class="subtitle">Manage your account, security, notifications, and preferences.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="notice {{ 'error' if category == 'error' else '' }}" role="status">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endwith %}
+
+    <section class="card" id="account">
+        <h2>👤 Account information</h2>
+        <p class="description">Your current account details.</p>
+        <div class="detail">
+            <span class="detail-label">Username</span>
+            <strong>{{ user.username }}</strong>
+        </div>
+        <div class="detail">
+            <span class="detail-label">Email address</span>
+            <strong>{{ user.email }}</strong>
+        </div>
+        <p class="status">To protect your account, email changes are not available on this page yet.</p>
+    </section>
+
+    <section class="card" id="password">
+        <h2>🔐 Change password</h2>
+        <p class="description">Enter your current password and choose a new password of at least 12 characters.</p>
+        <form method="POST" action="{{ url_for('settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="change_password">
+
+            <div class="field">
+                <label for="current_password">Current password</label>
+                <input id="current_password" name="current_password" type="password"
+                       autocomplete="current-password" required>
+            </div>
+            <div class="field">
+                <label for="new_password">New password</label>
+                <input id="new_password" name="new_password" type="password"
+                       minlength="12" autocomplete="new-password" required>
+            </div>
+            <div class="field">
+                <label for="confirm_password">Confirm new password</label>
+                <input id="confirm_password" name="confirm_password" type="password"
+                       minlength="12" autocomplete="new-password" required>
+            </div>
+            <button class="primary" type="submit">Update password</button>
+        </form>
+    </section>
+
+    <section class="card" id="notifications">
+        <h2>🔔 Notifications</h2>
+        <p class="description">Choose whether Gotya can send notifications when the browser supports them.</p>
+        <div class="setting-row">
+            <div>
+                <strong>Background notifications</strong>
+                <small>Allow notifications even when you're not viewing a conversation. Browser permission may be required.</small>
+            </div>
+            <button class="primary" id="gotyaEnablePushNotifications" type="button">
+                Enable
+            </button>
+        </div>
+        <p class="status" id="gotyaPushStatus" role="status" aria-live="polite">
+            Notification status will appear here.
+        </p>
+    </section>
+
+    <section class="card" id="privacy">
+        <h2>🛡️ Privacy and safety</h2>
+        <p class="description">Keep your account secure and share information carefully.</p>
+        <div class="setting-row">
+            <div>
+                <strong>Account security</strong>
+                <small>Use a unique password and never share your sign-in details.</small>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <strong>Location sharing</strong>
+                <small>Only start location sharing with people you trust. Stop sharing from the conversation when finished.</small>
+            </div>
+        </div>
+    </section>
+
+    <section class="card" id="appearance">
+        <h2>🎨 Appearance</h2>
+        <p class="description">Gotya currently uses its standard blue-and-white theme. Additional saved appearance choices can be added later.</p>
+    </section>
+
+    <section class="card" id="help">
+        <h2>❓ Help and support</h2>
+        <p class="description">If something isn't working, return to the feed and try again. Never share your password with anyone offering support.</p>
+        <a href="{{ url_for('feed') }}">Return to feed</a>
+    </section>
+
+    <section class="card danger" id="logout">
+        <h2>Log out</h2>
+        <p class="description">End your current Gotya session on this device.</p>
+        <form method="POST" action="{{ url_for('logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="secondary" type="submit">Log out of Gotya</button>
+        </form>
+    </section>
+</main>
+
+<script>
+(() => {
+    "use strict";
+
+    const button = document.getElementById("gotyaEnablePushNotifications");
+    const status = document.getElementById("gotyaPushStatus");
+    const csrfToken =
+        document.querySelector('input[name="csrf_token"]')?.value || "";
+
+    function decodeBase64Url(value) {
+        const padded = value + "=".repeat((4 - value.length % 4) % 4);
+        const binary = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
+        return Uint8Array.from(binary, character => character.charCodeAt(0));
+    }
+
+    async function enablePush() {
+        if (!("serviceWorker" in navigator) || !("PushManager" in window) ||
+            !("Notification" in window)) {
+            status.textContent = "This browser does not support background notifications.";
+            return;
+        }
+
+        if (!csrfToken) {
+            status.textContent = "Security token missing. Refresh this page and try again.";
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Enabling…";
+
+        try {
+            const permission = await Notification.requestPermission();
+
+            if (permission !== "granted") {
+                status.textContent = "Notifications were not permitted. Check your browser settings.";
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.register("/sw.js");
+            await navigator.serviceWorker.ready;
+
+            const keyResponse = await fetch("/push/vapid-public-key", {
+                credentials: "same-origin"
+            });
+            if (!keyResponse.ok) {
+                throw new Error("Could not retrieve the notification configuration.");
+            }
+
+            const keyData = await keyResponse.json();
+            if (!keyData.publicKey) {
+                throw new Error("Push notifications are not configured on this server.");
+            }
+
+            let subscription = await registration.pushManager.getSubscription();
+
+            if (!subscription) {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: decodeBase64Url(keyData.publicKey)
+                });
+            }
+
+            const response = await fetch("/push/subscribe", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                },
+                body: JSON.stringify({ subscription: subscription.toJSON() })
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.error || result.message || "The server could not save your subscription.");
+            }
+
+            status.textContent = "Background notifications are enabled for this browser.";
+        } catch (error) {
+            status.textContent = error.message || "Could not enable notifications. Please try again.";
+        } finally {
+            button.disabled = false;
+            button.textContent = "Enable";
+        }
+    }
+
+    button.addEventListener("click", enablePush);
+})();
+</script>
+</body>
+</html>
