@@ -1,0 +1,710 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <meta name="theme-color" content="#1877f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Gotya">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Messages | Gotya</title>
+<style>
+:root{--blue:#1877f2;--blue-dark:#0e5fc5;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.topbar{max-width:1100px;margin:auto;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-size:25px;font-weight:850;letter-spacing:-1px;color:var(--blue);text-decoration:none}
+nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+nav a{padding:10px 13px;border-radius:10px;text-decoration:none;color:#465166;font-weight:700;font-size:14px}
+nav a:hover,nav a.active{background:#eaf2ff;color:var(--blue)}
+button{border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;font-weight:750;cursor:pointer}
+button:hover{background:var(--blue-dark)}
+button.secondary{background:#eaf2ff;color:var(--blue)}
+main{max-width:1000px;margin:30px auto;padding:0 18px 50px}
+.heading{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:22px}
+h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
+.heading p{margin:0;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 8px;border-radius:20px;background:#eaf2ff;color:var(--blue);font-size:13px;font-weight:800}
+.inbox{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 8px 25px #17203309}
+.inbox-title{padding:19px 22px;border-bottom:1px solid var(--line);font-weight:800;font-size:18px}
+.person{display:flex;align-items:center;gap:14px;padding:17px 22px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;transition:background .15s}
+.person:last-child{border-bottom:0}
+.person:hover{background:#f7faff}
+.avatar{height:54px;width:54px;border-radius:50%;background:linear-gradient(135deg,#1877f2,#78b5ff);display:flex;align-items:center;justify-content:center;color:white;font-size:21px;font-weight:800;overflow:visible;position:relative;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.person-info{flex:1;min-width:0}
+.name{font-weight:800;margin-bottom:5px;overflow-wrap:anywhere}
+.preview{font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:650px}
+.preview.unread{color:var(--ink);font-weight:750}
+.arrow{color:var(--blue);font-size:22px}
+.empty{padding:35px 22px;text-align:center;color:var(--muted);line-height:1.6}
+.empty-icon{font-size:36px;margin-bottom:8px}
+.empty strong{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+.flash{padding:12px 15px;border-radius:12px;margin-bottom:12px;background:#eaf2ff;color:#174f9a}
+.flash.error{background:#fff0f1;color:#a5293c}
+@media(max-width:600px){.topbar{align-items:flex-start;flex-direction:column;padding:12px 15px}nav{width:100%}nav a{padding:9px 10px}main{margin:20px auto;padding:0 12px 35px}.heading{align-items:flex-start;flex-direction:column}.person{padding:15px;gap:11px}.avatar{width:47px;height:47px}.inbox-title{padding:16px}.preview{max-width:calc(100vw - 125px)}}
+
+/* Messenger-style online indicator */
+.avatar img{border-radius:50%}
+.active-dot[hidden]{display:none!important;}
+.active-dot{
+ display:block;
+ position:absolute;
+ right:0;
+ bottom:0;
+ width:13px;
+ height:13px;
+ border-radius:50%;
+ background:#1877f2;
+ border:2px solid #fff;
+ box-shadow:0 0 0 1px #ffffff55;
+ z-index:2;
+ pointer-events:none;
+}
+
+
+/* GOTYA NOTIFICATION WIDGET */
+.gotya-notification-widget{
+ position:fixed;right:20px;bottom:20px;z-index:1000;
+ font-family:Inter,"Segoe UI",Arial,sans-serif;
+}
+.gotya-notification-bell{
+ width:54px;height:54px;border-radius:50%;
+ box-shadow:0 5px 18px #17203330;font-size:21px;
+ display:flex;align-items:center;justify-content:center;
+ position:relative;
+}
+.gotya-notification-count{
+ position:absolute;right:-3px;top:-4px;
+ min-width:21px;height:21px;padding:0 5px;
+ border-radius:20px;background:#e53952;color:#fff;
+ border:2px solid #fff;font-size:11px;font-weight:800;
+ display:flex;align-items:center;justify-content:center;
+}
+.gotya-notification-panel{
+ position:absolute;right:0;bottom:65px;
+ width:min(360px,calc(100vw - 28px));max-height:65vh;
+ overflow:auto;background:#fff;border:1px solid #e5e9f0;
+ border-radius:17px;box-shadow:0 12px 38px #17203325;
+ color:#172033;
+}
+.gotya-notification-head{
+ padding:15px;border-bottom:1px solid #e5e9f0;
+ display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.gotya-notification-head strong{font-size:17px}
+.gotya-notification-enable{font-size:12px;padding:8px 10px}
+.gotya-notification-item{
+ display:block;padding:13px 15px;border-bottom:1px solid #edf0f5;
+ color:inherit;text-decoration:none;overflow-wrap:anywhere;
+}
+.gotya-notification-item:hover{background:#f4f8ff}
+.gotya-notification-item strong{display:block;font-size:14px;margin-bottom:4px}
+.gotya-notification-item span{display:block;color:#687386;font-size:13px;line-height:1.4}
+.gotya-notification-empty{padding:24px 15px;text-align:center;color:#687386;font-size:14px}
+.gotya-notification-status{padding:9px 15px;font-size:12px;color:#687386}
+@media(max-width:600px){
+ .gotya-notification-widget{right:14px;bottom:14px}
+ .gotya-notification-bell{width:50px;height:50px}
+ .gotya-notification-panel{bottom:60px;max-height:60vh}
+}
+
+</style>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
+</head>
+<body>
+<header>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <meta name="theme-color" content="#1877f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Gotya"><div class="topbar">
+<a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:#172033">.</span></a>
+<nav>
+<a href="{{ url_for('feed') }}">Feed</a>
+<a href="{{ url_for('friends') }}">Friends</a>
+<a class="active" id="messagesNavLink" href="{{ url_for('messages') }}">Messages{% if unread_count %} Â· {{ unread_count }}{% endif %}</a>
+<a href="{{ url_for('profile') }}">Profile</a>
+<form action="{{ url_for('logout') }}" method="post" style="display:inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button type="submit" class="secondary">Log out</button>
+</form>
+</nav>
+</div></header>
+
+<div class="gotya-notification-widget" id="gotyaNotificationWidget">
+  <section class="gotya-notification-panel" id="gotyaNotificationPanel" hidden>
+    <div class="gotya-notification-head">
+      <strong>Notifications</strong>
+      <button type="button" class="secondary gotya-notification-enable"
+              id="gotyaNotificationEnable">Enable browser alerts</button>
+    </div>
+    <div id="gotyaNotificationList">
+      <div class="gotya-notification-empty">Loading notifications…</div>
+    </div>
+    <div class="gotya-notification-status" id="gotyaNotificationStatus"
+         role="status">Browser alerts are optional.</div>
+  </section>
+  <button type="button" class="gotya-notification-bell"
+          id="gotyaNotificationToggle" aria-label="Open notifications"
+          aria-expanded="false" aria-controls="gotyaNotificationPanel">
+    <span aria-hidden="true">♧</span>
+    <span class="gotya-notification-count" id="gotyaNotificationCount" hidden>0</span>
+  </button>
+</div>
+
+<main>
+<div class="heading">
+<div><h1>Your messages</h1><p>Private conversations with your friends.</p></div>
+<span class="badge" id="inboxUnreadBadge" {% if not unread_count %}hidden{% endif %}>{{ unread_count }} unread</span>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category,message in messages %}
+<div class="flash {{ 'error' if category == 'error' else '' }}">{{ message }}</div>
+{% endfor %}
+{% endwith %}
+<section class="inbox" id="inboxList">
+<div class="inbox-title">Conversations</div>
+{% if recent %}
+{% for person,last_message in recent %}
+<a class="person" href="{{ url_for('conversation', user_id=person.id) }}">
+<div class="avatar" data-user-id="{{ person.id }}">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div>
+<div class="person-info">
+<div class="name">{{ person.username }}</div>
+<div class="preview">
+{% if last_message %}
+{% if last_message.sender_id == current_user.id %}You: {% endif %}{{ last_message.content }}
+{% else %}You're friends â€” say hello!{% endif %}
+</div>
+</div><span class="arrow">â€º</span>
+</a>
+{% endfor %}
+{% else %}
+<div class="empty"><div class="empty-icon">â™¡</div><strong>Your inbox starts here</strong>You don't have any conversations yet. Visit Friends to connect with someone, then start chatting.</div>
+{% endif %}
+</section>
+</main>
+<script id="gotya-live-inbox">
+(() => {
+  const inbox = document.getElementById("inboxList");
+  const navLink = document.getElementById("messagesNavLink");
+  const unreadBadge = document.getElementById("inboxUnreadBadge");
+  if (!inbox || !navLink || !unreadBadge) return;
+
+  let stopped = false;
+  let requestRunning = false;
+  let lastRenderedConversations = null;
+
+  function updateUnreadCount(count) {
+    const unread = Number(count) || 0;
+    navLink.textContent = unread > 0 ? `Messages Â· ${unread}` : "Messages";
+    unreadBadge.textContent = `${unread} unread`;
+    unreadBadge.hidden = unread === 0;
+  }
+
+  function makeConversation(item) {
+    const link = document.createElement("a");
+    link.className = "person";
+    link.href = `/messages/${encodeURIComponent(item.user_id)}`;
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.dataset.userId = item.user_id;
+
+    if (item.profile_picture) {
+      const image = document.createElement("img");
+      image.src = item.profile_picture;
+      image.alt = "";
+      image.loading = "lazy";
+      avatar.appendChild(image);
+    } else {
+      avatar.textContent = (item.username || "?").charAt(0).toUpperCase();
+    }
+
+    const info = document.createElement("div");
+    info.className = "person-info";
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = item.username || "Friend";
+
+    const preview = document.createElement("div");
+    preview.className = "preview";
+    preview.textContent = item.preview || "";
+    if (item.unread > 0) preview.classList.add("unread");
+
+    info.append(name, preview);
+
+    const arrow = document.createElement("span");
+    arrow.className = "arrow";
+    arrow.textContent = "â€º";
+
+    link.append(avatar, info, arrow);
+    return link;
+  }
+
+  function renderConversations(items) {
+    const existingRows = new Map();
+
+    inbox.querySelectorAll(".person").forEach(link => {
+      const avatar = link.querySelector(".avatar");
+      if (avatar && avatar.dataset.userId) {
+        existingRows.set(String(avatar.dataset.userId), link);
+      }
+    });
+
+    if (!items.length) {
+      existingRows.forEach(link => link.remove());
+
+      if (!inbox.querySelector(".empty")) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+
+        const icon = document.createElement("div");
+        icon.className = "empty-icon";
+        icon.textContent = "?";
+
+        const title = document.createElement("strong");
+        title.textContent = "Your inbox starts here";
+
+        const message = document.createElement("div");
+        message.textContent =
+          "You don't have any conversations yet. Visit Friends to connect with someone, then start chatting.";
+
+        empty.append(icon, title, message);
+        inbox.appendChild(empty);
+      }
+      return;
+    }
+
+    const empty = inbox.querySelector(".empty");
+    if (empty) empty.remove();
+
+    const keepIds = new Set();
+
+    items.forEach(item => {
+      const id = String(item.user_id);
+      let link = existingRows.get(id);
+
+      if (!link) {
+        link = makeConversation(item);
+      } else {
+        link.href = `/messages/${encodeURIComponent(item.user_id)}`;
+
+        const name = link.querySelector(".name");
+        const preview = link.querySelector(".preview");
+
+        if (name) name.textContent = item.username || "Friend";
+
+        if (preview) {
+          preview.textContent = item.preview || "";
+          preview.classList.toggle("unread", Number(item.unread) > 0);
+        }
+      }
+
+      keepIds.add(id);
+
+      // Reuse existing rows and avatars so online dots remain attached.
+      inbox.appendChild(link);
+    });
+
+    existingRows.forEach((link, id) => {
+      if (!keepIds.has(id)) link.remove();
+    });
+  }
+
+  async function refreshInbox() {
+    if (stopped || requestRunning || document.hidden) return;
+    requestRunning = true;
+
+    try {
+      const response = await fetch("/messages/inbox-updates", {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      if (response.status === 401 || response.redirected) {
+        stopped = true;
+        return;
+      }
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (!Array.isArray(data.conversations)) return;
+
+      const signature = JSON.stringify(data.conversations);
+
+      if (signature !== lastRenderedConversations) {
+        renderConversations(data.conversations);
+        lastRenderedConversations = signature;
+      }
+
+      updateUnreadCount(data.unread_count);
+    } catch (error) {
+      console.warn("Gotya inbox refresh failed:", error);
+    } finally {
+      requestRunning = false;
+    }
+  }
+
+  refreshInbox();
+  const timer = setInterval(refreshInbox, 5000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshInbox();
+  });
+
+  window.addEventListener("pagehide", () => {
+    stopped = true;
+    clearInterval(timer);
+  });
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js")
+            .catch(error => console.error("Gotya service worker registration failed:", error));
+    });
+}
+</script>
+
+<script id="gotya-global-presence">
+(() => {
+  if (window.__gotyaGlobalPresenceStarted) return;
+  window.__gotyaGlobalPresenceStarted = true;
+
+  const csrfToken = {{ csrf_token() | tojson }};
+  let stopped = false;
+  let running = false;
+
+  async function heartbeat() {
+    if (stopped || running) return;
+    running = true;
+
+    try {
+      const response = await fetch("/presence/heartbeat", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": csrfToken,
+          "Accept": "application/json"
+        }
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        console.warn("Gotya presence heartbeat was not accepted.");
+      }
+    } catch (error) {
+      console.warn("Gotya presence heartbeat failed:", error);
+    } finally {
+      running = false;
+    }
+  }
+
+  heartbeat();
+  const timer = setInterval(heartbeat, 15000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) heartbeat();
+  });
+
+  window.addEventListener("pagehide", () => {
+    stopped = true;
+    clearInterval(timer);
+  });
+})();
+</script>
+
+
+<script id="gotya-message-active-dots">
+(() => {
+  if (window.__gotyaMessageActiveDotsStarted) return;
+  window.__gotyaMessageActiveDotsStarted = true;
+  let stopped = false;
+  let running = false;
+
+  async function updateDots() {
+    if (stopped || running) return;
+    running = true;
+
+    try {
+      const avatars = document.querySelectorAll(".avatar[data-user-id]");
+      await Promise.all(Array.from(avatars, async avatar => {
+        const id = avatar.dataset.userId;
+        if (!id) return;
+
+        try {
+          const response = await fetch(
+            `/users/${encodeURIComponent(id)}/presence`,
+            { credentials: "same-origin", cache: "no-store" }
+          );
+          let dot = avatar.querySelector(".active-dot");
+          if (!response.ok) {
+            if (dot) dot.hidden = true;
+            return;
+          }
+
+          const data = await response.json();
+
+          if (!dot) {
+            dot = document.createElement("span");
+            dot.className = "active-dot";
+            dot.setAttribute("aria-label", "Online");
+            avatar.appendChild(dot);
+          }
+
+          dot.hidden = data.active !== true;
+          dot.title = data.active === true ? "Online" : "";
+          console.log("Gotya presence result:", {
+            userId: id,
+            active: data.active,
+            lastSeenSeconds: data.last_seen_seconds
+          });
+        } catch (error) {
+          const dot = avatar.querySelector(".active-dot");
+          if (dot) dot.hidden = true;
+          console.warn("Gotya message presence check failed:", error);
+        }
+      }));
+    } finally {
+      running = false;
+    }
+  }
+
+  updateDots();
+  const timer = setInterval(updateDots, 5000);
+  document.addEventListener("visibilitychange", updateDots);
+  window.addEventListener("pagehide", () => {
+    stopped = true;
+    clearInterval(timer);
+  });
+})();
+</script>
+
+
+<script id="gotya-notification-live">
+(() => {
+  const toggle = document.getElementById("gotyaNotificationToggle");
+  const panel = document.getElementById("gotyaNotificationPanel");
+  const list = document.getElementById("gotyaNotificationList");
+  const countBadge = document.getElementById("gotyaNotificationCount");
+  const enableButton = document.getElementById("gotyaNotificationEnable");
+  const status = document.getElementById("gotyaNotificationStatus");
+  if (!toggle || !panel || !list || !countBadge || !enableButton || !status) return;
+
+  const storageKey = "gotya-notification-seen-v1";
+  let initialized = false;
+  let previousKeys = new Set();
+  let polling = false;
+
+  function readSeen() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      return new Set(Array.isArray(parsed) ? parsed : []);
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  function saveSeen(keys) {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify([...keys].slice(-300)));
+    } catch (_) {}
+  }
+
+  function addItem(container, title, detail, href, key, kind) {
+    const a = document.createElement("a");
+    a.className = "gotya-notification-item";
+    a.href = href;
+    a.dataset.notificationKey = key;
+
+    const strong = document.createElement("strong");
+    strong.textContent = title;
+    const span = document.createElement("span");
+    span.textContent = detail || "";
+    a.append(strong, span);
+    container.appendChild(a);
+  }
+
+  function makeNotifications(data) {
+    const items = [];
+    (data.unread_messages || []).forEach(message => {
+      items.push({
+        key: "message:" + message.id,
+        title: "Message from " + (message.sender_name || "a friend"),
+        detail: message.preview || "You received a message.",
+        href: "/messages/" + encodeURIComponent(message.sender_id),
+        kind: "message"
+      });
+    });
+    (data.pending_friend_requests || []).forEach(request => {
+      items.push({
+        key: "friend:" + request.id,
+        title: "Friend request",
+        detail: (request.sender_name || "Someone") + " wants to connect with you.",
+        href: "/friends",
+        kind: "friend"
+      });
+    });
+    if (data.incoming_call) {
+      const call = data.incoming_call;
+      items.push({
+        key: "call:" + call.id,
+        title: "Incoming video call",
+        detail: (call.caller_name || "A friend") + " is calling you.",
+        href: "/calls/" + encodeURIComponent(call.id),
+        kind: "call"
+      });
+    }
+    return items;
+  }
+
+  function browserAlert(item) {
+    if (!document.hidden || !("Notification" in window) ||
+        Notification.permission !== "granted") return;
+
+    const options = {
+      body: item.detail,
+      icon: "/static/gotya-icon.svg",
+      tag: item.key,
+      data: { url: item.href }
+    };
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready
+        .then(registration => registration.showNotification(item.title, options))
+        .catch(() => {});
+    } else {
+      try {
+        const notification = new Notification(item.title, options);
+        notification.onclick = () => {
+          window.focus();
+          window.location.href = item.href;
+        };
+      } catch (_) {}
+    }
+  }
+
+  function updatePermissionText() {
+    if (!("Notification" in window)) {
+      status.textContent = "Browser notifications are not supported here.";
+      enableButton.disabled = true;
+      return;
+    }
+    if (Notification.permission === "granted") {
+      status.textContent = "Browser alerts are enabled.";
+      enableButton.textContent = "Alerts enabled";
+      enableButton.disabled = true;
+    } else if (Notification.permission === "denied") {
+      status.textContent = "Alerts are blocked by browser settings. Allow them in site settings to enable.";
+    } else {
+      status.textContent = "Browser alerts are optional. Click Enable browser alerts to allow them.";
+    }
+  }
+
+  toggle.addEventListener("click", () => {
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    toggle.setAttribute("aria-expanded", String(opening));
+    if (opening) poll();
+  });
+
+  enableButton.addEventListener("click", async () => {
+    if (!("Notification" in window)) {
+      updatePermissionText();
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      updatePermissionText();
+      if (permission === "granted") {
+        status.textContent = "Browser alerts enabled. Keep this browser running to receive background-tab alerts.";
+      }
+    } catch (_) {
+      status.textContent = "Could not request permission. Check your browser's site settings.";
+    }
+  });
+
+  list.addEventListener("click", event => {
+    const link = event.target.closest("a[data-notification-key]");
+    if (!link) return;
+    const seen = readSeen();
+    seen.add(link.dataset.notificationKey);
+    saveSeen(seen);
+  });
+
+  async function poll() {
+    if (polling || !document.visibilityState) return;
+    polling = true;
+    try {
+      const response = await fetch("/notifications/updates", {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+      if (!response.ok) throw new Error("Notification request failed");
+      const data = await response.json();
+      const items = makeNotifications(data);
+
+      const total = Math.max(0, Number(data.unread_count) || 0) +
+        (data.pending_friend_requests || []).length +
+        (data.incoming_call ? 1 : 0);
+      countBadge.textContent = total > 99 ? "99+" : String(total);
+      countBadge.hidden = total === 0;
+      toggle.setAttribute("aria-label", total ? "Open notifications, " + total + " unread" : "Open notifications");
+
+      list.replaceChildren();
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "gotya-notification-empty";
+        empty.textContent = "You're all caught up.";
+        list.appendChild(empty);
+      } else {
+        items.forEach(item => addItem(list, item.title, item.detail, item.href, item.key, item.kind));
+      }
+
+      const currentKeys = new Set(items.map(item => item.key));
+      if (initialized) {
+        const seen = readSeen();
+        items.forEach(item => {
+          if (!previousKeys.has(item.key) && !seen.has(item.key)) {
+            browserAlert(item);
+          }
+        });
+      } else {
+        initialized = true;
+      }
+      previousKeys = currentKeys;
+      updatePermissionText();
+    } catch (error) {
+      status.textContent = "Couldn't refresh notifications. Check your connection and try again.";
+    } finally {
+      polling = false;
+    }
+  }
+
+  updatePermissionText();
+  poll();
+  window.setInterval(poll, 10000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) poll();
+  });
+})();
+</script>
+
+</body>
+</html>
+
+
+
+

@@ -1,4 +1,4 @@
-﻿
+
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -514,6 +514,70 @@ class LiveLocationShare(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+
+
+def migrate_existing_database_schema():
+    """Add missing legacy columns without deleting or creating tables."""
+    with app.app_context():
+
+        additions = {
+            "user": {
+                "last_seen": "TIMESTAMP",
+                "profile_picture": "VARCHAR(255)",
+                "bio": "VARCHAR(500)",
+                "cover_photo": "VARCHAR(255)",
+            },
+            "message": {
+                "is_unsent": "BOOLEAN NOT NULL DEFAULT FALSE",
+                "delivered_at": "TIMESTAMP",
+                "reply_to_id": "INTEGER",
+                "attachment_filename": "VARCHAR(255)",
+                "attachment_original_name": "VARCHAR(255)",
+                "attachment_mimetype": "VARCHAR(120)",
+                "attachment_size": "INTEGER",
+            },
+        }
+
+        dialect = db.engine.dialect.name
+
+        for table, definitions in additions.items():
+            inspector = db.inspect(db.engine)
+            if not inspector.has_table(table):
+                raise RuntimeError(
+                    f"Required table {table!r} is missing."
+                )
+
+            existing = {
+                column["name"]
+                for column in inspector.get_columns(table)
+            }
+
+            for column, definition in definitions.items():
+                if column in existing:
+                    continue
+
+                # PostgreSQL supports IF NOT EXISTS, helping avoid races
+                # if multiple Gunicorn workers start simultaneously.
+                if dialect == "postgresql":
+                    statement = (
+                        f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS '
+                        f'"{column}" {definition}'
+                    )
+                else:
+                    statement = (
+                        f'ALTER TABLE "{table}" ADD COLUMN '
+                        f'"{column}" {definition}'
+                    )
+
+                with db.engine.begin() as connection:
+                    connection.execute(db.text(statement))
+
+                print(f"Database migration: added {table}.{column}")
+
+
+# Run after all SQLAlchemy models have been declared.
+migrate_existing_database_schema()
 
 
 @app.route("/")
@@ -1146,7 +1210,8 @@ def conversation(user_id):
         allowed_extensions = {
             "jpg", "jpeg", "png", "gif", "webp",
             "pdf", "txt", "csv", "doc", "docx",
-            "xls", "xlsx", "ppt", "pptx", "zip"
+            "xls", "xlsx", "ppt", "pptx", "zip",
+            "webm", "ogg", "mp4", "m4a", "mp3", "wav"
         }
         image_extensions = {"jpg", "jpeg", "png", "gif", "webp"}
 
@@ -1263,6 +1328,9 @@ def conversation(user_id):
                         except Exception:
                             app.logger.exception("Supabase attachment cleanup failed")
                     raise
+
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return jsonify({"success": True}), 200
 
                 return redirect(
                     url_for("conversation", user_id=person.id) + "#latest"
@@ -1503,7 +1571,7 @@ def conversation_updates(user_id):
 
     visible_reaction_ids = [
         item.id for item in recent_conversation_messages
-        if not item.is_unsent
+        if not item.is_unsent and item.id not in hidden_ids_for_user
     ]
 
     if visible_reaction_ids:
@@ -2206,6 +2274,7 @@ def message_attachment_file(message_id):
 
     attachment_dir = BASE_DIR / "uploads" / "message_attachments"
     is_image = (message.attachment_mimetype or "").startswith("image/")
+    is_audio = (message.attachment_mimetype or "").startswith("audio/")
 
     try:
         file_bytes = download_from_supabase(
@@ -2217,7 +2286,7 @@ def message_attachment_file(message_id):
                 mimetypes.guess_type(message.attachment_filename)[0]
                 or "application/octet-stream"
             ),
-            as_attachment=not is_image,
+            as_attachment=not (is_image or is_audio),
             download_name=message.attachment_original_name or "attachment"
         )
     except Exception:
@@ -2225,7 +2294,7 @@ def message_attachment_file(message_id):
         return send_from_directory(
             attachment_dir,
             message.attachment_filename,
-            as_attachment=not is_image,
+            as_attachment=not (is_image or is_audio),
             download_name=message.attachment_original_name or "attachment"
         )
 

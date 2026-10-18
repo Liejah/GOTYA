@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <meta name="theme-color" content="#1877f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Gotya">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat with {{ person.username }} | Gotya</title>
+<style>
+:root{--blue:#1877f2;--blue-dark:#0e5fc5;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line)}
+.topbar{max-width:1000px;margin:auto;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{font-size:25px;font-weight:850;letter-spacing:-1px;color:var(--blue);text-decoration:none}
+nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+nav a{padding:10px 13px;border-radius:10px;text-decoration:none;color:#465166;font-weight:700;font-size:14px}
+nav a:hover{background:#eaf2ff;color:var(--blue)}
+button{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:white;font-weight:750;cursor:pointer}
+button:hover{background:var(--blue-dark)}
+button.secondary{background:#eaf2ff;color:var(--blue)}
+main{max-width:850px;margin:25px auto;padding:0 15px 35px}
+.chat{height:min(76vh,760px);min-height:440px;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 25px #17203309}
+.chat-header{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:#fff}
+.back{font-size:24px;text-decoration:none;color:var(--blue);padding-right:3px}
+.avatar{height:45px;width:45px;border-radius:50%;background:linear-gradient(135deg,#1877f2,#78b5ff);display:flex;align-items:center;justify-content:center;color:white;font-size:19px;font-weight:800;overflow:hidden;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.person-info{min-width:0}
+.name{font-weight:850;overflow-wrap:anywhere}
+.status{font-size:12px;color:var(--green,#168653);margin-top:4px}
+.messages{flex:1;overflow-y:auto;padding:22px 18px;display:flex;flex-direction:column;gap:13px;background:linear-gradient(#f8faff,#f4f7fc)}
+.day-note{text-align:center;color:var(--muted);font-size:12px;margin:3px 0 10px}
+.message-row{display:flex;flex-direction:column;width:fit-content;max-width:78%;align-self:flex-start;align-items:flex-start;min-width:0}.message-row.mine{align-self:flex-end;align-items:flex-end}
+.message-row.mine{align-self:flex-end;align-items:flex-end}
+.bubble{display:block;width:fit-content;max-width:100%;box-sizing:border-box;padding:8px 12px;border:0;border-radius:18px 18px 18px 5px;background:#e5eaf2;color:var(--ink);font-size:14px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap}
+.mine .bubble{background:var(--blue);color:white;border-radius:18px 18px 5px 18px}
+.timestamp{font-size:11px;color:var(--muted);margin:5px 5px 0}
+.empty{text-align:center;color:var(--muted);margin:auto;padding:25px;line-height:1.6}
+.empty strong{display:block;color:var(--ink);font-size:18px;margin-bottom:7px}
+.composer{display:flex;gap:10px;align-items:flex-end;padding:14px;border-top:1px solid var(--line);background:#fff}
+textarea{flex:1;resize:none;min-height:44px;max-height:130px;border:1px solid #d9dfeb;border-radius:22px;padding:12px 16px;font:inherit;font-size:15px;outline:none}
+textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
+.send{height:44px;border-radius:22px;padding:0 20px}
+.attachment-picker{display:flex;flex-direction:column;gap:4px;max-width:145px;font-size:12px;color:var(--muted)}
+.attachment-picker label{display:inline-block;cursor:pointer;font-weight:700;color:var(--blue);padding:8px 4px}
+.attachment-picker input{width:145px;max-width:100%;font-size:11px}
+#attachmentName{overflow-wrap:anywhere;max-width:145px}
+.bubble.image-only-bubble{padding:0;background:transparent!important;color:inherit;border-radius:0;overflow:visible}.bubble.image-only-bubble .message-image{display:block;max-width:min(280px,100%);max-height:360px;object-fit:cover;border-radius:18px;margin:0}.bubble.image-only-bubble .attachment-link{padding:0 3px}.message-image{display:block;max-width:min(260px,100%);max-height:300px;object-fit:contain;border-radius:18px;margin-top:8px}
+.attachment-link{margin-top:8px;overflow-wrap:anywhere}
+.attachment-link a{color:var(--blue);font-weight:600}
+.attachment-link small{display:block;opacity:.75}
+
+
+/* Compact Messenger-style alignment */
+.message-row > .bubble{align-self:flex-start}
+.message-row.mine > .bubble{align-self:flex-end}
+.message-row .image-only-bubble{width:auto;max-width:100%;padding:0!important;border:0!important;box-shadow:none!important}
+.bubble.image-only-bubble .message-image{display:block;width:auto;max-width:100%;max-height:340px;object-fit:contain;border-radius:16px;margin:0}
+.bubble.image-only-bubble>a{display:block;max-width:100%;line-height:0}
+.bubble.image-only-bubble .attachment-link{display:none}
+.message-row .bubble:not(.image-only-bubble) .message-image{max-width:100%;height:auto;border-radius:14px}
+.timestamp{margin-top:3px;font-size:10px}
+@media(max-width:600px){
+.message-row{max-width:82%;width:fit-content}
+.bubble{padding:7px 10px;font-size:14px;line-height:1.4}
+.bubble.image-only-bubble .message-image{max-width:100%;max-height:300px;border-radius:15px}
+}
+
+/* Final compact Messenger-style spacing */
+.messages{gap:8px}
+.message-row{max-width:78%}
+.bubble{padding:5px 9px;font-size:14px;line-height:1.35;border-radius:15px 15px 15px 4px}
+.mine .bubble{border-radius:15px 15px 4px 15px}
+.message-row .image-only-bubble{padding:0!important}
+.bubble.image-only-bubble .attachment-link{display:none!important}
+.timestamp{margin:2px 4px 0;font-size:10px}
+@media(max-width:600px){
+.messages{gap:7px}
+.message-row{max-width:82%}
+.bubble{padding:5px 8px;font-size:14px;line-height:1.35}
+}
+
+/* Messenger-like text bubbles: content-sized, minimal padding */
+.message-row{width:fit-content;max-width:78%;min-width:0}
+.message-row .bubble:not(.image-only-bubble){
+  display:inline-block;
+  width:fit-content;
+  max-width:100%;
+  padding:6px 10px;
+  margin:0;
+  border:0;
+  box-shadow:none;
+  font-size:14px;
+  line-height:1.3;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
+}
+.message-row.mine .bubble:not(.image-only-bubble){
+  border-radius:18px 18px 4px 18px;
+}
+.message-row:not(.mine) .bubble:not(.image-only-bubble){
+  border-radius:18px 18px 18px 4px;
+}
+.message-text{margin:0;padding:0}
+@media(max-width:600px){
+  .message-row{max-width:82%}
+  .message-row .bubble:not(.image-only-bubble){
+    padding:5px 9px;
+    font-size:14px;
+    line-height:1.3;
+  }
+}
+
+/* Prevent template whitespace from making text bubbles bulky */
+.message-row .bubble:not(.image-only-bubble){
+  white-space:normal!important;
+  padding:4px 8px!important;
+  line-height:1.3!important;
+  width:fit-content;
+  min-width:0;
+}
+.message-row .bubble .message-text{
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  margin:0;
+  padding:0;
+}
+.message-row .bubble:not(.image-only-bubble) .attachment-link{
+  white-space:normal;
+}
+
+/* Tight photo spacing like Messenger */
+.messages{gap:6px!important}
+.message-row{margin:0!important;padding:0!important;gap:0!important}
+.message-row .bubble.image-only-bubble{margin:0!important;padding:0!important;line-height:0!important}
+.message-row .bubble.image-only-bubble>a{display:block!important;margin:0!important;padding:0!important;line-height:0!important}
+.message-row .bubble.image-only-bubble .message-image{display:block!important;margin:0!important;padding:0!important;border-radius:16px;max-height:320px}
+.message-row .timestamp{margin:2px 4px 0!important;line-height:1.2}
+
+/* Messenger-inspired composer, including Android sizing */
+.composer{display:flex;align-items:flex-end;gap:6px;padding:6px 9px;box-sizing:border-box}
+.composer-icon{width:36px;height:40px;flex:0 0 36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--blue);border-radius:50%;-webkit-tap-highlight-color:transparent}
+.composer-icon:active{background:#eaf2ff}
+.composer-icon svg,.send svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.visually-hidden-file{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.composer-input-wrap{flex:1;min-width:0;background:#f0f2f5;border-radius:22px;padding:1px 10px;display:flex;flex-direction:column;justify-content:center}
+.composer textarea{display:block;width:100%;min-width:0;height:24px;min-height:24px;max-height:64px;box-sizing:border-box;resize:none;border:0!important;box-shadow:none!important;background:transparent;padding:2px 1px;font:inherit;font-size:16px;line-height:20px;outline:none;overflow-y:hidden}
+.composer textarea::placeholder{color:#68778b}
+.selected-files{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.send{width:40px;height:40px;flex:0 0 40px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.send svg{width:22px;height:22px;fill:currentColor;stroke:currentColor}
+@media(max-width:600px){
+ .composer{gap:3px;padding:5px 5px;padding-bottom:max(5px,env(safe-area-inset-bottom))}
+ .composer-icon{width:32px;flex-basis:32px;height:40px}
+ .composer-icon svg{width:23px;height:23px}
+ .composer-input-wrap{padding:1px 8px}
+ .composer textarea{font-size:16px;height:24px;min-height:24px;max-height:64px;padding:2px 1px}
+ .send{width:38px;height:38px;flex-basis:38px}
+}
+
+.flash{padding:11px 14px;border-radius:10px;margin-bottom:12px;background:#eaf2ff;color:#174f9a}
+.flash.error{background:#fff0f1;color:#a5293c}
+@media(max-width:600px){.topbar{align-items:flex-start;flex-direction:column;padding:12px 15px}nav{width:100%}nav a{padding:9px 10px}main{margin:12px auto;padding:0 8px 12px}.chat{height:calc(100dvh - 155px);min-height:350px;border-radius:15px}.chat-header{padding:11px 12px}.messages{padding:17px 11px}.message-row{max-width:88%}.composer{padding:10px;gap:7px}.send{padding:0 15px}}
+
+/* Final photo-to-message spacing fix */
+.messages{row-gap:3px!important;column-gap:0!important}
+.messages>.message-row{margin-block:0!important;padding-block:0!important;gap:0!important}
+.messages>.message-row:has(.image-only-bubble){margin-block:0!important;padding-block:0!important}
+.messages>.message-row:has(.image-only-bubble) .timestamp{margin-top:1px!important;margin-bottom:0!important;padding:0!important;line-height:1!important}
+.messages>.message-row:has(.image-only-bubble) .image-only-bubble{display:block!important;margin:0!important;padding:0!important;line-height:0!important}
+.messages>.message-row:has(.image-only-bubble) .image-only-bubble>a{display:block!important;margin:0!important;padding:0!important;line-height:0!important}
+.messages>.message-row:has(.image-only-bubble) .message-image{display:block!important;margin:0!important;padding:0!important;vertical-align:top!important}
+
+/* Slim typing pill only; keep gallery and send buttons large */
+.composer .composer-input-wrap {
+    min-height: 22px !important;
+    padding: 0 10px !important;
+    border-radius: 18px !important;
+}
+.composer .composer-input-wrap textarea {
+    height: 22px;
+    min-height: 22px !important;
+    max-height: 58px !important;
+    padding: 0 !important;
+    line-height: 18px !important;
+    font-size: 16px !important;
+    box-sizing: border-box !important;
+}
+@media (max-width: 600px) {
+    .composer .composer-input-wrap {
+        padding-left: 9px !important;
+        padding-right: 9px !important;
+    }
+}
+
+
+/* Messenger-like typing box: comfortable first line, up to three lines */
+.composer .composer-input-wrap {
+    padding: 3px 10px !important;
+    border-radius: 20px !important;
+}
+.composer .composer-input-wrap textarea {
+    height: 26px;
+    min-height: 26px !important;
+    max-height: 54px !important;
+    padding: 4px 1px !important;
+    line-height: 18px !important;
+    font-size: 16px !important;
+    box-sizing: border-box !important;
+    overflow-y: hidden;
+}
+@media (max-width: 600px) {
+    .composer .composer-input-wrap {
+        padding: 3px 9px !important;
+    }
+}
+
+</style>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
+</head>
+<body>
+<header>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
+    <meta name="theme-color" content="#1877f2">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Gotya"><div class="topbar">
+<a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:#172033">.</span></a>
+<nav>
+<a href="{{ url_for('feed') }}">Feed</a>
+<a href="{{ url_for('friends') }}">Friends</a>
+<a href="{{ url_for('messages') }}">Messages</a>
+<a href="{{ url_for('profile') }}">Profile</a>
+</nav>
+</div></header>
+<main>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category,message in messages %}
+<div class="flash {{ 'error' if category == 'error' else '' }}">{{ message }}</div>
+{% endfor %}
+{% endwith %}
+<section class="chat">
+<div class="chat-header">
+<a class="back" href="{{ url_for('messages') }}" aria-label="Back to messages">&#8592;</a>
+<div class="avatar">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div>
+<div class="person-info"><div class="name">{{ person.username }}</div><div class="status">Gotya friend</div></div>
+</div>
+<div class="messages" id="messageList">
+{% if history %}
+{% for item in history %}
+<div class="message-row {{ 'mine' if item.sender_id == current_user.id else '' }}">
+<div class="bubble{% if item.attachment_filename and item.attachment_mimetype and item.attachment_mimetype.startswith('image/') and not item.content %} image-only-bubble{% endif %}">
+{% if item.content %}<div class="message-text">{{ item.content }}</div>{% endif %}
+{% if item.attachment_filename %}
+{% set attachment_url = url_for('message_attachment_file', message_id=item.id) %}
+{% if item.attachment_mimetype and item.attachment_mimetype.startswith('image/') %}
+<a href="{{ attachment_url }}" target="_blank" rel="noopener">
+<img class="message-image" src="{{ attachment_url }}" alt="{{ item.attachment_original_name or 'Shared image' }}" loading="lazy">
+</a>
+{% endif %}
+{% if not (item.attachment_mimetype and item.attachment_mimetype.startswith('image/')) %}
+<div class="attachment-link">
+<a href="{{ attachment_url }}">{{ item.attachment_original_name or 'Download attachment' }}</a>
+{% if item.attachment_size %}<small>{{ (item.attachment_size / 1024)|round|int }} KB</small>{% endif %}
+</div>
+{% endif %}
+{% endif %}
+</div>
+<div class="timestamp">{{ item.created_at.strftime('%b %d') + ' &#183; ' + item.created_at.strftime('%I:%M %p') }}</div>
+</div>
+{% endfor %}
+<div id="latest"></div>
+{% else %}
+<div class="empty"><strong>Say hello to {{ person.username }} &#9825;</strong>This is the beginning of your conversation. Send a message to get things started!</div>
+<div id="latest"></div>
+{% endif %}
+</div>
+<form class="composer" method="post" enctype="multipart/form-data" action="{{ url_for('conversation', user_id=person.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label class="composer-icon" for="photoInput" title="Choose up to 30 photos" aria-label="Choose photos">
+<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="8.5" cy="9" r="1.5"></circle><path d="m21 15-5-5L5 20"></path></svg>
+</label>
+<input class="visually-hidden-file" id="photoInput" type="file" name="photos" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
+<label class="composer-icon file-icon" for="attachmentInput" title="Attach a document or file" aria-label="Attach a file">
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5a6 6 0 0 1-6-6V7a4 4 0 0 1 8 0v7.5a2 2 0 0 1-4 0V8"></path></svg>
+</label>
+<input class="visually-hidden-file" id="attachmentInput" type="file" name="attachment" accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip">
+<div class="composer-input-wrap">
+<textarea id="messageInput" name="content" maxlength="2000" rows="1" placeholder="Aa" aria-label="Write a message"></textarea>
+<div id="attachmentName" class="selected-files" aria-live="polite"></div>
+</div>
+<button class="send" type="submit" aria-label="Send message" title="Send message">
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
+</button>
+</form>
+</section>
+</main>
+<script>
+const list = document.getElementById("messageList");
+const input = document.getElementById("messageInput");
+function scrollToLatest(){ list.scrollTop = list.scrollHeight; }
+scrollToLatest();
+const photoInput = document.getElementById("photoInput");
+const fileInput = document.getElementById("attachmentInput");
+const attachmentName = document.getElementById("attachmentName");
+
+function showSelection() {
+  if (photoInput.files.length) {
+    attachmentName.textContent = photoInput.files.length + (photoInput.files.length === 1 ? " photo selected" : " photos selected (max 30)");
+  } else if (fileInput.files.length) {
+    attachmentName.textContent = fileInput.files[0].name;
+  } else {
+    attachmentName.textContent = "";
+  }
+}
+photoInput.addEventListener("change", () => {
+  if (photoInput.files.length > 30) {
+    alert("Please select up to 30 photos at a time.");
+    photoInput.value = "";
+  }
+  fileInput.value = "";
+  showSelection();
+});
+fileInput.addEventListener("change", () => {
+  photoInput.value = "";
+  showSelection();
+});
+
+function resizeMessageBox() {
+  input.style.height = "26px";
+  const maxHeight = 54; // Three lines at 18px each
+  input.style.height = Math.min(input.scrollHeight, maxHeight) + "px";
+  input.style.overflowY = input.scrollHeight > maxHeight ? "auto" : "hidden";
+}
+
+input.addEventListener("input", resizeMessageBox);
+input.addEventListener("keydown", event => {
+  if (event.key === "Enter" && !event.shiftKey && window.matchMedia("(min-width: 601px)").matches) {
+    event.preventDefault();
+    input.form.requestSubmit();
+  }
+});
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js")
+            .catch(error => console.error("Gotya service worker registration failed:", error));
+    });
+}
+</script>
+</body>
+</html>
+
+
+
+
+
+
+

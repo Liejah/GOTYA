@@ -1,0 +1,470 @@
+diff --git a/app.py b/app.py
+index 8d355ef..3131db4 100644
+--- a/app.py
++++ b/app.py
+@@ -1908,0 +1989,11 @@ def video_call_start(user_id):
++
++    try:
++        send_push_notification(
++            user_id,
++            "Incoming video call",
++            f"{current_user.username} is calling you.",
++            url_for("conversation", user_id=current_user.id),
++        )
++    except Exception:
++        app.logger.exception("Could not send incoming-call push notification.")
++
+@@ -1980,0 +2073,49 @@ def video_call_end(call_id):
++    was_accepted = call.status == "accepted"
++    ended_at = datetime.utcnow()
++    other_user_id = (
++        call.recipient_id
++        if current_user.id == call.caller_id
++        else call.caller_id
++    )
++
++    if was_accepted:
++        started_at = call.updated_at
++
++        # Prefer the browser's actual connected time when available.
++        data = request.get_json(silent=True) or {}
++        connected_at = data.get("connected_at")
++
++        if isinstance(connected_at, str):
++            try:
++                candidate = datetime.fromisoformat(
++                    connected_at.replace("Z", "+00:00")
++                )
++                if candidate.tzinfo is not None:
++                    candidate = candidate.replace(tzinfo=None)
++
++                if call.created_at <= candidate <= ended_at:
++                    started_at = candidate
++            except (TypeError, ValueError):
++                app.logger.warning("Invalid connected_at supplied for call %s.", call.id)
++
++        duration_seconds = max(
++            0, int((ended_at - started_at).total_seconds())
++        )
++        minutes, seconds = divmod(duration_seconds, 60)
++
++        # Display Philippine time (UTC+8) in the chat summary.
++        timedelta = __import__("datetime").timedelta
++        started_pht = started_at + timedelta(hours=8)
++        ended_pht = ended_at + timedelta(hours=8)
++
++        summary = (
++            "Call Ended\n"
++            f"{minutes}m {seconds:02d}s \u00b7 {started_pht.strftime('%I:%M %p').lstrip('0')}"
++        )
++
++        db.session.add(Message(
++            sender_id=current_user.id,
++            recipient_id=other_user_id,
++            content=summary,
++        ))
++
+@@ -1983,2 +2124,20 @@ def video_call_end(call_id):
+-    call.updated_at = datetime.utcnow()
+-    db.session.commit()
++    call.updated_at = ended_at
++
++    try:
++        db.session.commit()
++    except Exception:
++        db.session.rollback()
++        app.logger.exception("Could not save the ended call.")
++        return jsonify({"error": "Could not save the call ending."}), 500
++
++    if was_accepted:
++        try:
++            send_push_notification(
++                other_user_id,
++                "Video call ended",
++                f"{current_user.username} ended the call. {minutes}m {seconds:02d}s.",
++                url_for("conversation", user_id=current_user.id),
++            )
++        except Exception:
++            app.logger.exception("Could not send call-ended notification.")
++
+diff --git a/templates/conversation.html b/templates/conversation.html
+index 4b849eb..4d13cac 100644
+--- a/templates/conversation.html
++++ b/templates/conversation.html
+@@ -490,2 +494,6 @@ main {
+-    padding: 16px;
+-    background: rgba(10, 15, 25, .82);
++    padding: 0;
++    background: #080b12;
++}
++
++.gotya-call-overlay.open {
++    display: flex;
+@@ -493 +501 @@ main {
+-.gotya-call-overlay.open { display: flex; }
++
+@@ -502,0 +515,17 @@ main {
++
++#gotyaCallTitle {
++    margin: 0;
++    text-align: center;
++    font-size: 21px;
++    font-weight: 700;
++}
++
++#gotyaCallStatus {
++    min-height: 20px;
++    margin: 8px 0;
++    color: #cbd5e1;
++    text-align: center;
++    white-space: pre-wrap;
++    font-size: 14px;
++}
++
+@@ -528,2 +593,5 @@ main {
+-    background: #e9edf2;
+-    color: #202124;
++    transition: transform .15s ease, background .15s ease;
++}
++
++.gotya-call-actions button:active {
++    transform: scale(.96);
+@@ -531,3 +599,17 @@ main {
+-.gotya-call-actions .danger { background: #d93025; color: #fff; }
+-.gotya-call-actions .accept { background: #188038; color: #fff; }
+-#gotyaCallStatus { white-space: pre-wrap; }
++
++.gotya-call-actions .danger {
++    min-width: 105px;
++    background: #e53945;
++    color: #fff;
++}
++
++.gotya-call-actions .accept {
++    background: #168747;
++    color: #fff;
++}
++
++.gotya-call-actions button[hidden],
++.gotya-call-actions[hidden] {
++    display: none !important;
++}
++
+@@ -535,3 +617,49 @@ main {
+-    .gotya-call-videos { grid-template-columns: 1fr; }
+-    .gotya-call-videos video { max-height: 30vh; }
+-    .gotya-call-btn { padding: 8px 10px; }
++    .gotya-call-card {
++        padding: 12px;
++        padding-top: max(12px, env(safe-area-inset-top));
++        padding-bottom: max(12px, env(safe-area-inset-bottom));
++    }
++
++    .gotya-call-videos,
++    #gotyaRemoteVideo {
++        border-radius: 16px;
++    }
++
++    #gotyaLocalVideo {
++        top: 12px;
++        right: 12px;
++        width: 108px;
++        height: 155px;
++        border-radius: 13px;
++    }
++
++    .gotya-call-actions {
++        gap: 8px;
++    }
++
++    .gotya-call-actions button {
++        min-height: 44px;
++        padding: 11px 14px;
++        font-size: 13px;
++    }
++}
++
++.gotya-call-actions button.icon-control {
++    display: inline-flex; align-items: center; justify-content: center;
++    width: 52px; min-width: 52px; height: 52px; min-height: 52px;
++    padding: 0; border-radius: 50%; flex: 0 0 52px;
++}
++.gotya-call-actions button.icon-control svg {
++    display: block; width: 23px; height: 23px;
++}
++.gotya-call-actions button.icon-control.danger {
++    min-width: 52px; background: #e53945;
++}
++.gotya-call-actions button.icon-control.close-control {
++    width: 42px; min-width: 42px; height: 42px; min-height: 42px;
++    flex-basis: 42px; background: #252b38;
++}
++.message-row .bubble.call-summary-bubble {
++    display: inline-block; max-width: 100%; padding: 10px 13px;
++    border: 1px solid var(--border-color, rgba(127,127,127,.35));
++    border-radius: 14px; background: transparent; box-shadow: none;
+@@ -538,0 +667,7 @@ main {
++.message-row .bubble.call-summary-bubble .message-text {
++    white-space: pre-line; font-size: 13px; line-height: 1.6;
++}
++.message-row .bubble.call-summary-bubble .message-text::first-line {
++    font-weight: 700;
++}
++
+@@ -594,3 +729,15 @@ main {
+-      <button type="button" id="gotyaMuteCall">Mute microphone</button>
+-      <button type="button" id="gotyaCameraCall">Turn camera off</button>
+-      <button type="button" class="danger" id="gotyaEndCall">End call</button>
++      <button type="button" class="icon-control" id="gotyaMuteCall" aria-label="Mute microphone" title="Mute microphone">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
++      </button>
++      <button type="button" class="icon-control" id="gotyaCameraCall" aria-label="Turn camera off" title="Turn camera off">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 10 5-3v10l-5-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
++      </button>
++      <button type="button" class="icon-control" id="gotyaSwitchCamera" aria-label="Switch camera" title="Switch camera">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.6 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.4-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++      </button>
++      <button type="button" class="icon-control" id="gotyaScreenShare" aria-label="Share screen" title="Share screen">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 21v-8m-3 3 3-3 3 3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++      </button>
++      <button type="button" class="icon-control danger" id="gotyaEndCall" aria-label="End call" title="End call">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14.5a13 13 0 0 1 16 0l-2.5 4-4-2v-2a5 5 0 0 0-3 0v2l-4 2zM3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++      </button>
+@@ -599 +746,3 @@ main {
+-      <button type="button" id="gotyaCloseCallPanel">Close</button>
++      <button type="button" class="icon-control close-control" id="gotyaCloseCallPanel" aria-label="Close call panel" title="Close">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
++      </button>
+@@ -611 +760 @@ main {
+-<div class="bubble{% if item.attachment_filename and item.attachment_mimetype and item.attachment_mimetype.startswith('image/') and not item.content %} image-only-bubble{% endif %}">
++<div class="bubble{% if item.content and item.content.startswith('Call Ended') %} call-summary-bubble{% endif %}{% if item.attachment_filename and item.attachment_mimetype and item.attachment_mimetype.startswith('image/') and not item.content %} image-only-bubble{% endif %}">
+@@ -1112,0 +1262 @@ if (input) {
++    const isCallSummary = Boolean(message.content && message.content.startsWith("Call Ended"));
+@@ -1115 +1265,3 @@ if (input) {
+-      "bubble" + (isImage && !message.content ? " image-only-bubble" : "")
++      "bubble" +
++        (isCallSummary ? " call-summary-bubble" : "") +
++        (isImage && !message.content ? " image-only-bubble" : "")
+@@ -1379,0 +1532,19 @@ if ("serviceWorker" in navigator) {
++  const switchCameraButton = document.getElementById("gotyaSwitchCamera");
++  const screenShareButton = document.getElementById("gotyaScreenShare");
++  const videoStage = document.querySelector(".gotya-call-videos");
++
++  const CALL_ICONS = {
++    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
++    micOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9v5a3 3 0 0 0 5 2M15 9V5a3 3 0 0 0-6 0v1M5 10v2a7 7 0 0 0 12 5M12 19v3M8 22h8M3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
++    camera: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 10 5-3v10l-5-3" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
++    cameraOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10 6h4a2 2 0 0 1 2 2v2l5-3v10l-3-2M16 16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
++    share: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 21v-8m-3 3 3-3 3 3M8 21h8" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
++    stopShare: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10h8M12 7v6M12 21v-4M8 21h8" fill="none" stroke="currentColor" stroke-width="2"/></svg>'
++  };
++
++  function setCallIcon(button, svg, label) {
++    if (!button) return;
++    button.innerHTML = svg;
++    button.setAttribute("aria-label", label);
++    button.title = label;
++  }
+@@ -1388,0 +1560,5 @@ if ("serviceWorker" in navigator) {
++  let screenStream = null;
++  let cameraFacingMode = "user";
++  let connectedAt = null;
++  let lastTapAt = 0;
++  let lastTouchAt = 0;
+@@ -1459 +1635 @@ if ("serviceWorker" in navigator) {
+-      video: { facingMode: "user" }
++      video: { facingMode: { ideal: cameraFacingMode } }
+@@ -1461,0 +1638,2 @@ if ("serviceWorker" in navigator) {
++    localVideo.style.transform =
++      cameraFacingMode === "user" ? "scaleX(-1)" : "none";
+@@ -1477,0 +1656,5 @@ if ("serviceWorker" in navigator) {
++    if (screenStream) {
++      screenStream.getTracks().forEach(track => track.stop());
++      screenStream = null;
++    }
++
+@@ -1482,0 +1666,3 @@ if ("serviceWorker" in navigator) {
++    setCallIcon(screenShareButton, CALL_ICONS.share, "Share screen");
++    if (switchCameraButton) switchCameraButton.disabled = false;
++    localVideo.style.transform = "";
+@@ -1500,0 +1687,2 @@ if ("serviceWorker" in navigator) {
++    connectedAt = null;
++    cameraFacingMode = "user";
+@@ -1559,0 +1749,140 @@ if ("serviceWorker" in navigator) {
++  async function switchCamera() {
++    if (!localStream) {
++      setStatus("Start or accept a call before switching cameras.");
++      return;
++    }
++    if (!navigator.mediaDevices?.getUserMedia) {
++      setStatus("Camera switching is not supported in this browser.");
++      return;
++    }
++
++    try {
++      if (screenStream) await stopScreenShare();
++
++      const nextFacing = cameraFacingMode === "user"
++        ? "environment" : "user";
++
++      const stream = await navigator.mediaDevices.getUserMedia({
++        audio: false,
++        video: { facingMode: { ideal: nextFacing } }
++      });
++      const newTrack = stream.getVideoTracks()[0];
++
++      if (!newTrack) {
++        stream.getTracks().forEach(track => track.stop());
++        throw new Error("The selected camera is unavailable.");
++      }
++
++      const oldTrack = localStream.getVideoTracks()[0];
++      if (oldTrack) newTrack.enabled = oldTrack.enabled;
++
++      const sender = pc?.getSenders().find(
++        item => item.track && item.track.kind === "video"
++      );
++
++      if (sender) await sender.replaceTrack(newTrack);
++
++      if (oldTrack) {
++        localStream.removeTrack(oldTrack);
++        oldTrack.stop();
++      }
++
++      localStream.addTrack(newTrack);
++      cameraFacingMode = nextFacing;
++      localVideo.srcObject = localStream;
++      localVideo.style.transform =
++        cameraFacingMode === "user" ? "scaleX(-1)" : "none";
++      await localVideo.play().catch(() => {});
++
++      setStatus(cameraFacingMode === "user"
++        ? "Front camera selected." : "Rear camera selected.");
++    } catch (error) {
++      setStatus("Could not switch camera: " + error.message);
++    }
++  }
++
++  async function stopScreenShare() {
++    if (!screenStream) return;
++
++    const oldScreen = screenStream;
++    screenStream = null;
++    const cameraTrack = localStream?.getVideoTracks()[0];
++    const sender = pc?.getSenders().find(
++      item => item.track && item.track.kind === "video"
++    );
++
++    try {
++      if (sender && cameraTrack) await sender.replaceTrack(cameraTrack);
++    } finally {
++      oldScreen.getTracks().forEach(track => {
++        track.onended = null;
++        track.stop();
++      });
++
++      if (localStream) {
++        localVideo.srcObject = localStream;
++        localVideo.style.transform =
++          cameraFacingMode === "user" ? "scaleX(-1)" : "none";
++        await localVideo.play().catch(() => {});
++      }
++
++      setCallIcon(screenShareButton, CALL_ICONS.share, "Share screen");
++      if (switchCameraButton) switchCameraButton.disabled = false;
++    }
++  }
++
++  async function toggleScreenShare() {
++    if (screenStream) {
++      try {
++        await stopScreenShare();
++        setStatus("Screen sharing stopped.");
++      } catch (error) {
++        setStatus("Could not restore the camera: " + error.message);
++      }
++      return;
++    }
++
++    if (!navigator.mediaDevices?.getDisplayMedia) {
++      setStatus("Screen sharing is not supported in this browser.");
++      return;
++    }
++    if (!pc || !localStream) {
++      setStatus("Accept the call before sharing your screen.");
++      return;
++    }
++
++    try {
++      const display = await navigator.mediaDevices.getDisplayMedia({
++        video: true,
++        audio: false
++      });
++      const track = display.getVideoTracks()[0];
++      const sender = pc.getSenders().find(
++        item => item.track && item.track.kind === "video"
++      );
++
++      if (!track || !sender) {
++        display.getTracks().forEach(item => item.stop());
++        throw new Error("The video connection is not ready.");
++      }
++
++      await sender.replaceTrack(track);
++      screenStream = display;
++      localVideo.srcObject = display;
++      localVideo.style.transform = "none";
++      await localVideo.play().catch(() => {});
++
++      setCallIcon(screenShareButton, CALL_ICONS.stopShare, "Stop sharing");
++      if (switchCameraButton) switchCameraButton.disabled = true;
++
++      track.onended = () => {
++        stopScreenShare().catch(error => {
++          setStatus("Could not restore the camera: " + error.message);
++        });
++      };
++      setStatus("You are sharing your screen.");
++    } catch (error) {
++      setStatus("Screen sharing was not started: " + error.message);
++    }
++  }
++
+@@ -1824 +2155 @@ if ("serviceWorker" in navigator) {
+-    muteButton.textContent = enable ? "Mute microphone" : "Unmute microphone";
++    setCallIcon(muteButton, enable ? CALL_ICONS.mic : CALL_ICONS.micOff, enable ? "Mute microphone" : "Unmute microphone");
+@@ -1834 +2165 @@ if ("serviceWorker" in navigator) {
+-    cameraButton.textContent = enable ? "Turn camera off" : "Turn camera on";
++    setCallIcon(cameraButton, enable ? CALL_ICONS.camera : CALL_ICONS.cameraOff, enable ? "Turn camera off" : "Turn camera on");
+@@ -1836,0 +2168,30 @@ if ("serviceWorker" in navigator) {
++  if (switchCameraButton) {
++    switchCameraButton.addEventListener("click", switchCamera);
++  }
++
++  if (screenShareButton) {
++    screenShareButton.addEventListener("click", toggleScreenShare);
++  }
++
++  if (videoStage) {
++    videoStage.addEventListener("touchend", event => {
++      if (event.target.closest("button")) return;
++      const now = Date.now();
++
++      if (now - lastTapAt < 320) {
++        lastTapAt = 0;
++        lastTouchAt = now;
++        switchCamera();
++      } else {
++        lastTapAt = now;
++      }
++    }, { passive: true });
++
++    videoStage.addEventListener("dblclick", event => {
++      if (event.target.closest("button")) return;
++      if (Date.now() - lastTouchAt < 500) return;
++      event.preventDefault();
++      switchCamera();
++    });
++  }
++

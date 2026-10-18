@@ -1,0 +1,176 @@
+--- a/app.py
++++ b/app.py
+@@ -2109,10 +2109,8 @@
+         ended_pht = ended_at + timedelta(hours=8)
+ 
+         summary = (
+-            "Video call ended\n"
+-            f"Started: {started_pht.strftime('%b %d, %Y %I:%M:%S %p')} PHT\n"
+-            f"Ended: {ended_pht.strftime('%b %d, %Y %I:%M:%S %p')} PHT\n"
+-            f"Duration: {minutes}m {seconds:02d}s"
++            "Call Ended\n"
++            f"{minutes}m {seconds:02d}s \u00b7 {started_pht.strftime('%I:%M %p').lstrip('0')}"
+         )
+ 
+         db.session.add(Message(
+--- a/templates/conversation.html
++++ b/templates/conversation.html
+@@ -643,6 +643,34 @@
+         font-size: 13px;
+     }
+ }
++
++.gotya-call-actions button.icon-control {
++    display: inline-flex; align-items: center; justify-content: center;
++    width: 52px; min-width: 52px; height: 52px; min-height: 52px;
++    padding: 0; border-radius: 50%; flex: 0 0 52px;
++}
++.gotya-call-actions button.icon-control svg {
++    display: block; width: 23px; height: 23px;
++}
++.gotya-call-actions button.icon-control.danger {
++    min-width: 52px; background: #e53945;
++}
++.gotya-call-actions button.icon-control.close-control {
++    width: 42px; min-width: 42px; height: 42px; min-height: 42px;
++    flex-basis: 42px; background: #252b38;
++}
++.message-row .bubble.call-summary-bubble {
++    display: inline-block; max-width: 100%; padding: 10px 13px;
++    border: 1px solid var(--border-color, rgba(127,127,127,.35));
++    border-radius: 14px; background: transparent; box-shadow: none;
++}
++.message-row .bubble.call-summary-bubble .message-text {
++    white-space: pre-line; font-size: 13px; line-height: 1.6;
++}
++.message-row .bubble.call-summary-bubble .message-text::first-line {
++    font-weight: 700;
++}
++
+ /* END GOTYA VIDEO CALL */
+ 
+ </style>
+@@ -698,14 +726,26 @@
+       <button type="button" class="danger" id="gotyaDeclineCall">Decline</button>
+     </div>
+     <div class="gotya-call-actions" id="gotyaActiveActions" hidden>
+-      <button type="button" id="gotyaMuteCall">Mute microphone</button>
+-      <button type="button" id="gotyaCameraCall">Turn camera off</button>
+-      <button type="button" id="gotyaSwitchCamera">Switch camera</button>
+-      <button type="button" id="gotyaScreenShare">Share screen</button>
+-      <button type="button" class="danger" id="gotyaEndCall">End call</button>
++      <button type="button" class="icon-control" id="gotyaMuteCall" aria-label="Mute microphone" title="Mute microphone">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
++      </button>
++      <button type="button" class="icon-control" id="gotyaCameraCall" aria-label="Turn camera off" title="Turn camera off">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 10 5-3v10l-5-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
++      </button>
++      <button type="button" class="icon-control" id="gotyaSwitchCamera" aria-label="Switch camera" title="Switch camera">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.6 9A7 7 0 0 1 18 6l2 2M4 16l2 2a7 7 0 0 0 12.4-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++      </button>
++      <button type="button" class="icon-control" id="gotyaScreenShare" aria-label="Share screen" title="Share screen">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 21v-8m-3 3 3-3 3 3M8 21h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++      </button>
++      <button type="button" class="icon-control danger" id="gotyaEndCall" aria-label="End call" title="End call">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14.5a13 13 0 0 1 16 0l-2.5 4-4-2v-2a5 5 0 0 0-3 0v2l-4 2zM3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++      </button>
+     </div>
+     <div class="gotya-call-actions">
+-      <button type="button" id="gotyaCloseCallPanel">Close</button>
++      <button type="button" class="icon-control close-control" id="gotyaCloseCallPanel" aria-label="Close call panel" title="Close">
++        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
++      </button>
+     </div>
+   </div>
+ </div>
+@@ -717,7 +757,7 @@
+ <div class="time-separator">{{ item.created_at.strftime('%b %d · %I:%M %p') }}</div>
+ {% endif %}
+ <div class="message-row {{ 'mine' if item.sender_id == current_user.id else '' }}" data-message-id="{{ item.id }}" data-sender-id="{{ item.sender_id }}" data-created-at="{{ item.created_at.isoformat() }}">
+-<div class="bubble{% if item.attachment_filename and item.attachment_mimetype and item.attachment_mimetype.startswith('image/') and not item.content %} image-only-bubble{% endif %}">
++<div class="bubble{% if item.content and item.content.startswith('Call Ended') %} call-summary-bubble{% endif %}{% if item.attachment_filename and item.attachment_mimetype and item.attachment_mimetype.startswith('image/') and not item.content %} image-only-bubble{% endif %}">
+ {% if item.content %}<div class="message-text">{{ item.content }}</div>{% endif %}
+ {% if item.attachment_filename %}
+ {% set attachment_url = url_for('message_attachment_file', message_id=item.id) %}
+@@ -1219,9 +1259,12 @@
+       message.attachment_mimetype &&
+       message.attachment_mimetype.startsWith("image/")
+     );
++    const isCallSummary = Boolean(message.content && message.content.startsWith("Call Ended"));
+     const bubble = makeElement(
+       "div",
+-      "bubble" + (isImage && !message.content ? " image-only-bubble" : "")
++      "bubble" +
++        (isCallSummary ? " call-summary-bubble" : "") +
++        (isImage && !message.content ? " image-only-bubble" : "")
+     );
+ 
+     if (message.content) {
+@@ -1490,6 +1533,22 @@
+   const screenShareButton = document.getElementById("gotyaScreenShare");
+   const videoStage = document.querySelector(".gotya-call-videos");
+ 
++  const CALL_ICONS = {
++    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
++    micOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9v5a3 3 0 0 0 5 2M15 9V5a3 3 0 0 0-6 0v1M5 10v2a7 7 0 0 0 12 5M12 19v3M8 22h8M3 3l18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
++    camera: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 10 5-3v10l-5-3" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
++    cameraOff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10 6h4a2 2 0 0 1 2 2v2l5-3v10l-3-2M16 16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
++    share: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 21v-8m-3 3 3-3 3 3M8 21h8" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
++    stopShare: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10h8M12 7v6M12 21v-4M8 21h8" fill="none" stroke="currentColor" stroke-width="2"/></svg>'
++  };
++
++  function setCallIcon(button, svg, label) {
++    if (!button) return;
++    button.innerHTML = svg;
++    button.setAttribute("aria-label", label);
++    button.title = label;
++  }
++
+   const recipientId = {{ person.id|tojson }};
+   const csrfToken =
+     document.querySelector('input[name="csrf_token"]')?.value || "";
+@@ -1604,7 +1663,7 @@
+       localStream = null;
+     }
+ 
+-    if (screenShareButton) screenShareButton.textContent = "Share screen";
++    setCallIcon(screenShareButton, CALL_ICONS.share, "Share screen");
+     if (switchCameraButton) switchCameraButton.disabled = false;
+     localVideo.style.transform = "";
+     localVideo.srcObject = null;
+@@ -1767,7 +1826,7 @@
+         await localVideo.play().catch(() => {});
+       }
+ 
+-      if (screenShareButton) screenShareButton.textContent = "Share screen";
++      setCallIcon(screenShareButton, CALL_ICONS.share, "Share screen");
+       if (switchCameraButton) switchCameraButton.disabled = false;
+     }
+   }
+@@ -1813,7 +1872,7 @@
+       localVideo.style.transform = "none";
+       await localVideo.play().catch(() => {});
+ 
+-      screenShareButton.textContent = "Stop sharing";
++      setCallIcon(screenShareButton, CALL_ICONS.stopShare, "Stop sharing");
+       if (switchCameraButton) switchCameraButton.disabled = true;
+ 
+       track.onended = () => {
+@@ -2093,7 +2152,7 @@
+ 
+     const enable = !tracks.some(track => track.enabled);
+     tracks.forEach(track => { track.enabled = enable; });
+-    muteButton.textContent = enable ? "Mute microphone" : "Unmute microphone";
++    setCallIcon(muteButton, enable ? CALL_ICONS.mic : CALL_ICONS.micOff, enable ? "Mute microphone" : "Unmute microphone");
+   });
+ 
+   cameraButton.addEventListener("click", () => {
+@@ -2103,7 +2162,7 @@
+ 
+     const enable = !tracks.some(track => track.enabled);
+     tracks.forEach(track => { track.enabled = enable; });
+-    cameraButton.textContent = enable ? "Turn camera off" : "Turn camera on";
++    setCallIcon(cameraButton, enable ? CALL_ICONS.camera : CALL_ICONS.cameraOff, enable ? "Turn camera off" : "Turn camera on");
+   });
+ 
+   if (switchCameraButton) {

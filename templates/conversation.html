@@ -60,6 +60,26 @@ textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
 .attachment-link{margin-top:8px;overflow-wrap:anywhere}
 .attachment-link a{color:var(--blue);font-weight:600}
 .attachment-link small{display:block;opacity:.75}
+.voice-message-player{display:block;width:min(280px,100%);max-width:100%;margin:8px 0;border-radius:12px}
+
+/* Keep audio-only messages wide enough to show native playback controls. */
+.message-row:has(.voice-message-player){
+  width:min(304px,82%);
+  max-width:82%;
+  min-width:0;
+}
+.message-row:has(.voice-message-player) > .bubble{
+  width:100% !important;
+  min-width:0;
+}
+.message-row .voice-message-player{
+  display:block;
+  width:100%;
+  min-width:240px;
+  max-width:100%;
+  box-sizing:border-box;
+}
+
 
 
 /* Compact Messenger-style alignment */
@@ -953,8 +973,10 @@ main {
 <a href="{{ attachment_url }}" target="_blank" rel="noopener">
 <img class="message-image" src="{{ attachment_url }}" alt="{{ item.attachment_original_name or 'Shared image' }}" loading="lazy">
 </a>
+{% elif (item.attachment_mimetype and item.attachment_mimetype.startswith('audio/')) or (item.attachment_original_name and item.attachment_original_name.lower().endswith(('.webm', '.ogg', '.m4a', '.mp3', '.wav', '.aac', '.mp4'))) %}
+<audio class="voice-message-player" controls preload="metadata" src="{{ attachment_url }}">Your browser does not support audio playback.</audio>
 {% endif %}
-{% if not (item.attachment_mimetype and item.attachment_mimetype.startswith('image/')) %}
+{% if not ((item.attachment_mimetype and (item.attachment_mimetype.startswith('image/') or item.attachment_mimetype.startswith('audio/'))) or (item.attachment_original_name and item.attachment_original_name.lower().endswith(('.webm', '.ogg', '.m4a', '.mp3', '.wav', '.aac', '.mp4')))) %}
 <div class="attachment-link">
 <a href="{{ attachment_url }}">{{ item.attachment_original_name or 'Download attachment' }}</a>
 {% if item.attachment_size %}<small>{{ (item.attachment_size / 1024)|round|int }} KB</small>{% endif %}
@@ -1128,11 +1150,15 @@ photoInput.addEventListener("change", () => {
     photoInput.value = "";
   }
   fileInput.value = "";
+  const voiceInputForPhotos = document.getElementById("voiceInput");
+  if (voiceInputForPhotos) voiceInputForPhotos.value = "";
   showSelection();
 });
 
 fileInput.addEventListener("change", () => {
   photoInput.value = "";
+  const voiceInputForFiles = document.getElementById("voiceInput");
+  if (voiceInputForFiles) voiceInputForFiles.value = "";
   showSelection();
 });
 
@@ -1220,14 +1246,164 @@ if (input) {
     attachmentInput.click();
   });
 
-  // Voice recording is wired in a later step; do not silently pretend it works.
-  voiceButton.addEventListener("click", () => {
+  // Voice-message recording using the browser MediaRecorder API.
+  const voiceInput = document.getElementById("voiceInput");
+  const recorderPanel = document.getElementById("voiceRecorder");
+  const recorderStatus = document.getElementById("voiceRecorderStatus");
+  const stopVoiceButton = document.getElementById("stopVoiceRecording");
+  const cancelVoiceButton = document.getElementById("cancelVoiceRecording");
+  let mediaRecorder = null;
+  let mediaStream = null;
+  let voiceChunks = [];
+  let discardRecording = false;
+
+  function stopMicrophoneTracks() {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+    }
+  }
+
+  function clearVoiceRecording() {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      discardRecording = true;
+      mediaRecorder.stop();
+    } else {
+      stopMicrophoneTracks();
+    }
+    if (voiceInput) voiceInput.value = "";
+    if (attachmentName) attachmentName.textContent = "";
+    recorderPanel.hidden = true;
+    stopVoiceButton.disabled = false;
+    cancelVoiceButton.disabled = false;
+    mediaRecorder = null;
+    voiceChunks = [];
+  }
+
+  voiceButton.addEventListener("click", async () => {
     closeComposerMenus();
-    const recorderStatus = document.getElementById("voiceRecorderStatus");
-    const recorder = document.getElementById("voiceRecorder");
-    recorder.hidden = false;
-    recorderStatus.textContent = "Voice recording setup is not finished yet.";
+
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      recorderPanel.hidden = false;
+      recorderStatus.textContent = "Voice recording is not supported in this browser.";
+      return;
+    }
+
+    if (mediaRecorder && mediaRecorder.state === "recording") return;
+
+    photoInput.value = "";
+    fileInput.value = "";
+    voiceInput.value = "";
+    if (attachmentName) attachmentName.textContent = "";
+
+    recorderPanel.hidden = false;
+    recorderStatus.textContent = "Requesting microphone permission...";
+    stopVoiceButton.disabled = true;
+    cancelVoiceButton.disabled = false;
+    discardRecording = false;
+    voiceChunks = [];
+
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      const supportedTypes = [
+        "audio/webm;codecs=opus",
+        "audio/ogg;codecs=opus",
+        "audio/mp4"
+      ];
+      const mimeType = supportedTypes.find(type =>
+        MediaRecorder.isTypeSupported(type)
+      );
+      mediaRecorder = mimeType
+        ? new MediaRecorder(mediaStream, { mimeType })
+        : new MediaRecorder(mediaStream);
+
+      mediaRecorder.addEventListener("dataavailable", event => {
+        if (event.data && event.data.size > 0) voiceChunks.push(event.data);
+      });
+
+      mediaRecorder.addEventListener("stop", () => {
+        stopMicrophoneTracks();
+
+        if (discardRecording) {
+          if (voiceInput) voiceInput.value = "";
+          if (attachmentName) attachmentName.textContent = "";
+          recorderPanel.hidden = true;
+          mediaRecorder = null;
+          voiceChunks = [];
+          discardRecording = false;
+          stopVoiceButton.disabled = false;
+          cancelVoiceButton.disabled = false;
+          return;
+        }
+
+        const type = mediaRecorder?.mimeType ||
+          voiceChunks[0]?.type || "audio/webm";
+        const blob = new Blob(voiceChunks, { type });
+
+        if (!blob.size) {
+          recorderStatus.textContent = "No audio was recorded. Please try again.";
+          mediaRecorder = null;
+          voiceChunks = [];
+          stopVoiceButton.disabled = true;
+          return;
+        }
+
+        if (blob.size > 15 * 1024 * 1024) {
+          recorderStatus.textContent = "Recording exceeds the 15 MB limit. Record a shorter message.";
+          if (voiceInput) voiceInput.value = "";
+          if (attachmentName) attachmentName.textContent = "";
+          mediaRecorder = null;
+          voiceChunks = [];
+          stopVoiceButton.disabled = true;
+          return;
+        }
+
+        const extension = type.includes("ogg") ? "ogg" :
+          (type.includes("mp4") ? "m4a" :
+          (type.includes("mpeg") ? "mp3" :
+          (type.includes("wav") ? "wav" : "webm")));
+        const file = new File(
+          [blob],
+          "voice-message-" + Date.now() + "." + extension,
+          { type }
+        );
+
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        voiceInput.files = transfer.files;
+
+        recorderStatus.textContent = "Voice message ready. Press Send to send it.";
+        if (attachmentName) attachmentName.textContent = "Voice message ready to send";
+        mediaRecorder = null;
+        voiceChunks = [];
+        stopVoiceButton.disabled = true;
+        cancelVoiceButton.disabled = false;
+      });
+
+      mediaRecorder.start();
+      recorderStatus.textContent = "Recording... Press Stop when finished.";
+      stopVoiceButton.disabled = false;
+    } catch (error) {
+      stopMicrophoneTracks();
+      mediaRecorder = null;
+      recorderStatus.textContent =
+        error.name === "NotAllowedError"
+          ? "Microphone permission was denied. Allow microphone access and try again."
+          : "Could not access the microphone. Check your device and browser permissions.";
+      stopVoiceButton.disabled = true;
+    }
   });
+
+  stopVoiceButton.addEventListener("click", () => {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      recorderStatus.textContent = "Preparing your voice message...";
+      stopVoiceButton.disabled = true;
+      mediaRecorder.stop();
+    }
+  });
+
+  cancelVoiceButton.addEventListener("click", clearVoiceRecording);
 
 
   let activeShareId = null;
@@ -1485,6 +1661,57 @@ if (input) {
     padding: 4px 6px;
   }
 }
+
+/* Final voice-player layout override */
+.messages > .message-row:has(audio.voice-message-player) {
+  width: min(304px, 82%) !important;
+  max-width: 82% !important;
+  min-width: 240px !important;
+  flex: 0 0 auto !important;
+}
+.messages > .message-row:has(audio.voice-message-player) > .bubble {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+.messages > .message-row:has(audio.voice-message-player) audio.voice-message-player {
+  display: block !important;
+  width: 100% !important;
+  min-width: 240px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+
+/* Verified voice-player sizing fix */
+.messages > .message-row:has(audio.voice-message-player) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: min(304px, 82%) !important;
+  min-width: 240px !important;
+  max-width: 82% !important;
+  flex: 0 0 auto !important;
+}
+.messages > .message-row:has(audio.voice-message-player) > .bubble {
+  display: block !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+.messages audio.voice-message-player {
+  display: block !important;
+  width: 280px !important;
+  min-width: 240px !important;
+  max-width: 100% !important;
+  flex: 0 0 auto !important;
+  box-sizing: border-box !important;
+}
+
 </style>
 <script id="GOTYA_REALTIME_CHAT_SCRIPT">
 (() => {
@@ -2257,6 +2484,15 @@ if (input) {
       message.attachment_mimetype &&
       message.attachment_mimetype.startsWith("image/")
     );
+    const audioMimeType = String(message.attachment_mimetype || "").toLowerCase();
+    const audioFileName = String(message.attachment_name || "").toLowerCase();
+    const isAudio = Boolean(
+      message.attachment_url &&
+      (
+        audioMimeType.startsWith("audio/") ||
+        /\.(webm|ogg|m4a|mp3|wav|aac|mp4)$/.test(audioFileName)
+      )
+    );
     const isCallSummary = Boolean(message.content && message.content.startsWith("Call Ended"));
     const bubble = makeElement(
       "div",
@@ -2287,6 +2523,13 @@ if (input) {
         image.loading = "lazy";
         link.appendChild(image);
         bubble.appendChild(link);
+      } else if (isAudio) {
+        const audio = makeElement("audio", "voice-message-player");
+        audio.controls = true;
+        audio.preload = "metadata";
+        audio.src = message.attachment_url;
+        audio.setAttribute("aria-label", "Voice message");
+        bubble.appendChild(audio);
       } else {
         const attachment = makeElement("div", "attachment-link");
         const link = makeElement("a", "", message.attachment_name || "Download attachment");
@@ -2424,11 +2667,131 @@ if (input) {
     });
   }
 
-  composer.addEventListener("submit", () => {
+  let sendingMessage = false;
+
+  composer.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    if (sendingMessage) return;
+
     if (typingTimer) clearTimeout(typingTimer);
     sendTyping(false);
-  });
 
+    const originalText = messageInput ? messageInput.value : "";
+    const text = originalText.trim();
+
+    const hasAttachment = Array.from(
+      composer.querySelectorAll('input[type="file"]')
+    ).some(input => Array.from(input.files || []).some(file => file.size > 0));
+
+    if (!text && !hasAttachment) {
+      if (messageInput) messageInput.focus();
+      return;
+    }
+
+    const formData = new FormData(composer);
+    const voiceFileInput = document.getElementById("voiceInput");
+    const voiceFile = voiceFileInput?.files?.[0];
+    const documentFile = fileInput?.files?.[0];
+
+    // Submit only one file under the server's expected attachment field.
+    formData.delete("attachment");
+    if (voiceFile && voiceFile.size > 0) {
+      formData.append("attachment", voiceFile, voiceFile.name);
+    } else if (documentFile && documentFile.size > 0) {
+      formData.append("attachment", documentFile, documentFile.name);
+    }
+
+    const sendButton = composer.querySelector('button[type="submit"]');
+    let pendingRow = null;
+
+    if (text && !hasAttachment) {
+      pendingRow = makeElement("div", "message-row mine");
+      pendingRow.dataset.messageId = "pending-" + Date.now();
+      pendingRow.dataset.messagePreview = text;
+      pendingRow.dataset.createdAt = new Date().toISOString();
+
+      const bubble = makeElement("div", "bubble");
+      bubble.appendChild(makeElement("div", "message-text", text));
+      pendingRow.appendChild(bubble);
+      pendingRow.appendChild(
+        makeElement("div", "delivery-receipt", "Sending...")
+      );
+
+      list.appendChild(pendingRow);
+      list.scrollTop = list.scrollHeight;
+    }
+
+    if (messageInput) {
+      messageInput.value = "";
+      messageInput.focus();
+    }
+
+    sendingMessage = true;
+    if (sendButton) sendButton.disabled = true;
+
+    try {
+      const response = await fetch(composer.action, {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json"
+        }
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!response.ok || !contentType.includes("application/json")) {
+        throw new Error("The server did not confirm the message.");
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error("The message was not accepted.");
+      }
+
+      if (pendingRow) pendingRow.remove();
+
+      composer.querySelectorAll('input[type="file"]').forEach(input => {
+        input.value = "";
+      });
+
+      if (attachmentName) attachmentName.textContent = "";
+
+      const voiceRecorderPanel = document.getElementById("voiceRecorder");
+      const voiceRecorderStatus = document.getElementById("voiceRecorderStatus");
+      const stopVoiceRecordingButton = document.getElementById("stopVoiceRecording");
+      const cancelVoiceRecordingButton = document.getElementById("cancelVoiceRecording");
+
+      if (voiceRecorderPanel) voiceRecorderPanel.hidden = true;
+      if (voiceRecorderStatus) voiceRecorderStatus.textContent = "Recording voice message";
+      if (stopVoiceRecordingButton) stopVoiceRecordingButton.disabled = false;
+      if (cancelVoiceRecordingButton) cancelVoiceRecordingButton.disabled = false;
+
+      clearReply();
+      await pollUpdates();
+    } catch (error) {
+      if (pendingRow) pendingRow.remove();
+
+      if (messageInput) {
+        if (!messageInput.value) {
+          messageInput.value = originalText;
+        } else if (text) {
+          messageInput.value = originalText + "\n" + messageInput.value;
+        }
+
+      }
+
+      console.warn("Gotya message send failed:", error);
+      alert("Message could not be confirmed. Your text has been restored. Please check the conversation before trying again.");
+    } finally {
+      sendingMessage = false;
+      if (sendButton) sendButton.disabled = false;
+    }
+  });
   pollUpdates();
   const pollTimer = setInterval(pollUpdates, 2000);
 
