@@ -11,29 +11,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Friends | Gotya</title>
 <style>
-:root{--blue:#1877f2;--blue-dark:#0e5fc5;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0;--green:#168653;--red:#d9485f}
+:root{--blue:#1877f2;--blue-dark:#0e5fc5;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0;--green:#168653;--red:#d9485f;--nav-text:#465166;--hover:#eaf2ff;--secondary-bg:#eaf2ff;--secondary-hover:#dbe9ff;--danger-bg:#fff0f1;--danger-hover:#ffe0e4;--flash-bg:#eaf2ff;--flash-text:#174f9a;--notify-border:#e5e9f0;--notify-hover:#f4f8ff;--toast-muted:#596579;--toast-button-bg:#f0f2f5;--toast-button-text:#344054;--input-bg:#fff;--input-border:#d9dfeb}
+body[data-theme="dark"]{--bg:#242526;--card:#18191a;--ink:#e4e6eb;--muted:#b0b3b8;--line:#3e4042;--nav-text:#e4e6eb;--hover:#303236;--secondary-bg:#263951;--secondary-hover:#304968;--danger-bg:#48272d;--danger-hover:#5b3038;--flash-bg:#263951;--flash-text:#d7e8ff;--notify-border:#3e4042;--notify-hover:#303236;--toast-muted:#b0b3b8;--toast-button-bg:#3a3b3c;--toast-button-text:#e4e6eb;--input-bg:#242526;--input-border:#55585c}
+body[data-theme="light"]{--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0;--nav-text:#465166;--hover:#eaf2ff;--secondary-bg:#eaf2ff;--secondary-hover:#dbe9ff;--danger-bg:#fff0f1;--danger-hover:#ffe0e4;--flash-bg:#eaf2ff;--flash-text:#174f9a;--notify-border:#e5e9f0;--notify-hover:#f4f8ff;--toast-muted:#596579;--toast-button-bg:#f0f2f5;--toast-button-text:#344054;--input-bg:#fff;--input-border:#d9dfeb}
+@media(prefers-color-scheme:dark){body[data-theme="system"]{--bg:#242526;--card:#18191a;--ink:#e4e6eb;--muted:#b0b3b8;--line:#3e4042;--nav-text:#e4e6eb;--hover:#303236;--secondary-bg:#263951;--secondary-hover:#304968;--danger-bg:#48272d;--danger-hover:#5b3038;--flash-bg:#263951;--flash-text:#d7e8ff;--notify-border:#3e4042;--notify-hover:#303236;--toast-muted:#b0b3b8;--toast-button-bg:#3a3b3c;--toast-button-text:#e4e6eb;--input-bg:#242526;--input-border:#55585c}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif}
-header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
 .topbar{max-width:1100px;margin:auto;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{font-size:25px;font-weight:850;letter-spacing:-1px;color:var(--blue);text-decoration:none}
 nav{display:flex;gap:8px;flex-wrap:wrap}
-nav a{padding:10px 13px;border-radius:10px;text-decoration:none;color:#465166;font-weight:700;font-size:14px}
-nav a:hover,nav a.active{background:#eaf2ff;color:var(--blue)}
+nav a{padding:10px 13px;border-radius:10px;text-decoration:none;color:var(--nav-text);font-weight:700;font-size:14px}
+nav a:hover,nav a.active{background:var(--hover);color:var(--blue)}
 main{max-width:1000px;margin:30px auto;padding:0 18px 50px}
 .heading{margin-bottom:22px}
 .heading h1{font-size:clamp(27px,5vw,38px);margin:0 0 7px;letter-spacing:-1px}
 .heading p{margin:0;color:var(--muted)}
 .searchbox,.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:20px;box-shadow:0 5px 18px #17203308}
 .searchform{display:flex;gap:10px}
-input[type=search]{flex:1;min-width:0;padding:13px 15px;border:1px solid #d9dfeb;border-radius:12px;font-size:15px;outline:none}
+input[type=search]{flex:1;min-width:0;padding:13px 15px;background:var(--input-bg);color:var(--ink);border:1px solid var(--input-border);border-radius:12px;font-size:15px;outline:none}
 input[type=search]:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
 button,.button{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:white;font-weight:750;cursor:pointer;font-size:14px}
 button:hover,.button:hover{background:var(--blue-dark)}
-button.secondary{background:#eaf2ff;color:var(--blue)}
-button.secondary:hover{background:#dbe9ff}
-button.danger{background:#fff0f1;color:var(--red)}
-button.danger:hover{background:#ffe0e4}
+button.secondary{background:var(--secondary-bg);color:var(--blue)}
+button.secondary:hover{background:var(--secondary-hover)}
+button.danger{background:var(--danger-bg);color:var(--red)}
+button.danger:hover{background:var(--danger-hover)}
 h2{font-size:19px;margin:0 0 16px}
 .count{color:var(--muted);font-size:13px;font-weight:600;margin-left:5px}
 .person{display:flex;align-items:center;gap:13px;padding:13px 0;border-top:1px solid var(--line)}
@@ -45,8 +48,8 @@ h2{font-size:19px;margin:0 0 16px}
 .person-sub{font-size:13px;color:var(--muted);margin-top:4px}
 .actions{display:flex;gap:7px;flex-wrap:wrap}
 .empty{padding:18px 0;color:var(--muted);font-size:14px}
-.flash{padding:12px 15px;border-radius:12px;margin:0 0 12px;background:#eaf2ff;color:#174f9a}
-.flash.error{background:#fff0f1;color:#a5293c}
+.flash{padding:12px 15px;border-radius:12px;margin:0 0 12px;background:var(--flash-bg);color:var(--flash-text)}
+.flash.error{background:var(--danger-bg);color:var(--red)}
 .columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:700px){.topbar{align-items:flex-start;flex-direction:column;padding:12px 15px}nav{width:100%}nav a{padding:9px 10px}.columns{grid-template-columns:1fr}main{margin:20px auto;padding:0 12px 35px}.searchbox,.panel{padding:16px;border-radius:15px}.person{align-items:flex-start}.actions{justify-content:flex-start}.actions button{padding:10px 11px}}
 @media(max-width:390px){.searchform{flex-direction:column}.searchform button{width:100%}.person{gap:9px}.avatar{width:43px;height:43px}.actions{width:100%}.actions button{flex:1}}
@@ -63,7 +66,7 @@ h2{font-size:19px;margin:0 0 16px}
  height:13px;
  border-radius:50%;
  background:#1877f2;
- border:2px solid #fff;
+ border:2px solid var(--card);
  box-shadow:0 0 0 1px #ffffff55;
  z-index:2;
  pointer-events:none;
@@ -85,31 +88,31 @@ h2{font-size:19px;margin:0 0 16px}
  position:absolute;right:-3px;top:-4px;
  min-width:21px;height:21px;padding:0 5px;
  border-radius:20px;background:#e53952;color:#fff;
- border:2px solid #fff;font-size:11px;font-weight:800;
+ border:2px solid var(--card);font-size:11px;font-weight:800;
  display:flex;align-items:center;justify-content:center;
 }
 .gotya-notification-panel{
  position:absolute;right:0;bottom:65px;
  width:min(360px,calc(100vw - 28px));max-height:65vh;
- overflow:auto;background:#fff;border:1px solid #e5e9f0;
+ overflow:auto;background:var(--card);border:1px solid var(--notify-border);
  border-radius:17px;box-shadow:0 12px 38px #17203325;
- color:#172033;
+ color:var(--ink);
 }
 .gotya-notification-head{
- padding:15px;border-bottom:1px solid #e5e9f0;
+ padding:15px;border-bottom:1px solid var(--notify-border);
  display:flex;align-items:center;justify-content:space-between;gap:8px;
 }
 .gotya-notification-head strong{font-size:17px}
 .gotya-notification-enable{font-size:12px;padding:8px 10px}
 .gotya-notification-item{
- display:block;padding:13px 15px;border-bottom:1px solid #edf0f5;
+ display:block;padding:13px 15px;border-bottom:1px solid var(--line);
  color:inherit;text-decoration:none;overflow-wrap:anywhere;
 }
-.gotya-notification-item:hover{background:#f4f8ff}
+.gotya-notification-item:hover{background:var(--notify-hover)}
 .gotya-notification-item strong{display:block;font-size:14px;margin-bottom:4px}
-.gotya-notification-item span{display:block;color:#687386;font-size:13px;line-height:1.4}
-.gotya-notification-empty{padding:24px 15px;text-align:center;color:#687386;font-size:14px}
-.gotya-notification-status{padding:9px 15px;font-size:12px;color:#687386}
+.gotya-notification-item span{display:block;color:var(--muted);font-size:13px;line-height:1.4}
+.gotya-notification-empty{padding:24px 15px;text-align:center;color:var(--muted);font-size:14px}
+.gotya-notification-status{padding:9px 15px;font-size:12px;color:var(--muted)}
 @media(max-width:600px){
  .gotya-notification-widget{right:14px;bottom:14px}
  .gotya-notification-bell{width:50px;height:50px}
@@ -135,10 +138,10 @@ h2{font-size:19px;margin:0 0 16px}
   align-items: flex-start;
   gap: 12px;
   padding: 14px;
-  border: 1px solid #e4eaf2;
+  border: 1px solid var(--line);
   border-radius: 15px;
-  background: #fff;
-  color: #182230;
+  background: var(--card);
+  color: var(--ink);
   box-shadow: 0 10px 35px rgba(15, 23, 42, .20);
   pointer-events: auto;
   animation: gotyaToastIn .22s ease-out;
@@ -157,7 +160,7 @@ h2{font-size:19px;margin:0 0 16px}
 }
 .gotya-toast-link span {
   display: block;
-  color: #596579;
+  color: var(--toast-muted);
   font-size: 13px;
   line-height: 1.4;
 }
@@ -165,8 +168,8 @@ h2{font-size:19px;margin:0 0 16px}
   flex: 0 0 auto;
   border: 0;
   border-radius: 8px;
-  background: #f0f2f5;
-  color: #344054;
+  background: var(--toast-button-bg);
+  color: var(--toast-button-text);
   padding: 5px 9px;
   font-size: 18px;
   cursor: pointer;
@@ -187,7 +190,7 @@ h2{font-size:19px;margin:0 0 16px}
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
 </head>
-<body>
+<body data-theme="{{ gotya_theme|default("system") }}">
 <header>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
@@ -196,7 +199,7 @@ h2{font-size:19px;margin:0 0 16px}
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Gotya">
  <div class="topbar">
-  <a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:#172033">.</span></a>
+  <a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:var(--ink)">.</span></a>
   <nav>
    <a href="{{ url_for('feed') }}">Feed</a>
    <a class="active" href="{{ url_for('friends') }}">Friends</a>
@@ -217,7 +220,7 @@ h2{font-size:19px;margin:0 0 16px}
               id="gotyaNotificationEnable">Enable browser alerts</button>
     </div>
     <div id="gotyaNotificationList">
-      <div class="gotya-notification-empty">Loading notifications…</div>
+      <div class="gotya-notification-empty">Loading notificationsâ€¦</div>
     </div>
     <div class="gotya-notification-status" id="gotyaNotificationStatus"
          role="status">Browser alerts are optional.</div>
@@ -225,7 +228,7 @@ h2{font-size:19px;margin:0 0 16px}
   <button type="button" class="gotya-notification-bell"
           id="gotyaNotificationToggle" aria-label="Open notifications"
           aria-expanded="false" aria-controls="gotyaNotificationPanel">
-    <span aria-hidden="true">♧</span>
+    <span aria-hidden="true">â™§</span>
     <span class="gotya-notification-count" id="gotyaNotificationCount" hidden>0</span>
   </button>
 </div>
@@ -696,6 +699,7 @@ if ("serviceWorker" in navigator) {
 <div id="gotyaToastContainer" aria-live="polite" aria-atomic="false"></div>
 </body>
 </html>
+
 
 
 

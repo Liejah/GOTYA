@@ -1,4 +1,4 @@
-```html
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,6 +31,46 @@
             --background: #f0f4fa;
         }
 
+        body[data-theme="dark"] {
+            --text: #e4e6eb;
+            --muted: #b0b3b8;
+            --border: #45484d;
+            --surface: #18191a;
+            --background: #242526;
+            --field-bg: #242526;
+            --card-border: #3e4042;
+            --divider: #3e4042;
+            --hover-border: #68717d;
+            --toggle-hover: #263951;
+        }
+
+        body[data-theme="light"] {
+            --text: #1c1e21;
+            --muted: #65676b;
+            --border: #d9dfe8;
+            --surface: #ffffff;
+            --background: #f0f4fa;
+            --field-bg: #fbfcfe;
+            --card-border: #ffffff;
+            --divider: #e8ebf0;
+            --hover-border: #aebed3;
+            --toggle-hover: #edf4ff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body[data-theme="system"] {
+                --text: #e4e6eb;
+                --muted: #b0b3b8;
+                --border: #45484d;
+                --surface: #18191a;
+                --background: #242526;
+                --field-bg: #242526;
+                --card-border: #3e4042;
+                --divider: #3e4042;
+                --hover-border: #68717d;
+                --toggle-hover: #263951;
+            }
+        }
         body {
             margin: 0;
             min-height: 100vh;
@@ -51,7 +91,7 @@
             max-width: 440px;
             padding: 36px;
             background: var(--surface);
-            border: 1px solid #ffffff;
+            border: 1px solid var(--card-border);
             border-radius: 22px;
             box-shadow: 0 18px 55px rgba(32, 70, 125, 0.12);
             animation: appear 0.4s ease-out;
@@ -141,7 +181,7 @@
             border: 1px solid var(--border);
             border-radius: 11px;
             outline: none;
-            background: #fbfcfe;
+            background: var(--field-bg);
             color: var(--text);
             font: inherit;
             font-size: 16px;
@@ -149,12 +189,12 @@
         }
 
         input:hover {
-            border-color: #aebed3;
+            border-color: var(--hover-border);
         }
 
         input:focus {
             border-color: var(--blue);
-            background: #fff;
+            background: var(--field-bg);
             box-shadow: 0 0 0 4px #1877f21c;
         }
 
@@ -185,7 +225,7 @@
         }
 
         .toggle-password:hover {
-            background: #edf4ff;
+            background: var(--toggle-hover);
         }
 
         .submit-button {
@@ -225,7 +265,7 @@
             align-items: center;
             gap: 12px;
             margin: 25px 0;
-            color: #9298a1;
+            color: var(--muted);
             font-size: 12px;
         }
 
@@ -234,7 +274,7 @@
             content: "";
             height: 1px;
             flex: 1;
-            background: #e8ebf0;
+            background: var(--divider);
         }
 
         .bottom {
@@ -269,7 +309,7 @@
         .security-note {
             margin: 25px 0 0;
             padding-top: 17px;
-            border-top: 1px solid #edf0f4;
+            border-top: 1px solid var(--divider);
             color: #8a9099;
             text-align: center;
             font-size: 12px;
@@ -288,7 +328,47 @@
         }
 
         @media (max-width: 480px) {
-            body {
+            body[data-theme="dark"] {
+            --text: #e4e6eb;
+            --muted: #b0b3b8;
+            --border: #45484d;
+            --surface: #18191a;
+            --background: #242526;
+            --field-bg: #242526;
+            --card-border: #3e4042;
+            --divider: #3e4042;
+            --hover-border: #68717d;
+            --toggle-hover: #263951;
+        }
+
+        body[data-theme="light"] {
+            --text: #1c1e21;
+            --muted: #65676b;
+            --border: #d9dfe8;
+            --surface: #ffffff;
+            --background: #f0f4fa;
+            --field-bg: #fbfcfe;
+            --card-border: #ffffff;
+            --divider: #e8ebf0;
+            --hover-border: #aebed3;
+            --toggle-hover: #edf4ff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body[data-theme="system"] {
+                --text: #e4e6eb;
+                --muted: #b0b3b8;
+                --border: #45484d;
+                --surface: #18191a;
+                --background: #242526;
+                --field-bg: #242526;
+                --card-border: #3e4042;
+                --divider: #3e4042;
+                --hover-border: #68717d;
+                --toggle-hover: #263951;
+            }
+        }
+        body {
                 padding: 16px;
             }
 
@@ -319,7 +399,7 @@
     </style>
 </head>
 
-<body>
+<body data-theme="{{ gotya_theme|default("system") }}">
     <main class="card">
         <header class="brand">
             <div class="brand-icon" aria-hidden="true">G</div>
@@ -420,4 +500,3 @@
     </script>
 </body>
 </html>
-```

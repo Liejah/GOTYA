@@ -7,7 +7,7 @@ import mimetypes
 from supabase import create_client
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from flask_login import (
@@ -129,6 +129,45 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+class UserPreference(db.Model):
+    """Per-user preferences, stored separately from existing account data."""
+    __tablename__ = "user_preference"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        unique=True,
+        index=True
+    )
+    theme = db.Column(db.String(10), nullable=False, default="system")
+    user = db.relationship("User")
+
+
+
+@app.context_processor
+def inject_gotya_theme():
+    """Expose the signed-in user's saved appearance preference to templates."""
+    theme = "system"
+
+    if current_user.is_authenticated:
+        try:
+            # Read only the separate preference table; never reset user data.
+            if db.inspect(db.engine).has_table("user_preference"):
+                preference = UserPreference.query.filter_by(
+                    user_id=current_user.id
+                ).first()
+
+                if preference and preference.theme in {"system", "light", "dark"}:
+                    theme = preference.theme
+        except Exception:
+            # Keep pages usable if the preference table is temporarily unavailable.
+            db.session.rollback()
+
+    return {"gotya_theme": theme}
+
+
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String(2000), nullable=False)
@@ -234,11 +273,17 @@ class Message(db.Model):
         db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
     )
     content = db.Column(db.String(2000), nullable=False)
+    is_unsent = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
     created_at = db.Column(
         db.DateTime, nullable=False, default=db.func.current_timestamp()
     )
     read_at = db.Column(db.DateTime, nullable=True)
     delivered_at = db.Column(db.DateTime, nullable=True)
+    reply_to_id = db.Column(
+        db.Integer, db.ForeignKey("message.id"), nullable=True, index=True
+    )
     attachment_filename = db.Column(db.String(255), nullable=True)
     attachment_original_name = db.Column(db.String(255), nullable=True)
     attachment_mimetype = db.Column(db.String(120), nullable=True)
@@ -246,6 +291,9 @@ class Message(db.Model):
 
     sender = db.relationship("User", foreign_keys=[sender_id])
     recipient = db.relationship("User", foreign_keys=[recipient_id])
+    reply_to = db.relationship(
+        "Message", remote_side=[id], foreign_keys=[reply_to_id], uselist=False
+    )
 
     __table_args__ = (
         db.CheckConstraint(
@@ -256,6 +304,78 @@ class Message(db.Model):
 
 
 
+
+class UserQuickReaction(db.Model):
+    """Stores each user's personalized quick-reaction emojis."""
+    __tablename__ = "user_quick_reaction"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        unique=True,
+        index=True
+    )
+    emojis = db.Column(db.JSON, nullable=False, default=list)
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    user = db.relationship("User")
+
+
+class MessageReaction(db.Model):
+    __tablename__ = "message_reaction"
+
+    id = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(
+        db.Integer, db.ForeignKey("message.id"), nullable=False, index=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    emoji = db.Column(db.String(16), nullable=False)
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    message = db.relationship("Message", foreign_keys=[message_id])
+    user = db.relationship("User", foreign_keys=[user_id])
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "message_id", "user_id",
+            name="uq_message_reaction_user"
+        ),
+    )
+
+
+
+class MessageHidden(db.Model):
+    """Tracks messages hidden from one user's own conversation view."""
+    __tablename__ = "message_hidden"
+
+    id = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(
+        db.Integer, db.ForeignKey("message.id"), nullable=False, index=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "message_id", "user_id",
+            name="uq_message_hidden_user"
+        ),
+    )
 
 class PushSubscription(db.Model):
     __tablename__ = "push_subscription"
@@ -993,6 +1113,29 @@ def conversation(user_id):
 
     if request.method == "POST":
         content = request.form.get("content", "").strip()
+        reply_to_raw = request.form.get("reply_to_id", "").strip()
+        reply_to_message = None
+
+        if reply_to_raw:
+            try:
+                reply_to_id = int(reply_to_raw)
+                if reply_to_id > 0:
+                    reply_to_message = Message.query.filter(
+                        Message.id == reply_to_id,
+                        db.or_(
+                            db.and_(
+                                Message.sender_id == current_user.id,
+                                Message.recipient_id == person.id
+                            ),
+                            db.and_(
+                                Message.sender_id == person.id,
+                                Message.recipient_id == current_user.id
+                            )
+                        )
+                    ).first()
+            except (TypeError, ValueError):
+                reply_to_message = None
+
         photo_uploads = [
             item for item in request.files.getlist("photos")
             if item and item.filename
@@ -1011,7 +1154,9 @@ def conversation(user_id):
         if has_single_upload:
             uploads.append(single_upload)
 
-        if len(photo_uploads) > 30:
+        if reply_to_raw and reply_to_message is None:
+            flash("That reply target is unavailable. Please choose a message in this conversation.", "error")
+        elif len(photo_uploads) > 30:
             flash("You can send up to 30 pictures at once.", "error")
         elif photo_uploads and has_single_upload:
             flash("Send pictures or a document in separate messages.", "error")
@@ -1057,7 +1202,8 @@ def conversation(user_id):
                         db.session.add(Message(
                             sender_id=current_user.id,
                             recipient_id=person.id,
-                            content=content
+                            content=content,
+                            reply_to_id=reply_to_message.id if reply_to_message else None
                         ))
                     else:
                         for index, (upload, original_name, extension, file_size) in enumerate(prepared):
@@ -1085,7 +1231,11 @@ def conversation(user_id):
                                 attachment_filename=stored_name,
                                 attachment_original_name=original_name,
                                 attachment_mimetype=content_type,
-                                attachment_size=file_size
+                                attachment_size=file_size,
+                                reply_to_id=(
+                                    reply_to_message.id
+                                    if index == 0 and reply_to_message else None
+                                )
                             ))
 
                     db.session.commit()
@@ -1143,8 +1293,80 @@ def conversation(user_id):
         )
     ).order_by(Message.created_at.asc(), Message.id.asc()).all()
 
+    hidden_ids_for_user = {
+        item.message_id
+        for item in MessageHidden.query.join(
+            Message, MessageHidden.message_id == Message.id
+        ).filter(
+            MessageHidden.user_id == current_user.id,
+            db.or_(
+                db.and_(
+                    Message.sender_id == current_user.id,
+                    Message.recipient_id == person.id
+                ),
+                db.and_(
+                    Message.sender_id == person.id,
+                    Message.recipient_id == current_user.id
+                )
+            )
+        ).all()
+    }
+    history = [
+        item for item in history
+        if item.id not in hidden_ids_for_user
+    ]
+
+    reaction_map = {}
+    history_ids = [item.id for item in history]
+
+    if history_ids:
+        saved_reactions = MessageReaction.query.filter(
+            MessageReaction.message_id.in_(history_ids)
+        ).all()
+
+        for reaction in saved_reactions:
+            by_emoji = reaction_map.setdefault(reaction.message_id, {})
+            summary = by_emoji.setdefault(
+                reaction.emoji,
+                {
+                    "emoji": reaction.emoji,
+                    "count": 0,
+                    "reacted_by_me": False
+                }
+            )
+            summary["count"] += 1
+            if reaction.user_id == current_user.id:
+                summary["reacted_by_me"] = True
+
+    reaction_map = {
+        message_id: list(by_emoji.values())
+        for message_id, by_emoji in reaction_map.items()
+    }
+
+    default_reaction_emojis = ["\u2764\ufe0f", "\U0001f602", "\U0001f44d", "\U0001f62e", "\U0001f622", "\U0001f64f"]
+    reaction_emojis = default_reaction_emojis
+
+    try:
+        if db.inspect(db.engine).has_table("user_quick_reaction"):
+            quick_reaction_preference = UserQuickReaction.query.filter_by(
+                user_id=current_user.id
+            ).first()
+
+            if (
+                quick_reaction_preference
+                and isinstance(quick_reaction_preference.emojis, list)
+                and quick_reaction_preference.emojis
+            ):
+                reaction_emojis = quick_reaction_preference.emojis[:8]
+    except Exception:
+        db.session.rollback()
+
     return render_template(
-        "conversation.html", person=person, history=history
+        "conversation.html",
+        person=person,
+        history=history,
+        reaction_map=reaction_map,
+        reaction_emojis=reaction_emojis
     )
 
 
@@ -1198,7 +1420,8 @@ def conversation_updates(user_id):
         db.or_(
             Message.delivered_at.is_(None),
             Message.read_at.is_(None)
-        )
+        ),
+        Message.is_unsent.is_(False)
     ).all()
 
     for item in incoming_unacknowledged:
@@ -1226,25 +1449,150 @@ def conversation_updates(user_id):
         Message.id > after_id
     ).order_by(Message.id.asc()).limit(100).all()
 
+    hidden_ids_for_user = {
+        item.message_id
+        for item in MessageHidden.query.join(
+            Message, MessageHidden.message_id == Message.id
+        ).filter(
+            MessageHidden.user_id == current_user.id,
+            db.or_(
+                db.and_(
+                    Message.sender_id == current_user.id,
+                    Message.recipient_id == person.id
+                ),
+                db.and_(
+                    Message.sender_id == person.id,
+                    Message.recipient_id == current_user.id
+                )
+            )
+        ).all()
+    }
+    new_messages = [
+        item for item in new_messages
+        if item.id not in hidden_ids_for_user
+    ]
+
     outgoing = Message.query.filter_by(
         sender_id=current_user.id,
         recipient_id=person.id
     ).order_by(Message.id.desc()).limit(100).all()
+    outgoing = [
+        item for item in outgoing
+        if item.id not in hidden_ids_for_user
+    ]
+
+    recent_conversation_messages = Message.query.filter(
+        conversation_filter
+    ).order_by(Message.id.desc()).limit(100).all()
+
+    unsent_ids = [
+        message_id
+        for (message_id,) in db.session.query(Message.id).filter(
+            conversation_filter,
+            Message.is_unsent.is_(True)
+        ).all()
+    ]
+
+    recent_message_ids = [
+        item.id for item in recent_conversation_messages
+        if item.id not in hidden_ids_for_user
+    ]
+    grouped_reactions = {
+        message_id: {} for message_id in recent_message_ids
+    }
+
+    visible_reaction_ids = [
+        item.id for item in recent_conversation_messages
+        if not item.is_unsent
+    ]
+
+    if visible_reaction_ids:
+        recent_reactions = MessageReaction.query.filter(
+            MessageReaction.message_id.in_(visible_reaction_ids)
+        ).all()
+
+        for reaction in recent_reactions:
+            by_emoji = grouped_reactions[reaction.message_id]
+            summary = by_emoji.setdefault(
+                reaction.emoji,
+                {
+                    "emoji": reaction.emoji,
+                    "count": 0,
+                    "reacted_by_me": False
+                }
+            )
+            summary["count"] += 1
+            if reaction.user_id == current_user.id:
+                summary["reacted_by_me"] = True
+
+    reaction_updates = [
+        {
+            "message_id": message_id,
+            "reactions": list(grouped_reactions[message_id].values())
+        }
+        for message_id in recent_message_ids
+        if message_id in visible_reaction_ids
+    ]
 
     def message_data(item):
+        reply_data = None
+        replied_to = item.reply_to
+        if replied_to and replied_to.is_unsent:
+            reply_preview = "This message was unsent."
+            reply_data = {
+                "id": replied_to.id,
+                "sender_name": (
+                    replied_to.sender.username if replied_to.sender else "Message"
+                ),
+                "preview": reply_preview,
+            }
+        elif replied_to:
+            reply_preview = (
+                (replied_to.content or "").strip()
+                or replied_to.attachment_original_name
+                or (
+                    "Photo"
+                    if replied_to.attachment_mimetype
+                    and replied_to.attachment_mimetype.startswith("image/")
+                    else "Attachment"
+                )
+            )
+            if len(reply_preview) > 140:
+                reply_preview = reply_preview[:137] + "..."
+            reply_data = {
+                "id": replied_to.id,
+                "sender_name": (
+                    replied_to.sender.username if replied_to.sender else "Message"
+                ),
+                "preview": reply_preview,
+            }
+
         return {
             "id": item.id,
             "sender_id": item.sender_id,
-            "content": item.content or "",
+            "sender_name": item.sender.username if item.sender else "Message",
+            "is_unsent": bool(item.is_unsent),
+            "content": (
+                "This message was unsent."
+                if item.is_unsent else (item.content or "")
+            ),
+            "reply_to_id": item.reply_to_id,
+            "reply_to": reply_data,
             "created_at": item.created_at.strftime("%b %d · %I:%M %p"),
             "created_at_iso": item.created_at.isoformat(),
             "attachment_url": (
                 url_for("message_attachment_file", message_id=item.id)
-                if item.attachment_filename else None
+                if item.attachment_filename and not item.is_unsent else None
             ),
-            "attachment_name": item.attachment_original_name,
-            "attachment_mimetype": item.attachment_mimetype,
-            "attachment_size": item.attachment_size,
+            "attachment_name": (
+                None if item.is_unsent else item.attachment_original_name
+            ),
+            "attachment_mimetype": (
+                None if item.is_unsent else item.attachment_mimetype
+            ),
+            "attachment_size": (
+                None if item.is_unsent else item.attachment_size
+            ),
             "delivered_at": (
                 item.delivered_at.strftime("%b %d · %I:%M %p")
                 if item.delivered_at else None
@@ -1268,6 +1616,9 @@ def conversation_updates(user_id):
     return jsonify({
         "messages": [message_data(item) for item in new_messages],
         "receipts": [message_data(item) for item in outgoing],
+        "reaction_updates": reaction_updates,
+        "hidden_ids": sorted(hidden_ids_for_user),
+        "unsent_ids": unsent_ids,
         "typing": is_typing
     })
 
@@ -1307,6 +1658,12 @@ def inbox_updates():
                     Message.recipient_id == current_user.id
                 )
             )
+        ).filter(
+            Message.id.notin_(
+                db.session.query(MessageHidden.message_id).filter_by(
+                    user_id=current_user.id
+                )
+            )
         ).order_by(
             Message.created_at.desc(), Message.id.desc()
         ).first()
@@ -1315,9 +1672,13 @@ def inbox_updates():
             sender_id=person.id,
             recipient_id=current_user.id,
             read_at=None
+        ).filter(
+            Message.is_unsent.is_(False)
         ).count()
 
-        if latest:
+        if latest and latest.is_unsent:
+            preview = "This message was unsent."
+        elif latest:
             preview = latest.content or ""
             if not preview and latest.attachment_filename:
                 preview = "Sent an attachment"
@@ -1391,6 +1752,231 @@ def conversation_typing(user_id):
         _chat_typing.pop(key, None)
 
     return jsonify({"ok": True})
+
+@app.route("/settings/quick-reactions", methods=["POST"])
+@login_required
+def save_quick_reactions():
+    import unicodedata
+
+    payload = request.get_json(silent=True) or {}
+    emojis = payload.get("emojis")
+
+    if not isinstance(emojis, list) or len(emojis) > 8:
+        return jsonify({"error": "Choose up to eight emojis."}), 400
+
+    cleaned = []
+    for emoji in emojis:
+        if not isinstance(emoji, str) or not 0 < len(emoji) <= 16:
+            return jsonify({"error": "Invalid emoji choice."}), 400
+
+        if (
+            any(char.isalpha() for char in emoji)
+            or not any(
+                unicodedata.category(char) in {"So", "Sk", "Me"}
+                or ord(char) >= 0x1F000
+                for char in emoji
+            )
+        ):
+            return jsonify({"error": "Invalid emoji choice."}), 400
+
+        if emoji not in cleaned:
+            cleaned.append(emoji)
+
+    if not db.inspect(db.engine).has_table("user_quick_reaction"):
+        UserQuickReaction.__table__.create(db.engine, checkfirst=True)
+
+    preference = UserQuickReaction.query.filter_by(
+        user_id=current_user.id
+    ).first()
+
+    if preference is None:
+        preference = UserQuickReaction(
+            user_id=current_user.id,
+            emojis=cleaned
+        )
+        db.session.add(preference)
+    else:
+        preference.emojis = cleaned
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Could not save quick-reaction preferences.")
+        return jsonify({"error": "Could not save your emoji choices."}), 500
+
+    return jsonify({"ok": True, "emojis": cleaned})
+
+
+@app.route("/messages/<int:message_id>/reaction", methods=["POST"])
+@login_required
+def message_reaction_api(message_id):
+    message = db.session.get(Message, message_id)
+
+    if message is None:
+        return jsonify({"error": "Message not found."}), 404
+
+    if message.is_unsent:
+        return jsonify({"error": "This message was unsent."}), 409
+
+    participant = current_user.id in (
+        message.sender_id, message.recipient_id
+    )
+    if (
+        not participant
+        or message.sender_id == message.recipient_id
+        or not _chat_friendship_exists(
+            message.sender_id, message.recipient_id
+        )
+    ):
+        return jsonify({"error": "Conversation unavailable."}), 403
+
+    payload = request.get_json(silent=True) or {}
+    emoji = payload.get("emoji")
+    if emoji is not None:
+        import unicodedata
+
+        valid_emoji = (
+            isinstance(emoji, str)
+            and 0 < len(emoji) <= 16
+            and not any(char.isalpha() for char in emoji)
+            and any(
+                unicodedata.category(char) in {"So", "Sk", "Me"}
+                or ord(char) >= 0x1F000
+                for char in emoji
+            )
+        )
+
+        if not valid_emoji:
+            return jsonify({"error": "Unsupported reaction."}), 400
+
+    reaction = MessageReaction.query.filter_by(
+        message_id=message.id,
+        user_id=current_user.id
+    ).first()
+
+    if emoji is None:
+        if reaction is not None:
+            db.session.delete(reaction)
+    elif reaction is not None:
+        reaction.emoji = emoji
+    else:
+        db.session.add(MessageReaction(
+            message_id=message.id,
+            user_id=current_user.id,
+            emoji=emoji
+        ))
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Could not save reaction. Please retry."}), 409
+
+    reactions = MessageReaction.query.filter_by(
+        message_id=message.id
+    ).all()
+
+    grouped = {}
+    for item in reactions:
+        if item.emoji not in grouped:
+            grouped[item.emoji] = {
+                "emoji": item.emoji,
+                "count": 0,
+                "reacted_by_me": False
+            }
+        grouped[item.emoji]["count"] += 1
+        if item.user_id == current_user.id:
+            grouped[item.emoji]["reacted_by_me"] = True
+
+    return jsonify({
+        "ok": True,
+        "message_id": message.id,
+        "reactions": list(grouped.values())
+    })
+
+
+@app.route("/messages/<int:message_id>/delete", methods=["POST"])
+@login_required
+def message_delete_api(message_id):
+    message = db.session.get(Message, message_id)
+
+    if message is None:
+        return jsonify({"error": "Message not found."}), 404
+
+    participant = current_user.id in (
+        message.sender_id, message.recipient_id
+    )
+    if (
+        not participant
+        or message.sender_id == message.recipient_id
+        or not _chat_friendship_exists(
+            message.sender_id, message.recipient_id
+        )
+    ):
+        return jsonify({"error": "Conversation unavailable."}), 403
+
+    payload = request.get_json(silent=True) or {}
+    action = payload.get("action")
+
+    if action == "hide":
+        existing = MessageHidden.query.filter_by(
+            message_id=message.id,
+            user_id=current_user.id
+        ).first()
+
+        if existing is None:
+            db.session.add(MessageHidden(
+                message_id=message.id,
+                user_id=current_user.id
+            ))
+
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            existing = MessageHidden.query.filter_by(
+                message_id=message.id,
+                user_id=current_user.id
+            ).first()
+            if existing is None:
+                return jsonify({
+                    "error": "Could not hide the message. Please retry."
+                }), 409
+
+        return jsonify({
+            "ok": True,
+            "action": "hide",
+            "message_id": message.id
+        })
+
+    if action == "unsend":
+        if message.sender_id != current_user.id:
+            return jsonify({
+                "error": "You can only unsend your own messages."
+            }), 403
+
+        if not message.is_unsent:
+            message.is_unsent = True
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                app.logger.exception("Could not unsend message %s.", message_id)
+                return jsonify({
+                    "error": "Could not unsend the message. Please retry."
+                }), 500
+
+        return jsonify({
+            "ok": True,
+            "action": "unsend",
+            "message_id": message.id
+        })
+
+    return jsonify({
+        "error": "Unsupported action. Use 'hide' or 'unsend'."
+    }), 400
+
 
 @app.route("/presence/heartbeat", methods=["POST"])
 @login_required
@@ -1607,6 +2193,9 @@ def location_share_status(user_id):
 @login_required
 def message_attachment_file(message_id):
     message = db.session.get(Message, message_id)
+    if message is not None and message.is_unsent:
+        abort(404)
+
     if message is None or not message.attachment_filename:
         flash("Attachment not found.", "error")
         return redirect(url_for("messages"))
@@ -1655,6 +2244,34 @@ def settings():
     if request.method == "POST":
         action = request.form.get("action", "").strip()
 
+        if action == "save_theme":
+            theme = request.form.get("theme", "system").strip().lower()
+
+            if theme not in {"system", "light", "dark"}:
+                flash("Please choose a valid appearance theme.", "error")
+            else:
+                # Create only this new table if it does not exist.
+                UserPreference.__table__.create(
+                    bind=db.engine, checkfirst=True
+                )
+                preference = UserPreference.query.filter_by(
+                    user_id=current_user.id
+                ).first()
+
+                if preference is None:
+                    preference = UserPreference(
+                        user_id=current_user.id,
+                        theme=theme
+                    )
+                    db.session.add(preference)
+                else:
+                    preference.theme = theme
+
+                db.session.commit()
+                flash("Appearance preference saved.", "success")
+
+            return redirect(url_for("settings", _anchor="appearance"))
+
         if action == "change_password":
             current_password = request.form.get("current_password", "")
             new_password = request.form.get("new_password", "")
@@ -1678,8 +2295,21 @@ def settings():
         flash("That settings action is not available yet.", "error")
         return redirect(url_for("settings"))
 
-    return render_template("settings.html", user=current_user)
+    # Ensure only the new preferences table is created if missing.
+    UserPreference.__table__.create(bind=db.engine, checkfirst=True)
+    preference = UserPreference.query.filter_by(
+        user_id=current_user.id
+    ).first()
+    theme = preference.theme if preference else "system"
 
+    if theme not in {"system", "light", "dark"}:
+        theme = "system"
+
+    return render_template(
+        "settings.html",
+        user=current_user,
+        theme=theme
+    )
 
 @app.route("/feed", methods=["GET", "POST"])
 @login_required
@@ -1906,6 +2536,17 @@ def video_call_start(user_id):
     )
     db.session.add(call)
     db.session.commit()
+
+    try:
+        send_push_notification(
+            user_id,
+            "Incoming video call",
+            f"{current_user.username} is calling you.",
+            url_for("conversation", user_id=current_user.id),
+        )
+    except Exception:
+        app.logger.exception("Could not send incoming-call push notification.")
+
     return jsonify({"call": video_call_json(call)}), 201
 
 
@@ -2291,6 +2932,10 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()
 
+        # Safely create the per-user hidden-message table if it is missing.
+        MessageHidden.__table__.create(db.engine, checkfirst=True)
+        print("Message-hidden table is available.")
+
         # Safely add last_seen without resetting existing user data.
         columns = {
             column["name"]
@@ -2366,4 +3011,36 @@ if __name__ == "__main__":
             print("Added delivered_at column without resetting messages.")
         else:
             print("Message delivery timestamp column already exists.")
+        # Add reply support without replacing existing message records.
+        message_columns = {
+            column["name"]
+            for column in db.inspect(db.engine).get_columns("message")
+        }
+        if "reply_to_id" not in message_columns:
+            with db.engine.begin() as connection:
+                connection.execute(
+                    db.text("ALTER TABLE message ADD COLUMN reply_to_id INTEGER")
+                )
+            print("Added reply_to_id without resetting existing messages.")
+        else:
+            print("Message reply column already exists.")
+
+
+        # Safely add unsent state without replacing existing messages.
+        message_columns = {
+            column["name"]
+            for column in db.inspect(db.engine).get_columns("message")
+        }
+        if "is_unsent" not in message_columns:
+            with db.engine.begin() as connection:
+                connection.execute(
+                    db.text(
+                        "ALTER TABLE message "
+                        "ADD COLUMN is_unsent BOOLEAN NOT NULL DEFAULT 0"
+                    )
+                )
+            print("Added is_unsent without resetting existing messages.")
+        else:
+            print("Message unsent-state column already exists.")
+
     app.run(host="0.0.0.0", port=5000, debug=False)

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -16,6 +16,41 @@
             --muted: #65676b;
             --line: #e4e6eb;
             --soft-blue: #e7f3ff;
+        }
+        body[data-theme="dark"] {
+            --page: #18191a;
+            --surface: #242526;
+            --text: #e4e6eb;
+            --muted: #b0b3b8;
+            --line: #3e4042;
+            --soft-blue: #26384c;
+            color-scheme: dark;
+        }
+        body[data-theme="light"] {
+            color-scheme: light;
+        }
+        body[data-theme="system"] {
+            color-scheme: light;
+        }
+        @media (prefers-color-scheme: dark) {
+            body[data-theme="system"] {
+                --page: #18191a;
+                --surface: #242526;
+                --text: #e4e6eb;
+                --muted: #b0b3b8;
+                --line: #3e4042;
+                --soft-blue: #26384c;
+                color-scheme: dark;
+            }
+        }
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+            background: var(--surface);
+            color: var(--text);
         }
         * { box-sizing: border-box; }
         html { scroll-behavior: smooth; }
@@ -62,7 +97,7 @@
             font-size: 14px;
         }
         button.primary, .button.primary { background: var(--brand); color: white; }
-        button.secondary { background: #e4e6eb; color: var(--text); }
+        button.secondary { background: var(--line); color: var(--text); }
         main { width: min(760px, 100%); margin: 28px auto; padding: 0 16px 40px; }
         .page-title { margin: 0 0 6px; font-size: 28px; }
         .subtitle { margin: 0 0 22px; color: var(--muted); line-height: 1.5; }
@@ -91,11 +126,11 @@
         label { display: block; margin-bottom: 7px; font-size: 14px; font-weight: 700; }
         input[type="password"] {
             width: 100%;
-            border: 1px solid #ccd0d5;
+            border: 1px solid var(--line);
             border-radius: 8px;
             padding: 12px;
             font-size: 16px;
-            background: white;
+            background: var(--surface);
             color: var(--text);
         }
         input:focus { outline: 2px solid #b3d4ff; border-color: var(--brand); }
@@ -131,7 +166,7 @@
         }
     </style>
 </head>
-<body>
+<body data-theme="{{ theme }}">
 <header>
     <h1>Gotya</h1>
     <nav aria-label="Main navigation">
@@ -228,8 +263,24 @@
     </section>
 
     <section class="card" id="appearance">
-        <h2>🎨 Appearance</h2>
-        <p class="description">Gotya currently uses its standard blue-and-white theme. Additional saved appearance choices can be added later.</p>
+        <h2>?? Appearance</h2>
+        <p class="description">Choose how Gotya looks. Your theme preference is saved to your account.</p>
+
+        <form method="POST" action="{{ url_for('settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_theme">
+
+            <div class="field">
+                <label for="theme">Color theme</label>
+                <select id="theme" name="theme">
+                    <option value="system" {% if theme == "system" %}selected{% endif %}>System default</option>
+                    <option value="light" {% if theme == "light" %}selected{% endif %}>Light</option>
+                    <option value="dark" {% if theme == "dark" %}selected{% endif %}>Dark</option>
+                </select>
+            </div>
+
+            <button class="primary" type="submit">Save appearance</button>
+        </form>
     </section>
 
     <section class="card" id="help">

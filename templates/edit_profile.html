@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,17 +6,55 @@
     <meta name="theme-color" content="#1877f2">
     <title>Edit Profile | Gotya</title>
     <style>
+:root {
+    --edit-page:#f0f2f5; --edit-card:#ffffff; --edit-text:#1c1e21;
+    --edit-muted:#65676b; --edit-line:#e4e6eb; --edit-input:#ffffff;
+    --edit-input-border:#d0d5dd; --edit-soft:#e7f3ff; --edit-soft-text:#1877f2;
+    --edit-hover:#f5f8ff; --edit-hover-border:#b9d0ff; --edit-label:#344054;
+    --edit-stat:#f4f7ff; --edit-stat-border:#e4eaff;
+    --edit-stat-icon:#e2ebff; --edit-stat-icon-text:#155bd5;
+    --edit-upload-bg:#f7faff; --edit-upload-border:#c7d9f5;
+}
+body[data-theme="dark"] {
+    --edit-page:#242526; --edit-card:#18191a; --edit-text:#e4e6eb;
+    --edit-muted:#b0b3b8; --edit-line:#3e4042; --edit-input:#242526;
+    --edit-input-border:#55585c; --edit-soft:#263951; --edit-soft-text:#a9ceff;
+    --edit-hover:#303236; --edit-hover-border:#4c6380; --edit-label:#e4e6eb;
+    --edit-stat:#202b3a; --edit-stat-border:#38485c;
+    --edit-stat-icon:#304968; --edit-stat-icon-text:#c0d9ff;
+    --edit-upload-bg:#202b3a; --edit-upload-border:#46566d;
+}
+body[data-theme="light"] {
+    --edit-page:#f0f2f5; --edit-card:#ffffff; --edit-text:#1c1e21;
+    --edit-muted:#65676b; --edit-line:#e4e6eb; --edit-input:#ffffff;
+    --edit-input-border:#d0d5dd; --edit-soft:#e7f3ff; --edit-soft-text:#1877f2;
+    --edit-hover:#f5f8ff; --edit-hover-border:#b9d0ff; --edit-label:#344054;
+    --edit-stat:#f4f7ff; --edit-stat-border:#e4eaff;
+    --edit-stat-icon:#e2ebff; --edit-stat-icon-text:#155bd5;
+    --edit-upload-bg:#f7faff; --edit-upload-border:#c7d9f5;
+}
+@media (prefers-color-scheme:dark) {
+    body[data-theme="system"] {
+        --edit-page:#242526; --edit-card:#18191a; --edit-text:#e4e6eb;
+        --edit-muted:#b0b3b8; --edit-line:#3e4042; --edit-input:#242526;
+        --edit-input-border:#55585c; --edit-soft:#263951; --edit-soft-text:#a9ceff;
+        --edit-hover:#303236; --edit-hover-border:#4c6380; --edit-label:#e4e6eb;
+        --edit-stat:#202b3a; --edit-stat-border:#38485c;
+        --edit-stat-icon:#304968; --edit-stat-icon-text:#c0d9ff;
+        --edit-upload-bg:#202b3a; --edit-upload-border:#46566d;
+    }
+}
 
         * { box-sizing: border-box; }
         body {
             margin: 0;
             min-height: 100vh;
             font-family: Arial, sans-serif;
-            background: #f0f2f5;
-            color: #1c1e21;
+            background: var(--edit-page);
+            color: var(--edit-text);
         }
         header {
-            background: white;
+            background: var(--edit-card);
             padding: 16px 24px;
             box-shadow: 0 2px 8px #00000010;
             display: flex;
@@ -24,9 +62,10 @@
             align-items: center;
             gap: 12px;
         }
-        .brand { color: #1877f2; font-size: 24px; font-weight: bold; }
+        .brand { color: var(--edit-soft-text); font-size: 24px; font-weight: bold; }
         .logout {
-            background: #e4e6eb;
+            background: var(--edit-line);
+            color: var(--edit-text);
             border: 0;
             border-radius: 8px;
             padding: 10px 14px;
@@ -35,7 +74,7 @@
         }
         main { width: min(700px, 92%); margin: 32px auto; }
         .card {
-            background: white;
+            background: var(--edit-card);
             padding: 28px;
             margin-bottom: 20px;
             border-radius: 14px;
@@ -48,22 +87,22 @@
             display: grid;
             place-items: center;
             margin-bottom: 18px;
-            background: #dbeafe;
-            color: #1877f2;
+            background: var(--edit-soft);
+            color: var(--edit-soft-text);
             font-size: 36px;
             font-weight: bold;
         }
         h1 { margin: 0 0 8px; overflow-wrap: anywhere; }
-        .muted { color: #65676b; overflow-wrap: anywhere; }
+        .muted { color: var(--edit-muted); overflow-wrap: anywhere; }
         .status {
             display: inline-block;
-            background: #e7f3ff;
-            color: #1877f2;
+            background: var(--edit-soft);
+            color: var(--edit-soft-text);
             padding: 7px 12px;
             border-radius: 20px;
             font-size: 13px;
         }
-        a { color: #1877f2; text-decoration: none; }
+        a { color: var(--edit-soft-text); text-decoration: none; }
         a:hover { text-decoration: underline; }
         @media (max-width: 480px) {
             header { padding: 14px; }
@@ -99,7 +138,7 @@
         }
         .profile-picture-form button:hover { background: #166fe5; }
         .upload-help {
-            color: #65676b;
+            color: var(--edit-muted);
             font-size: 13px;
             text-align: left;
         }
@@ -107,8 +146,8 @@
             padding: 11px 14px;
             margin: 12px 0;
             border-radius: 8px;
-            background: #e7f3ff;
-            color: #1c1e21;
+            background: var(--edit-soft);
+            color: var(--edit-text);
             overflow-wrap: anywhere;
         }
 
@@ -130,15 +169,15 @@ main {
 }
 
 .card {
-    border: 1px solid #e4e6eb;
+    border: 1px solid var(--edit-line);
     border-radius: 18px;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.045);
 }
 
 .card:first-child {
     background:
-        radial-gradient(circle at top right, #e7f3ff 0, transparent 42%),
-        #ffffff;
+        radial-gradient(circle at top right, var(--edit-soft) 0, transparent 42%),
+        var(--edit-card);
 }
 
 .avatar {
@@ -160,17 +199,17 @@ h1 {
 
 .profile-picture-form {
     padding: 16px;
-    border: 1px dashed #c7d9f5;
+    border: 1px dashed var(--edit-upload-border);
     border-radius: 14px;
-    background: #f7faff;
+    background: var(--edit-upload-bg);
 }
 
 .profile-picture-form input[type="file"] {
     width: 100%;
     padding: 10px;
-    border: 1px solid #e4e6eb;
+    border: 1px solid var(--edit-line);
     border-radius: 9px;
-    background: #ffffff;
+    background: var(--edit-input);
 }
 
 .profile-picture-form button {
@@ -325,8 +364,8 @@ h1 {
     padding: 9px 12px;
     border: 0;
     border-radius: 9px;
-    background: white;
-    color: #174ea6;
+    background: var(--edit-card);
+    color: var(--edit-soft-text);
     font-weight: 700;
     cursor: pointer;
 }
@@ -342,7 +381,7 @@ h1 {
 .profile-identity .avatar {
     flex: 0 0 112px;
     margin: 0;
-    background: #dbeafe;
+    background: var(--edit-soft);
 }
 .profile-identity-text {
     min-width: 0;
@@ -361,17 +400,17 @@ h1 {
     display: grid;
     gap: 7px;
     font-weight: 700;
-    color: #344054;
+    color: var(--edit-label);
 }
 .profile-editor-form input,
 .profile-editor-form textarea {
     width: 100%;
     min-width: 0;
     padding: 12px 13px;
-    border: 1px solid #d0d5dd;
+    border: 1px solid var(--edit-input-border);
     border-radius: 10px;
-    background: #fff;
-    color: #1c1e21;
+    background: var(--edit-input);
+    color: var(--edit-text);
     font: inherit;
 }
 .profile-editor-form textarea {
@@ -381,7 +420,7 @@ h1 {
 .profile-editor-form input:focus,
 .profile-editor-form textarea:focus {
     outline: 2px solid #b6d4fe;
-    border-color: #1877f2;
+    border-color: var(--edit-soft-text);
 }
 .profile-editor-form button {
     min-height: 44px;
@@ -403,7 +442,7 @@ h1 {
 .cover-upload-form input {
     max-width: 100%;
     min-width: 0;
-    color: #344054;
+    color: var(--edit-label);
 }
 .cover-upload-form button {
     border: 0;
@@ -416,7 +455,7 @@ h1 {
 }
 .profile-bio {
     margin: 8px 0 0;
-    color: #65676b;
+    color: var(--edit-muted);
     overflow-wrap: anywhere;
     white-space: pre-wrap;
 }
@@ -469,7 +508,7 @@ h1 {
 .dashboard-heading h2 { margin: 4px 0 6px; }
 .eyebrow {
     margin: 0;
-    color: #1877f2;
+    color: var(--edit-soft-text);
     font-size: .75rem;
     font-weight: 800;
     letter-spacing: .15em;
@@ -487,10 +526,10 @@ h1 {
     gap: 7px;
     min-width: 0;
     padding: 18px;
-    color: #172033;
+    color: var(--edit-text);
     text-decoration: none;
-    background: #f4f7ff;
-    border: 1px solid #e4eaff;
+    background: var(--edit-stat);
+    border: 1px solid var(--edit-stat-border);
     border-radius: 17px;
     transition: transform .18s ease, box-shadow .18s ease;
 }
@@ -505,14 +544,14 @@ h1 {
     min-height: 28px;
     padding: 5px 9px;
     border-radius: 8px;
-    background: #e2ebff;
-    color: #155bd5;
+    background: var(--edit-stat-icon);
+    color: var(--edit-stat-icon-text);
     font-size: .65rem;
     font-weight: 800;
     letter-spacing: .04em;
 }
 .stat-number { font-size: 1.8rem; line-height: 1.1; }
-.stat-label { color: #657087; font-size: .85rem; }
+.stat-label { color: var(--edit-muted); font-size: .85rem; }
 .quick-links-title { margin: 0 0 12px; }
 .quick-links { display: grid; gap: 10px; }
 .quick-link {
@@ -520,16 +559,16 @@ h1 {
     align-items: center;
     gap: 13px;
     padding: 14px;
-    color: #172033;
+    color: var(--edit-text);
     text-decoration: none;
-    border: 1px solid #e7eaf0;
+    border: 1px solid var(--edit-line);
     border-radius: 14px;
-    background: #fff;
+    background: var(--edit-input);
     transition: background .18s ease, border-color .18s ease;
 }
 .quick-link:hover {
-    background: #f5f8ff;
-    border-color: #b9d0ff;
+    background: var(--edit-hover);
+    border-color: var(--edit-hover-border);
 }
 .quick-link > span:first-child {
     display: grid;
@@ -540,8 +579,8 @@ h1 {
     box-sizing: border-box;
     flex: 0 0 66px;
     border-radius: 10px;
-    background: #eaf1ff;
-    color: #1877f2;
+    background: var(--edit-soft);
+    color: var(--edit-soft-text);
     font-size: .62rem;
     font-weight: 800;
     letter-spacing: .02em;
@@ -551,7 +590,7 @@ h1 {
     gap: 4px;
     min-width: 0;
 }
-.quick-link small { color: #687386; line-height: 1.4; }
+.quick-link small { color: var(--edit-muted); line-height: 1.4; }
 .link-arrow { margin-left: auto; color: #8b95a7; font-size: 1.6rem; }
 @media (max-width: 480px) {
     .stats-grid { gap: 7px; }
@@ -569,7 +608,7 @@ h1 {
             font-size:14px; text-decoration:none;
         }
         .save-button { background:#1877f2; color:white; }
-        .cancel-button { background:#e4e6eb; color:#1c1e21; }
+        .cancel-button { background:var(--edit-line); color:var(--edit-text); }
         .editor-field { display:block; margin:18px 0; font-weight:bold; }
         .editor-field input, .editor-field textarea {
             display:block; width:100%; margin-top:8px; padding:12px;
@@ -577,12 +616,12 @@ h1 {
             font:inherit; font-weight:normal;
         }
         .editor-field textarea { min-height:110px; resize:vertical; }
-        .editor-section { border-top:1px solid #e4e6eb; padding-top:18px; margin-top:22px; }
+        .editor-section { border-top:1px solid var(--edit-line); padding-top:18px; margin-top:22px; }
         .editor-section button { background:#1877f2; color:white; border:0; border-radius:8px; padding:11px 15px; cursor:pointer; }
         .current-photo { max-width:100%; max-height:180px; border-radius:12px; display:block; margin:12px 0; }
     </style>
 </head>
-<body>
+<body data-theme="{{ gotya_theme|default("system") }}">
     <header>
         <div class="brand">Gotya</div>
         <a href="{{ url_for('profile') }}">Back to profile</a>
@@ -716,3 +755,4 @@ h1 {
 
 </body>
 </html>
+

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <link rel="manifest" href="/static/manifest.json">
@@ -11,21 +11,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chat with {{ person.username }} | Gotya</title>
 <style>
-:root{--blue:#1877f2;--blue-dark:#0e5fc5;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0}
+:root{--blue:#1877f2;--blue-dark:#0e5fc5;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0;--chat-bg:#f4f7fc;--bubble-bg:#e5eaf2;--input-bg:#f0f2f5;--hover:#f1f5fb;--soft-blue:#eaf2ff;--soft-blue-text:#174f9a;--control-bg:#eef1f6;--select-border:#d9dfeb;--call-card-bg:#fff;--call-card-text:#202124;--call-action-bg:#e9edf2}
+body[data-theme="dark"]{--location-icon-bg:#263f35;--location-icon-text:#a5e5c5;--voice-icon-bg:#3b2c4d;--voice-icon-text:#d9b8ff;--error-bg:#48282c;--error-text:#ffbfc5;--bg:#242526;--card:#18191a;--ink:#e4e6eb;--muted:#b0b3b8;--line:#3e4042;--chat-bg:#202124;--bubble-bg:#3a3b3c;--input-bg:#303236;--hover:#303236;--soft-blue:#263951;--soft-blue-text:#d5e7ff;--control-bg:#3a3b3c;--select-border:#55585c;--call-card-bg:#18191a;--call-card-text:#e4e6eb;--call-action-bg:#3a3b3c}
+body[data-theme="light"]{--location-icon-bg:#e5f7ed;--location-icon-text:#168653;--voice-icon-bg:#f3e8ff;--voice-icon-text:#8b5cf6;--error-bg:#fff0f1;--error-text:#a5293c;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0;--chat-bg:#f4f7fc;--bubble-bg:#e5eaf2;--input-bg:#f0f2f5;--hover:#f1f5fb;--soft-blue:#eaf2ff;--soft-blue-text:#174f9a;--control-bg:#eef1f6;--select-border:#d9dfeb;--call-card-bg:#fff;--call-card-text:#202124;--call-action-bg:#e9edf2}
+@media(prefers-color-scheme:dark){body[data-theme="system"]{--location-icon-bg:#263f35;--location-icon-text:#a5e5c5;--voice-icon-bg:#3b2c4d;--voice-icon-text:#d9b8ff;--error-bg:#48282c;--error-text:#ffbfc5;--bg:#242526;--card:#18191a;--ink:#e4e6eb;--muted:#b0b3b8;--line:#3e4042;--chat-bg:#202124;--bubble-bg:#3a3b3c;--input-bg:#303236;--hover:#303236;--soft-blue:#263951;--soft-blue-text:#d5e7ff;--control-bg:#3a3b3c;--select-border:#55585c;--call-card-bg:#18191a;--call-card-text:#e4e6eb;--call-action-bg:#3a3b3c}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif}
-header{background:#fff;border-bottom:1px solid var(--line)}
+header{background:var(--card);border-bottom:1px solid var(--line)}
 .topbar{max-width:1000px;margin:auto;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{font-size:25px;font-weight:850;letter-spacing:-1px;color:var(--blue);text-decoration:none}
 nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-nav a{padding:10px 13px;border-radius:10px;text-decoration:none;color:#465166;font-weight:700;font-size:14px}
-nav a:hover{background:#eaf2ff;color:var(--blue)}
+nav a{padding:10px 13px;border-radius:10px;text-decoration:none;color:var(--ink);font-weight:700;font-size:14px}
+nav a:hover{background:var(--soft-blue);color:var(--blue)}
 button{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:white;font-weight:750;cursor:pointer}
 button:hover{background:var(--blue-dark)}
-button.secondary{background:#eaf2ff;color:var(--blue)}
+button.secondary{background:var(--soft-blue);color:var(--blue)}
 main{max-width:850px;margin:25px auto;padding:0 15px 35px}
 .chat{height:min(76vh,760px);min-height:440px;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 25px #17203309}
-.chat-header{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:#fff}
+.chat-header{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--card)}
 .back{font-size:24px;text-decoration:none;color:var(--blue);padding-right:3px}
 .avatar{height:45px;width:45px;border-radius:50%;background:linear-gradient(135deg,#1877f2,#78b5ff);display:flex;align-items:center;justify-content:center;color:white;font-size:19px;font-weight:800;overflow:hidden;flex-shrink:0}
 .avatar img{width:100%;height:100%;object-fit:cover}
@@ -40,13 +43,13 @@ main{max-width:850px;margin:25px auto;padding:0 15px 35px}
 .time-separator{width:100%;box-sizing:border-box;text-align:center;align-self:center;color:var(--muted);font-size:11px;line-height:1.4;padding:9px 0 5px;margin:0}
 .message-row{display:flex;flex-direction:column;width:fit-content;max-width:78%;align-self:flex-start;align-items:flex-start;min-width:0}.message-row.mine{align-self:flex-end;align-items:flex-end}
 .message-row.mine{align-self:flex-end;align-items:flex-end}
-.bubble{display:block;width:fit-content;max-width:100%;box-sizing:border-box;padding:8px 12px;border:0;border-radius:18px 18px 18px 5px;background:#e5eaf2;color:var(--ink);font-size:14px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap}
+.bubble{display:block;width:fit-content;max-width:100%;box-sizing:border-box;padding:8px 12px;border:0;border-radius:18px 18px 18px 5px;background:var(--bubble-bg);color:var(--ink);font-size:14px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap}
 .mine .bubble{background:var(--blue);color:white;border-radius:18px 18px 5px 18px}
 .timestamp{font-size:11px;color:var(--muted);margin:5px 5px 0}
 .empty{text-align:center;color:var(--muted);margin:auto;padding:25px;line-height:1.6}
 .empty strong{display:block;color:var(--ink);font-size:18px;margin-bottom:7px}
-.composer{display:flex;gap:10px;align-items:flex-end;padding:14px;border-top:1px solid var(--line);background:#fff}
-textarea{flex:1;resize:none;min-height:44px;max-height:130px;border:1px solid #d9dfeb;border-radius:22px;padding:12px 16px;font:inherit;font-size:15px;outline:none}
+.composer{display:flex;gap:10px;align-items:flex-end;padding:14px;border-top:1px solid var(--line);background:var(--card)}
+textarea{flex:1;resize:none;min-height:44px;max-height:130px;border:1px solid var(--select-border, #d9dfeb);border-radius:22px;padding:12px 16px;font:inherit;font-size:15px;outline:none}
 textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
 .send{height:44px;border-radius:22px;padding:0 20px}
 .attachment-picker{display:flex;flex-direction:column;gap:4px;max-width:145px;font-size:12px;color:var(--muted)}
@@ -148,10 +151,10 @@ textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
 /* Messenger-inspired composer, including Android sizing */
 .composer{display:flex;align-items:flex-end;gap:6px;padding:6px 9px;box-sizing:border-box}
 .composer-icon{width:36px;height:40px;flex:0 0 36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--blue);border-radius:50%;-webkit-tap-highlight-color:transparent}
-.composer-icon:active{background:#eaf2ff}
+.composer-icon:active{background:var(--soft-blue)}
 .composer-icon svg,.send svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .visually-hidden-file{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
-.composer-input-wrap{flex:1;min-width:0;background:#f0f2f5;border-radius:22px;padding:1px 10px;display:flex;flex-direction:column;justify-content:center}
+.composer-input-wrap{flex:1;min-width:0;background:var(--input-bg);border-radius:22px;padding:1px 10px;display:flex;flex-direction:column;justify-content:center}
 .composer textarea{display:block;width:100%;min-width:0;height:24px;min-height:24px;max-height:64px;box-sizing:border-box;resize:none;border:0!important;box-shadow:none!important;background:transparent;padding:2px 1px;font:inherit;font-size:16px;line-height:20px;outline:none;overflow-y:hidden}
 .composer textarea::placeholder{color:#68778b}
 .selected-files{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
@@ -166,8 +169,8 @@ textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
  .send{width:38px;height:38px;flex-basis:38px}
 }
 
-.flash{padding:11px 14px;border-radius:10px;margin-bottom:12px;background:#eaf2ff;color:#174f9a}
-.flash.error{background:#fff0f1;color:#a5293c}
+.flash{padding:11px 14px;border-radius:10px;margin-bottom:12px;background:var(--soft-blue);color:var(--soft-blue-text)}
+.flash.error{background:var(--error-bg, #fff0f1);color:var(--error-text, #a5293c)}
 @media(max-width:600px){.topbar{align-items:flex-start;flex-direction:column;padding:12px 15px}nav{width:100%}nav a{padding:9px 10px}main{margin:12px auto;padding:0 8px 12px}.chat{height:calc(100dvh - 155px);min-height:350px;border-radius:15px}.chat-header{padding:11px 12px}.messages{padding:17px 11px}.message-row{max-width:88%}.composer{padding:10px;gap:7px}.send{padding:0 15px}}
 
 /* Final photo-to-message spacing fix */
@@ -239,7 +242,7 @@ textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
     min-width: 0;
     padding: 4px 10px !important;
     border-radius: 20px !important;
-    background: #f0f2f5;
+    background: var(--input-bg, #f0f2f5);
 }
 
 .composer .composer-input-wrap textarea {
@@ -366,11 +369,11 @@ textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
 
 
 /* Live location sharing */
-.location-panel{padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fbff}
+.location-panel{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--chat-bg)}
 .location-heading{font-weight:800;font-size:14px;margin-bottom:8px}
 .location-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .location-actions label{font-size:12px;color:var(--muted)}
-.location-actions select{padding:9px;border:1px solid #d9dfeb;border-radius:9px;background:white;color:var(--ink)}
+.location-actions select{padding:9px;border:1px solid var(--select-border);border-radius:9px;background:var(--card);color:var(--ink)}
 .location-actions button{padding:9px 12px;font-size:12px}
 .location-actions button[hidden],#incomingLocation[hidden]{display:none}
 #locationShareStatus,#incomingLocation{font-size:12px;color:var(--muted);margin-top:8px;overflow-wrap:anywhere}
@@ -380,28 +383,28 @@ textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
 
 /* Messenger-style upward composer menu */
 .plus-menu-wrap{position:relative;display:flex;align-items:center;flex-shrink:0}
-.plus-button{width:44px;height:44px;border:0;border-radius:50%;background:#e8f0fe;color:#1877f2;font-size:30px;font-weight:400;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.plus-button:hover{background:#dbe8ff}
-.plus-menu{position:absolute;z-index:50;left:0;bottom:calc(100% + 12px);width:230px;max-width:calc(100vw - 40px);padding:8px;background:#fff;border:1px solid #e2e7f0;border-radius:16px;box-shadow:0 8px 28px #17203324;display:flex;flex-direction:column;gap:4px}
+.plus-button{width:44px;height:44px;border:0;border-radius:50%;background:var(--soft-blue);color:#1877f2;font-size:30px;font-weight:400;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.plus-button:hover{background:var(--hover)}
+.plus-menu{position:absolute;z-index:50;left:0;bottom:calc(100% + 12px);width:230px;max-width:calc(100vw - 40px);padding:8px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 28px #17203324;display:flex;flex-direction:column;gap:4px}
 .plus-menu[hidden],#locationOptions[hidden],#attachmentSubmenu[hidden],#voiceRecorder[hidden]{display:none!important}
 .plus-menu-item{display:flex;align-items:center;gap:12px;width:100%;padding:11px 10px;border:0;border-radius:10px;background:transparent;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
-.plus-menu-item:hover{background:#f1f5fb}
+.plus-menu-item:hover{background:var(--hover)}
 .menu-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700;flex-shrink:0}
-.location-menu-icon{background:#e5f7ed;color:#168653}
-.file-menu-icon{background:#e8f0fe;color:#1877f2}
-.voice-menu-icon{background:#f3e8ff;color:#8b5cf6}
+.location-menu-icon{background:var(--location-icon-bg, #e5f7ed);color:var(--location-icon-text, #168653)}
+.file-menu-icon{background:var(--soft-blue);color:#1877f2}
+.voice-menu-icon{background:var(--voice-icon-bg, #f3e8ff);color:var(--voice-icon-text, #8b5cf6)}
 .location-options{gap:9px}
 .location-options strong{font-size:15px;padding:5px 4px}
 .location-options label{font-size:12px;color:var(--muted)}
-.location-options select{width:100%;padding:10px;border:1px solid #d9dfeb;border-radius:10px;background:#fff;color:var(--ink);font:inherit}
+.location-options select{width:100%;padding:10px;border:1px solid var(--select-border);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
 .menu-primary,.menu-secondary{width:100%;padding:10px 12px;border:0;border-radius:10px;font-weight:700;cursor:pointer}
 .menu-primary{background:#1877f2;color:white}
-.menu-secondary{background:#eef1f6;color:var(--ink)}
+.menu-secondary{background:var(--control-bg);color:var(--ink)}
 .menu-primary:disabled{opacity:.6;cursor:wait}
 #locationShareStatus,#incomingLocation{font-size:12px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
 #incomingLocation a{color:#1877f2;font-weight:700}
 .voice-recorder{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px;font-size:12px}
-.voice-recorder button{border:0;border-radius:9px;padding:7px 10px;background:#eef1f6;color:var(--ink);cursor:pointer}
+.voice-recorder button{border:0;border-radius:9px;padding:7px 10px;background:var(--control-bg);color:var(--ink);cursor:pointer}
 @media(max-width:600px){
  .composer{gap:7px;padding:10px}
  .plus-menu{width:220px}
@@ -670,11 +673,190 @@ main {
 
 /* END GOTYA VIDEO CALL */
 
+
+/* Message reply UI */
+/* Hide the visible Reply button; swipe-to-reply remains enabled. */
+.reply-message-btn { display: none !important; }
+
+
+.reply-message-btn {
+  display: block;
+  margin: 3px 8px 5px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted, #68778b);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.reply-message-btn:hover { text-decoration: underline; }
+.message-delete-actions{display:none!important}
+.message-delete-actions button{border:0;background:transparent;color:var(--muted);padding:3px 0;font:inherit;cursor:pointer}
+.message-delete-actions button:hover{text-decoration:underline}
+.message-delete-actions .unsend-message-btn{color:var(--error-text,#a5293c)}
+.message-delete-actions button:disabled{opacity:.55;cursor:wait}
+
+/* Android message gestures */
+.message-reactions .reaction-picker{display:none!important}
+.message-row{position:relative}
+.message-gesture-menu{
+  position:absolute;z-index:50;top:0;max-width:calc(100vw - 32px);
+  display:flex;flex-wrap:wrap;gap:6px;padding:8px;
+  border:1px solid var(--border,#ddd);border-radius:12px;
+  background:var(--card-bg,#fff);color:var(--ink,#222);
+  box-shadow:0 5px 20px rgba(0,0,0,.18)
+}
+.message-row.mine .message-gesture-menu{right:0}
+.message-row:not(.mine) .message-gesture-menu{left:0}
+/* Keep reaction emojis in a single horizontal row */
+.message-gesture-menu .gesture-reaction-summary,
+.message-gesture-menu .gesture-reaction-picker{
+  display:flex;
+  flex-direction:row;
+  flex-wrap:nowrap;
+  align-items:center;
+  justify-content:flex-start;
+  gap:5px;
+  width:100%;
+  overflow-x:auto;
+  white-space:nowrap;
+}
+.message-gesture-menu .gesture-reaction-picker .gesture-emoji,
+.message-gesture-menu .gesture-reaction-summary .reaction-chip{
+  flex:0 0 auto;
+}
+.message-gesture-menu .gesture-emoji{
+  padding:5px 7px;
+  font-size:20px;
+  line-height:1.2;
+}
+/* Quick reaction customization: visible remove mark and drag feedback */
+.message-gesture-menu .gesture-emoji-remove {
+  display: none;
+  margin-left: 3px;
+  font-size: 12px;
+  line-height: 1;
+}
+.message-gesture-menu.customizing .gesture-emoji-remove {
+  display: inline;
+}
+.message-gesture-menu .gesture-emoji-dragging {
+  opacity: .55;
+  outline: 2px solid var(--border, #b97878);
+}
+.message-gesture-menu .reaction-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+.message-gesture-menu button{
+  border:0;border-radius:8px;padding:8px 10px;
+  background:var(--bubble-bg,#f2f2f2);color:inherit;
+  font:inherit;font-size:12px;cursor:pointer
+}
+.message-gesture-menu .gesture-add-emoji{
+  flex:0 0 34px;
+  width:34px;
+  height:34px;
+  padding:0;
+  border:1px solid var(--border,#ddd);
+  border-radius:50%;
+  background:var(--card-bg,#fff);
+  color:var(--ink,#222);
+  font-size:22px;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.message-gesture-menu .gesture-add-emoji:hover{
+  background:var(--bubble-bg,#f2f2f2);
+  border-color:var(--rose,#8f5a5a);
+}
+.message-gesture-menu .gesture-emoji-input{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  padding:10px 12px;
+  border:1px solid var(--border,#ddd);
+  border-radius:12px;
+  background:var(--card-bg,#fff);
+  color:var(--ink,#222);
+  font:inherit;
+  font-size:16px;
+  outline:none;
+}
+.message-gesture-menu .gesture-emoji-input:focus{
+  border-color:var(--rose,#8f5a5a);
+  box-shadow:0 0 0 3px rgba(143,90,90,.14);
+}
+.message-gesture-menu .gesture-emoji-input[hidden]{
+  display:none!important;
+}
+.message-gesture-menu .gesture-unsend{color:var(--error-text,#a5293c)}
+.message-row.gesture-reply-feedback .bubble{
+  outline:2px solid var(--rose,#8f5a5a);outline-offset:2px
+}
+@media(hover:none) and (pointer:coarse){
+  .message-row .bubble{-webkit-touch-callout:none}
+}
+
+.message-row.is-unsent .message-reactions,
+.message-row.is-unsent .reply-message-btn,
+.message-row.is-unsent .delivery-receipt{display:none!important}
+.message-row.is-unsent .bubble{font-style:italic;color:var(--muted)}
+
+.reply-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 7px;
+  padding: 7px 10px;
+  border-left: 3px solid var(--rose, #8f5a5a);
+  border-radius: 5px;
+  background: rgba(127, 127, 127, .09);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.reply-quote-sender { font-size: 12px; font-weight: 700; }
+.reply-quote-text { font-size: 12px; opacity: .85; }
+.reply-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 2px;
+  border-bottom: 1px solid rgba(127, 127, 127, .2);
+}
+.reply-preview[hidden] { display: none !important; }
+.reply-preview-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.reply-preview-copy span { opacity: .8; }
+#cancelReply {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
 </head>
-<body>
+<body data-theme="{{ gotya_theme|default("system") }}">
 <header>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
@@ -682,7 +864,7 @@ main {
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Gotya"><div class="topbar">
-<a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:#172033">.</span></a>
+<a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:var(--ink)">.</span></a>
 <nav>
 <a href="{{ url_for('feed') }}">Feed</a>
 <a href="{{ url_for('friends') }}">Friends</a>
@@ -753,8 +935,17 @@ main {
 {% if loop.first or (item.created_at - loop.previtem.created_at).total_seconds() >= 600 %}
 <div class="time-separator">{{ item.created_at.strftime('%b %d · %I:%M %p') }}</div>
 {% endif %}
-<div class="message-row {{ 'mine' if item.sender_id == current_user.id else '' }}" data-message-id="{{ item.id }}" data-sender-id="{{ item.sender_id }}" data-created-at="{{ item.created_at.isoformat() }}">
-<div class="bubble{% if item.content and item.content.startswith('Call Ended') %} call-summary-bubble{% endif %}{% if item.attachment_filename and item.attachment_mimetype and item.attachment_mimetype.startswith('image/') and not item.content %} image-only-bubble{% endif %}">
+<div class="message-row {{ 'mine' if item.sender_id == current_user.id else '' }}{% if item.is_unsent %} is-unsent{% endif %}" data-message-id="{{ item.id }}" data-sender-id="{{ item.sender_id }}" data-created-at="{{ item.created_at.isoformat() }}" data-message-preview="{{ 'This message was unsent.' if item.is_unsent else ((item.content or item.attachment_original_name or ('Photo' if item.attachment_mimetype and item.attachment_mimetype.startswith('image/') else 'Attachment'))[:140]) }}" data-message-sender="{{ (item.sender.username if item.sender else 'Message') }}">
+<div class="bubble">
+{% if item.is_unsent %}
+<div class="message-text">This message was unsent.</div>
+{% else %}
+{% if item.reply_to %}
+<div class="reply-quote" tabindex="0" role="button" data-reply-target="{{ item.reply_to.id }}">
+<span class="reply-quote-sender">{{ item.reply_to.sender.username if item.reply_to.sender else 'Message' }}</span>
+<span class="reply-quote-text">{{ 'This message was unsent.' if item.reply_to.is_unsent else ((item.reply_to.content or item.reply_to.attachment_original_name or ('Photo' if item.reply_to.attachment_mimetype and item.reply_to.attachment_mimetype.startswith('image/') else 'Attachment'))[:140]) }}</span>
+</div>
+{% endif %}
 {% if item.content %}<div class="message-text">{{ item.content }}</div>{% endif %}
 {% if item.attachment_filename %}
 {% set attachment_url = url_for('message_attachment_file', message_id=item.id) %}
@@ -770,10 +961,35 @@ main {
 </div>
 {% endif %}
 {% endif %}
+{% endif %}
 </div>
-{% if item.sender_id == current_user.id %}
+{% if not item.is_unsent %}
+<button type="button" class="reply-message-btn" data-reply-id="{{ item.id }}" data-reply-sender="{{ (item.sender.username if item.sender else 'Message') }}" data-reply-preview="{{ (item.content or item.attachment_original_name or ('Photo' if item.attachment_mimetype and item.attachment_mimetype.startswith('image/') else 'Attachment'))[:140] }}">Reply</button>
+{% endif %}
+{% if not item.is_unsent %}<div class="message-reactions" data-reaction-message-id="{{ item.id }}">
+  <div class="reaction-summary">
+    {% for reaction in reaction_map.get(item.id, []) %}
+    <button type="button" class="reaction-chip{% if reaction.reacted_by_me %} reacted-by-me{% endif %}" data-emoji="{{ reaction.emoji }}" data-reacted-by-me="{{ 'true' if reaction.reacted_by_me else 'false' }}" aria-pressed="{{ 'true' if reaction.reacted_by_me else 'false' }}" aria-label="{{ reaction.emoji }} {{ reaction.count }} reactions">
+      <span>{{ reaction.emoji }}</span><span class="reaction-count">{{ reaction.count }}</span>
+    </button>
+    {% endfor %}
+  </div>
+  <div class="reaction-picker" aria-label="React to message">
+    {% for emoji in reaction_emojis %}
+    {% set selected = reaction_map.get(item.id, [])|selectattr('emoji', 'equalto', emoji)|selectattr('reacted_by_me')|list %}
+    <button type="button" class="reaction-button{% if selected %} reacted-by-me{% endif %}" data-emoji="{{ emoji }}" data-reacted-by-me="{{ 'true' if selected else 'false' }}" aria-pressed="{{ 'true' if selected else 'false' }}" aria-label="React {{ emoji }}">{{ emoji }}</button>
+    {% endfor %}
+  </div>
+</div>{% endif %}
+{% if item.sender_id == current_user.id and not item.is_unsent %}
 <div class="delivery-receipt" data-receipt-id="{{ item.id }}">{% if item.read_at %}Seen at {{ item.read_at.strftime('%I:%M %p') }}{% elif item.delivered_at %}Delivered{% else %}Sent{% endif %}</div>
 {% endif %}
+<div class="message-delete-actions">
+<button type="button" class="hide-message-btn" data-message-id="{{ item.id }}">Delete for me</button>
+{% if item.sender_id == current_user.id and not item.is_unsent %}
+<button type="button" class="unsend-message-btn" data-message-id="{{ item.id }}">Unsend for everyone</button>
+{% endif %}
+</div>
 </div>
 {% endfor %}
 <div id="latest"></div>
@@ -790,6 +1006,7 @@ main {
 
 <form class="composer" method="post" enctype="multipart/form-data" action="{{ url_for('conversation', user_id=person.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" id="replyToId" name="reply_to_id" value="">
 
 <div class="plus-menu-wrap">
   <button type="button" id="plusMenuButton" class="composer-icon plus-button" aria-label="Open attachments menu" aria-expanded="false" aria-controls="plusMenu">+</button>
@@ -835,6 +1052,13 @@ main {
 <input class="visually-hidden-file" id="voiceInput" type="file" name="attachment" accept="audio/webm,audio/ogg,audio/mp4,audio/mpeg,.webm,.ogg,.m4a,.mp3">
 
 <div class="composer-input-wrap">
+<div id="replyPreview" class="reply-preview" hidden>
+  <div class="reply-preview-copy">
+    <strong id="replyPreviewSender">Replying to</strong>
+    <span id="replyPreviewText"></span>
+  </div>
+  <button type="button" id="cancelReply" aria-label="Cancel reply">Cancel</button>
+</div>
 <textarea id="messageInput" name="content" maxlength="2000" rows="1" placeholder="Aa" aria-label="Write a message"></textarea>
 <div id="attachmentName" class="selected-files" aria-live="polite"></div>
 <div id="voiceRecorder" class="voice-recorder" hidden>
@@ -1206,6 +1430,61 @@ if (input) {
   0%, 60%, 100% { opacity: .35; transform: translateY(0); }
   30% { opacity: 1; transform: translateY(-3px); }
 }
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin: 3px 5px 1px;
+  max-width: 100%;
+}
+.reaction-summary, .reaction-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.reaction-picker { opacity: .78; }
+.reaction-button, .reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 30px;
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid #e4d9df;
+  border-radius: 16px;
+  background: #fff;
+  color: #333;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.reaction-button:hover, .reaction-chip:hover {
+  background: #f8edf2;
+  border-color: #c89aaa;
+}
+.reaction-chip.reacted-by-me, .reaction-button.reacted-by-me {
+  background: #f6e3eb;
+  border-color: #b76b88;
+  box-shadow: inset 0 0 0 1px #b76b88;
+}
+.reaction-count {
+  font-size: 11px;
+  font-weight: 600;
+}
+.message-row.mine .message-reactions { justify-content: flex-end; }
+@media (max-width: 600px) {
+  .message-reactions { gap: 4px; margin-left: 3px; margin-right: 3px; }
+  .reaction-button, .reaction-chip {
+    min-width: 29px;
+    min-height: 30px;
+    padding: 4px 6px;
+  }
+}
 </style>
 <script id="GOTYA_REALTIME_CHAT_SCRIPT">
 (() => {
@@ -1217,6 +1496,587 @@ if (input) {
   const currentUserId = {{ current_user.id|tojson }};
   const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || "";
   if (!list || !composer) return;
+
+  const replyInput = document.getElementById("replyToId");
+  const replyPreview = document.getElementById("replyPreview");
+  const replyPreviewSender = document.getElementById("replyPreviewSender");
+  const replyPreviewText = document.getElementById("replyPreviewText");
+  const cancelReply = document.getElementById("cancelReply");
+
+  function clearReply() {
+    if (replyInput) replyInput.value = "";
+    if (replyPreview) replyPreview.hidden = true;
+    if (replyPreviewSender) replyPreviewSender.textContent = "Replying to";
+    if (replyPreviewText) replyPreviewText.textContent = "";
+  }
+
+  function selectReply(id, sender, preview) {
+    if (!replyInput || !replyPreview) return;
+    replyInput.value = String(id);
+    replyPreviewSender.textContent = "Replying to " + (sender || "Message");
+    replyPreviewText.textContent = preview || "Message";
+    replyPreview.hidden = false;
+    if (messageInput) messageInput.focus();
+  }
+
+  async function handleMessageDelete(button) {
+    const row = button.closest(".message-row");
+    if (!row || button.disabled) return;
+
+    const messageId = button.dataset.messageId || row.dataset.messageId;
+    const action = button.classList.contains("unsend-message-btn") ? "unsend" : "hide";
+    if (!messageId) return;
+
+    button.disabled = true;
+    try {
+      const response = await fetch(`/messages/${encodeURIComponent(messageId)}/delete`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrfToken,
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ action })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Could not update this message.");
+      }
+
+      if (action === "hide") {
+        row.remove();
+        if (replyInput && replyInput.value === String(messageId)) clearReply();
+      } else {
+        renderUnsentRow(row);
+      }
+    } catch (error) {
+      console.error("Message action failed:", error);
+      button.title = error.message || "Could not update this message.";
+      window.alert(button.title);
+    } finally {
+      if (button.isConnected) button.disabled = false;
+    }
+  }
+
+  function renderUnsentRow(row) {
+    if (!row) return;
+    row.classList.add("is-unsent");
+    const bubble = row.querySelector(".bubble");
+    if (bubble) {
+      bubble.replaceChildren(makeElement("div", "message-text", "This message was unsent."));
+      bubble.classList.remove("image-only-bubble", "call-summary-bubble");
+    }
+    row.querySelector(".reply-message-btn")?.remove();
+    row.querySelector(".message-reactions")?.remove();
+    row.querySelector(".delivery-receipt")?.remove();
+    row.querySelector(".unsend-message-btn")?.remove();
+    row.dataset.messagePreview = "This message was unsent.";
+  }
+
+  function applyUnsentIds(ids) {
+    for (const id of ids || []) {
+      renderUnsentRow(list.querySelector(`[data-message-id="${id}"]`));
+    }
+  }
+
+  function applyHiddenIds(ids) {
+    for (const id of ids || []) {
+      const row = list.querySelector(`[data-message-id="${id}"]`);
+      if (row) row.remove();
+      if (replyInput && replyInput.value === String(id)) clearReply();
+    }
+  }
+
+  list.addEventListener("click", event => {
+    const deleteButton = event.target.closest(".hide-message-btn, .unsend-message-btn");
+    if (deleteButton) {
+      handleMessageDelete(deleteButton);
+      return;
+    }
+
+    const reactionButton = event.target.closest(".reaction-button, .reaction-chip");
+    if (reactionButton) {
+      toggleMessageReaction(reactionButton);
+      return;
+    }
+
+    const button = event.target.closest(".reply-message-btn");
+    if (button) {
+      selectReply(
+        button.dataset.replyId,
+        button.dataset.replySender,
+        button.dataset.replyPreview
+      );
+      return;
+    }
+    const quote = event.target.closest(".reply-quote");
+    if (quote && quote.dataset.replyTarget) {
+      const target = list.querySelector(
+        '[data-message-id="' + quote.dataset.replyTarget + '"]'
+      );
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("reply-target-highlight");
+        window.setTimeout(() => target.classList.remove("reply-target-highlight"), 1200);
+      }
+    }
+  });
+
+
+  // Android: long-press opens actions; swipe right on a bubble replies.
+  let messageGesture = null;
+  let messageGestureTimer = null;
+
+  function closeMessageGestureMenus() {
+    list.querySelectorAll(".message-gesture-menu").forEach(menu => menu.remove());
+  }
+
+  // Close the long-press menu when the user taps anywhere outside it.
+  document.addEventListener("click", event => {
+    if (!event.target.closest(".message-gesture-menu")) {
+      closeMessageGestureMenus();
+    }
+  });
+
+  function showMessageGestureMenu(row) {
+    if (!row) return;
+
+    closeMessageGestureMenus();
+    const menu = makeElement("div", "message-gesture-menu");
+    menu.setAttribute("role", "group");
+    menu.setAttribute("aria-label", "Message actions");
+
+    const addAction = (label, className, action) => {
+      const button = makeElement("button", className || "", label);
+      button.type = "button";
+      button.addEventListener("click", () => {
+        closeMessageGestureMenus();
+        action();
+      });
+      menu.appendChild(button);
+      return button;
+    };
+
+    if (!row.classList.contains("is-unsent")) {
+      const reactions = row.querySelector(".message-reactions");
+      const summary = reactions?.querySelector(".reaction-summary");
+
+      if (summary && summary.children.length) {
+        const summaryRow = makeElement("div", "gesture-reaction-summary");
+        summary.querySelectorAll(".reaction-chip").forEach(original => {
+          const copy = original.cloneNode(true);
+          copy.addEventListener("click", () => {
+            closeMessageGestureMenus();
+            original.click();
+          });
+          summaryRow.appendChild(copy);
+        });
+        menu.appendChild(summaryRow);
+      }
+
+      const picker = reactions?.querySelector(".reaction-picker");
+      if (picker) {
+        const emojiRow = makeElement("div", "gesture-reaction-picker");
+
+        picker.querySelectorAll(".reaction-button").forEach(original => {
+          const emojiButton = makeElement("button", "gesture-emoji", original.dataset.emoji || original.textContent);
+          emojiButton.type = "button";
+          emojiButton.setAttribute("aria-label", original.getAttribute("aria-label") || "React");
+          const emojiValue = original.dataset.emoji || original.textContent.trim();
+          emojiButton.dataset.emoji = emojiValue;
+
+          const removeMark = makeElement("span", "gesture-emoji-remove", "\u00D7");
+          removeMark.setAttribute("aria-label", "Remove emoji");
+          emojiButton.appendChild(removeMark);
+
+          let reorderTimer = null;
+          let reorderStarted = false;
+          let suppressNextEmojiClick = false;
+
+          emojiButton.addEventListener("pointerdown", event => {
+            if (event.pointerType === "mouse" && event.button !== 0) return;
+            reorderStarted = false;
+            reorderTimer = window.setTimeout(() => {
+              reorderStarted = true;
+              suppressNextEmojiClick = true;
+              menu.classList.add("customizing");
+              emojiButton.classList.add("gesture-emoji-dragging");
+            }, 400);
+          });
+
+          emojiButton.addEventListener("pointermove", event => {
+            if (!reorderStarted) return;
+            const target = document.elementFromPoint(event.clientX, event.clientY)
+              ?.closest(".gesture-reaction-picker .gesture-emoji");
+            if (!target || target === emojiButton ||
+                target.parentElement !== emojiRow ||
+                target.classList.contains("gesture-add-emoji")) return;
+
+            const rect = target.getBoundingClientRect();
+            const insertBefore = event.clientX < rect.left + rect.width / 2;
+            emojiRow.insertBefore(
+              emojiButton,
+              insertBefore ? target : target.nextSibling
+            );
+          });
+
+          const finishEmojiReorder = async () => {
+            if (reorderTimer) window.clearTimeout(reorderTimer);
+            reorderTimer = null;
+            emojiButton.classList.remove("gesture-emoji-dragging");
+            if (!reorderStarted) return;
+            reorderStarted = false;
+
+            const nextEmojis = Array.from(
+              emojiRow.querySelectorAll(".gesture-emoji:not(.gesture-add-emoji)")
+            ).map(item => item.dataset.emoji).filter(Boolean);
+
+            try {
+              const response = await fetch("/settings/quick-reactions", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": csrfToken,
+                  "Accept": "application/json"
+                },
+                body: JSON.stringify({ emojis: nextEmojis })
+              });
+              const data = await response.json();
+              if (!response.ok || !data.ok) {
+                throw new Error(data.error || "Could not save emoji order.");
+              }
+              reactionEmojis = data.emojis;
+              refreshVisibleReactionPickers();
+              showMessageGestureMenu(row);
+            } catch (error) {
+              console.warn("Could not save quick reaction order:", error);
+              emojiInput.setCustomValidity("Could not save emoji order. Please try again.");
+              emojiInput.reportValidity();
+            }
+          };
+
+          emojiButton.addEventListener("pointerup", finishEmojiReorder);
+          emojiButton.addEventListener("pointercancel", finishEmojiReorder);
+
+          emojiButton.addEventListener("click", async event => {
+            if (suppressNextEmojiClick) {
+              suppressNextEmojiClick = false;
+              return;
+            }
+            // When the input is open, tapping a saved emoji removes it.
+            // Otherwise, tapping it reacts to the message as usual.
+            if (event.target.closest(".gesture-emoji-remove")) {
+              if (reactionEmojis.length <= 1) {
+                emojiInput.setCustomValidity("Keep at least one quick reaction.");
+                emojiInput.reportValidity();
+                return;
+              }
+
+              const previousEmojis = [...reactionEmojis];
+              const nextEmojis = reactionEmojis.filter(
+                emoji => emoji !== emojiButton.dataset.emoji
+              );
+
+              try {
+                const response = await fetch("/settings/quick-reactions", {
+                  method: "POST",
+                  credentials: "same-origin",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,
+                    "Accept": "application/json"
+                  },
+                  body: JSON.stringify({ emojis: nextEmojis })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.ok) {
+                  emojiInput.setCustomValidity(
+                    data.error || "Could not save quick reactions."
+                  );
+                  emojiInput.reportValidity();
+                  return;
+                }
+
+                reactionEmojis = data.emojis;
+                emojiInput.setCustomValidity("");
+                refreshVisibleReactionPickers();
+                showMessageGestureMenu(row);
+              } catch (error) {
+                reactionEmojis = previousEmojis;
+                emojiInput.setCustomValidity("Could not save quick reactions. Try again.");
+                emojiInput.reportValidity();
+              }
+
+              return;
+            }
+
+            closeMessageGestureMenus();
+            original.click();
+          });
+          emojiRow.appendChild(emojiButton);
+        });
+
+        const addEmojiButton = makeElement("button", "gesture-emoji gesture-add-emoji", "+");
+        addEmojiButton.type = "button";
+        addEmojiButton.setAttribute("aria-label", "Customize quick reactions");
+        addEmojiButton.title = "Add a quick reaction";
+        emojiRow.appendChild(addEmojiButton);
+        menu.appendChild(emojiRow);
+
+        const emojiInput = makeElement("input", "gesture-emoji-input");
+        emojiInput.type = "text";
+        emojiInput.autocomplete = "off";
+        emojiInput.spellcheck = false;
+        emojiInput.maxLength = 16;
+        emojiInput.placeholder = "Emoji";
+        emojiInput.setAttribute("aria-label", "Type an emoji");
+        emojiInput.hidden = true;
+        menu.appendChild(emojiInput);
+
+        async function refreshVisibleReactionPickers() {
+          list.querySelectorAll(".message-row").forEach(messageRow => {
+            const bar = messageRow.querySelector(".message-reactions");
+            if (!bar) return;
+
+            const existingReactions = Array.from(
+              bar.querySelectorAll(".reaction-chip")
+            ).map(chip => ({
+              emoji: chip.dataset.emoji,
+              count: Number(chip.querySelector(".reaction-count")?.textContent || 0),
+              reacted_by_me: chip.dataset.reactedByMe === "true"
+            }));
+
+            renderReactionBar(
+              messageRow,
+              messageRow.dataset.messageId,
+              existingReactions
+            );
+          });
+        }
+
+        addEmojiButton.addEventListener("click", () => {
+          emojiInput.hidden = false;
+          emojiInput.focus();
+        });
+
+        emojiInput.addEventListener("keydown", async event => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const emoji = emojiInput.value.trim();
+            if (!emoji) return;
+
+            if (!reactionEmojis.includes(emoji)) {
+              if (reactionEmojis.length >= 8) {
+                emojiInput.setCustomValidity("You can save up to eight quick reactions.");
+                emojiInput.reportValidity();
+                return;
+              }
+
+              reactionEmojis = [...reactionEmojis, emoji];
+
+              const saveResponse = await fetch("/settings/quick-reactions", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-CSRFToken": csrfToken,
+                  "Accept": "application/json"
+                },
+                body: JSON.stringify({ emojis: reactionEmojis })
+              });
+
+              const saveData = await saveResponse.json();
+              if (!saveResponse.ok || !saveData.ok) {
+                reactionEmojis = reactionEmojis.filter(item => item !== emoji);
+                emojiInput.setCustomValidity(saveData.error || "Could not save quick reactions.");
+                emojiInput.reportValidity();
+                return;
+              }
+
+              reactionEmojis = saveData.emojis;
+            }
+
+            closeMessageGestureMenus();
+            const messageRow = list.querySelector(
+              '[data-message-id="' + row.dataset.messageId + '"]'
+            );
+            if (messageRow) {
+              const existingBar = messageRow.querySelector(".message-reactions");
+              const existingReactions = Array.from(
+                existingBar?.querySelectorAll(".reaction-chip") || []
+              ).map(chip => ({
+                emoji: chip.dataset.emoji,
+                count: Number(chip.querySelector(".reaction-count")?.textContent || 0),
+                reacted_by_me: chip.dataset.reactedByMe === "true"
+              }));
+              renderReactionBar(messageRow, row.dataset.messageId, existingReactions);
+            }
+          }
+        });
+      }
+
+      addAction("Reply", "gesture-reply", () => {
+        selectReply(
+          row.dataset.messageId,
+          row.dataset.messageSender,
+          row.dataset.messagePreview
+        );
+      });
+    }
+
+    addAction("Delete for me", "gesture-delete", () => {
+      row.querySelector(".hide-message-btn")?.click();
+    });
+
+    if (!row.classList.contains("is-unsent") &&
+        row.querySelector(".unsend-message-btn")) {
+      addAction("Unsend for everyone", "gesture-unsend", () => {
+        row.querySelector(".unsend-message-btn")?.click();
+      });
+      menu.lastElementChild.classList.add("gesture-unsend");
+    }
+
+    row.appendChild(menu);
+  }
+
+  let lastMessageTap = null;
+
+  list.addEventListener("touchstart", event => {
+    const touch = event.touches[0];
+    const bubble = event.target.closest(".message-row .bubble");
+    if (!touch || !bubble || event.target.closest("a,button,input,video,audio")) {
+      messageGesture = null;
+      if (messageGestureTimer) window.clearTimeout(messageGestureTimer);
+      messageGestureTimer = null;
+      return;
+    }
+
+    const row = bubble.closest(".message-row");
+    if (!row) return;
+
+    if (messageGestureTimer) window.clearTimeout(messageGestureTimer);
+    messageGesture = {
+      row,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+      longPressed: false
+    };
+
+    messageGestureTimer = window.setTimeout(() => {
+      if (!messageGesture || !messageGesture.row.isConnected) return;
+      messageGesture.longPressed = true;
+      showMessageGestureMenu(messageGesture.row);
+    }, 550);
+  }, { passive: true });
+
+  list.addEventListener("touchmove", event => {
+    if (!messageGesture || !event.touches[0]) return;
+    const touch = event.touches[0];
+    messageGesture.lastX = touch.clientX;
+    messageGesture.lastY = touch.clientY;
+
+    const dx = touch.clientX - messageGesture.startX;
+    const dy = touch.clientY - messageGesture.startY;
+    if (Math.abs(dx) > 12 || Math.abs(dy) > 12) {
+      if (messageGestureTimer) window.clearTimeout(messageGestureTimer);
+      messageGestureTimer = null;
+    }
+  }, { passive: true });
+
+  list.addEventListener("touchend", () => {
+    if (messageGestureTimer) window.clearTimeout(messageGestureTimer);
+    messageGestureTimer = null;
+
+    const gesture = messageGesture;
+    messageGesture = null;
+    if (!gesture || gesture.longPressed || !gesture.row.isConnected) return;
+
+    const dx = gesture.lastX - gesture.startX;
+    const dy = gesture.lastY - gesture.startY;
+
+    // Double-tap the same message to use the first saved quick reaction.
+    const isTap = Math.abs(dx) < 20 && Math.abs(dy) < 20;
+    const now = Date.now();
+    if (isTap) {
+      if (
+        lastMessageTap &&
+        lastMessageTap.row === gesture.row &&
+        now - lastMessageTap.time <= 350
+      ) {
+        lastMessageTap = null;
+        if (!gesture.row.classList.contains("is-unsent")) {
+          const firstEmoji = reactionEmojis[0];
+          const reactionButton = firstEmoji && Array.from(
+            gesture.row.querySelectorAll(
+              ".message-reactions .reaction-picker .reaction-button"
+            )
+          ).find(button => button.dataset.emoji === firstEmoji);
+          if (reactionButton) reactionButton.click();
+        }
+        return;
+      }
+      lastMessageTap = { row: gesture.row, time: now };
+    } else {
+      lastMessageTap = null;
+    }
+
+    const isOwnMessage = gesture.row.classList.contains("mine");
+    const correctSwipeDirection = isOwnMessage ? dx <= -65 : dx >= 65;
+
+    if (
+      !correctSwipeDirection ||
+      Math.abs(dx) < Math.abs(dy) * 1.35
+    ) return;
+
+    const row = gesture.row;
+    if (row.classList.contains("is-unsent")) return;
+
+    selectReply(
+      row.dataset.messageId,
+      row.dataset.messageSender,
+      row.dataset.messagePreview
+    );
+    row.classList.add("gesture-reply-feedback");
+    window.setTimeout(() => row.classList.remove("gesture-reply-feedback"), 900);
+  }, { passive: true });
+
+  list.addEventListener("touchcancel", () => {
+    if (messageGestureTimer) window.clearTimeout(messageGestureTimer);
+    messageGestureTimer = null;
+    messageGesture = null;
+  }, { passive: true });
+
+  list.addEventListener("contextmenu", event => {
+    const bubble = event.target.closest(".message-row .bubble");
+    if (!bubble) return;
+    const row = bubble.closest(".message-row");
+    if (!row) return;
+    event.preventDefault();
+    showMessageGestureMenu(row);
+  });
+
+  list.addEventListener("keydown", event => {
+    const quote = event.target.closest(".reply-quote");
+    if (quote && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      quote.click();
+    }
+  });
+
+  if (cancelReply) cancelReply.addEventListener("click", clearReply);
+
+  composer.addEventListener("submit", event => {
+    if (replyInput && replyInput.value &&
+        !list.querySelector('[data-message-id="' + replyInput.value + '"]')) {
+      clearReply();
+    }
+  });
 
   let lastId = 0;
   list.querySelectorAll(".message-row[data-message-id]").forEach(row => {
@@ -1239,6 +2099,145 @@ if (input) {
     return node;
   }
 
+  let reactionEmojis = {{ reaction_emojis|tojson }};
+
+  function renderReactionBar(row, messageId, reactions) {
+    if (!row) return;
+
+    let bar = row.querySelector(".message-reactions");
+    if (!bar) {
+      bar = makeElement("div", "message-reactions");
+      bar.dataset.reactionMessageId = String(messageId);
+      const replyButton = row.querySelector(".reply-message-btn");
+      if (replyButton) replyButton.insertAdjacentElement("afterend", bar);
+      else row.appendChild(bar);
+    }
+
+    bar.replaceChildren();
+
+    const summary = makeElement("div", "reaction-summary");
+    const picker = makeElement("div", "reaction-picker");
+    picker.setAttribute("aria-label", "React to message");
+
+    for (const reaction of reactions || []) {
+      const chip = makeElement("button", "reaction-chip");
+      chip.type = "button";
+      chip.dataset.emoji = reaction.emoji;
+      chip.dataset.reactedByMe = String(Boolean(reaction.reacted_by_me));
+      chip.setAttribute("aria-pressed", String(Boolean(reaction.reacted_by_me)));
+      chip.setAttribute(
+        "aria-label",
+        reaction.emoji + " " + reaction.count + " reactions"
+      );
+      if (reaction.reacted_by_me) chip.classList.add("reacted-by-me");
+      chip.appendChild(makeElement("span", "", reaction.emoji));
+      chip.appendChild(makeElement("span", "reaction-count", String(reaction.count)));
+      summary.appendChild(chip);
+    }
+
+    for (const emoji of reactionEmojis) {
+      const button = makeElement("button", "reaction-button", emoji);
+      button.type = "button";
+      button.dataset.emoji = emoji;
+      button.setAttribute("aria-label", "React " + emoji);
+      const mine = (reactions || []).some(
+        reaction => reaction.emoji === emoji && reaction.reacted_by_me
+      );
+      button.dataset.reactedByMe = String(mine);
+      button.setAttribute("aria-pressed", String(mine));
+      if (mine) button.classList.add("reacted-by-me");
+      picker.appendChild(button);
+    }
+
+    bar.appendChild(summary);
+    bar.appendChild(picker);
+  }
+
+  async function toggleMessageReaction(button) {
+    const bar = button.closest(".message-reactions");
+    const messageId = bar && bar.dataset.reactionMessageId;
+    const emoji = button.dataset.emoji;
+    if (!messageId || !emoji || !bar) return;
+
+    // Check the current selected state for the clicked emoji.
+    // This works for both the emoji picker and reaction chips.
+    const matchingPickerButton = Array.from(
+      bar.querySelectorAll(".reaction-button")
+    ).find(item => item.dataset.emoji === emoji);
+
+    const removeReaction = Boolean(
+      matchingPickerButton &&
+      matchingPickerButton.dataset.reactedByMe === "true"
+    );
+
+    button.disabled = true;
+
+    try {
+      const response = await fetch(
+        `/messages/${encodeURIComponent(messageId)}/reaction`,
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+            "Accept": "application/json"
+          },
+          body: JSON.stringify({
+            emoji: removeReaction ? null : emoji
+          })
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "Could not save reaction.");
+      }
+
+      const row = list.querySelector(
+        '[data-message-id="' + messageId + '"]'
+      );
+      renderReactionBar(row, messageId, data.reactions || []);
+    } catch (error) {
+      console.warn("Gotya reaction update failed:", error);
+      button.title = error.message || "Could not save reaction.";
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function updateReactionBar(messageId, reactions) {
+    const row = list.querySelector(
+      '[data-message-id="' + messageId + '"]'
+    );
+    if (!row || row.classList.contains("is-unsent")) return;
+    renderReactionBar(row, messageId, reactions);
+  }
+
+  function addReplyQuote(container, replyTo) {
+    if (!replyTo) return;
+    const quote = makeElement("div", "reply-quote");
+    quote.tabIndex = 0;
+    quote.setAttribute("role", "button");
+    quote.dataset.replyTarget = String(replyTo.id);
+    quote.appendChild(makeElement(
+      "span", "reply-quote-sender", replyTo.sender_name || "Message"
+    ));
+    quote.appendChild(makeElement(
+      "span", "reply-quote-text", replyTo.preview || "Message"
+    ));
+    container.appendChild(quote);
+  }
+
+  function addReplyButton(row, id, sender, preview) {
+    const button = makeElement("button", "reply-message-btn", "Reply");
+    button.type = "button";
+    button.dataset.replyId = String(id);
+    button.dataset.replySender = sender || "Message";
+    button.dataset.replyPreview = preview || "Message";
+    row.appendChild(button);
+  }
+
   function addMessage(message) {
     if (list.querySelector(`[data-message-id="${message.id}"]`)) return;
 
@@ -1247,9 +2246,11 @@ if (input) {
     if (empty) empty.remove();
 
     const mine = Number(message.sender_id) === Number(currentUserId);
-    const row = makeElement("div", "message-row" + (mine ? " mine" : ""));
+    const isUnsent = Boolean(message.is_unsent);
+    const row = makeElement("div", "message-row" + (mine ? " mine" : "") + (isUnsent ? " is-unsent" : ""));
     row.dataset.messageId = String(message.id);
     row.dataset.senderId = String(message.sender_id);
+    row.dataset.messageSender = message.sender_name || "Message";
 
     const isImage = Boolean(
       message.attachment_url &&
@@ -1260,14 +2261,21 @@ if (input) {
     const bubble = makeElement(
       "div",
       "bubble" +
-        (isCallSummary ? " call-summary-bubble" : "") + (isImage && !message.content ? " image-only-bubble" : "")
+        (isCallSummary ? " call-summary-bubble" : "") +
+        (isImage && !message.content ? " image-only-bubble" : "")
     );
 
-    if (message.content) {
+    if (isUnsent) {
+      bubble.appendChild(makeElement("div", "message-text", "This message was unsent."));
+    } else {
+      addReplyQuote(bubble, message.reply_to);
+    }
+
+    if (!isUnsent && message.content) {
       bubble.appendChild(makeElement("div", "message-text", message.content));
     }
 
-    if (message.attachment_url) {
+    if (!isUnsent && message.attachment_url) {
       if (isImage) {
         const link = makeElement("a");
         link.href = message.attachment_url;
@@ -1295,6 +2303,27 @@ if (input) {
     }
 
     row.appendChild(bubble);
+    const messagePreview = isUnsent ? "This message was unsent." :
+      (message.content || message.attachment_name || (isImage ? "Photo" : "Attachment"));
+    row.dataset.messagePreview = messagePreview;
+    if (!isUnsent) {
+      addReplyButton(row, message.id, message.sender_name, messagePreview);
+      renderReactionBar(row, message.id, message.reactions || []);
+    }
+
+    const actions = makeElement("div", "message-delete-actions");
+    const hideButton = makeElement("button", "hide-message-btn", "Delete for me");
+    hideButton.type = "button";
+    hideButton.dataset.messageId = String(message.id);
+    actions.appendChild(hideButton);
+
+    if (mine && !isUnsent) {
+      const unsendButton = makeElement("button", "unsend-message-btn", "Unsend for everyone");
+      unsendButton.type = "button";
+      unsendButton.dataset.messageId = String(message.id);
+      actions.appendChild(unsendButton);
+    }
+    row.appendChild(actions);
     const previousRow = Array.from(list.querySelectorAll(".message-row[data-message-id]")).pop();
     const previousTime = previousRow ? Date.parse(previousRow.dataset.createdAt || "") : NaN;
     const currentTime = Date.parse(message.created_at_iso || "");
@@ -1304,7 +2333,7 @@ if (input) {
     }
     row.dataset.createdAt = message.created_at_iso || "";
 
-    if (mine) {
+    if (mine && !isUnsent) {
       const receipt = makeElement("div", "delivery-receipt", "Sent");
       receipt.dataset.receiptId = String(message.id);
       row.appendChild(receipt);
@@ -1341,9 +2370,15 @@ if (input) {
       if (!response.ok) return;
 
       const data = await response.json();
+      applyHiddenIds(data.hidden_ids || []);
+      applyUnsentIds(data.unsent_ids || []);
+
       for (const message of data.messages || []) {
         addMessage(message);
         lastId = Math.max(lastId, Number(message.id) || 0);
+      }
+      for (const update of data.reaction_updates || []) {
+        updateReactionBar(update.message_id, update.reactions || []);
       }
       updateReceipts(data.receipts);
       if (typingIndicator) typingIndicator.hidden = !data.typing;

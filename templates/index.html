@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <link rel="manifest" href="/static/manifest.json">
@@ -21,6 +21,41 @@
             --muted: #65676b;
         }
 
+
+        body[data-theme="dark"] {
+            --background: #242526;
+            --card: #18191a;
+            --text: #e4e6eb;
+            --muted: #b0b3b8;
+            --line: #3e4042;
+            --welcome-start: #242526;
+            --welcome-end: #263951;
+            --feature-icon-bg: #263951;
+        }
+
+        body[data-theme="light"] {
+            --background: #f0f2f5;
+            --card: #ffffff;
+            --text: #1c1e21;
+            --muted: #65676b;
+            --line: #eeeeee;
+            --welcome-start: #ffffff;
+            --welcome-end: #e7f0ff;
+            --feature-icon-bg: #e7f0ff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body[data-theme="system"] {
+                --background: #242526;
+                --card: #18191a;
+                --text: #e4e6eb;
+                --muted: #b0b3b8;
+                --line: #3e4042;
+                --welcome-start: #242526;
+                --welcome-end: #263951;
+                --feature-icon-bg: #263951;
+            }
+        }
         * {
             box-sizing: border-box;
         }
@@ -76,7 +111,7 @@
         }
 
         .welcome {
-            background: linear-gradient(145deg, #ffffff, #e7f0ff);
+            background: linear-gradient(145deg, var(--welcome-start, #ffffff), var(--welcome-end, #e7f0ff));
         }
 
         h1 {
@@ -114,7 +149,7 @@
             display: flex;
             gap: 14px;
             padding: 15px 0;
-            border-bottom: 1px solid #eeeeee;
+            border-bottom: 1px solid var(--line, #eeeeee);
         }
 
         .feature:last-child {
@@ -126,7 +161,7 @@
             height: 43px;
             flex-shrink: 0;
             border-radius: 12px;
-            background: #e7f0ff;
+            background: var(--feature-icon-bg, #e7f0ff);
             display: grid;
             place-items: center;
             font-size: 21px;
@@ -189,7 +224,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
 </head>
 
-<body>
+<body data-theme="{{ gotya_theme|default("system") }}">
     <header>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
@@ -265,3 +300,4 @@ if ("serviceWorker" in navigator) {
 </script>
 </body>
 </html>
+
