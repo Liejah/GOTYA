@@ -248,6 +248,30 @@
     <section class="card" id="privacy">
         <h2>🛡️ Privacy and safety</h2>
         <p class="description">Keep your account secure and share information carefully.</p>
+
+        <form method="POST" action="{{ url_for('settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_online_status">
+            <div class="setting-row">
+                <div>
+                    <strong>Show my online status</strong>
+                    <small>
+                        When disabled, friends cannot see your active or last-seen
+                        details through Gotya's presence endpoint.
+                    </small>
+                </div>
+                <label>
+                    <input
+                        type="checkbox"
+                        name="show_online_status"
+                        value="on"
+                        {% if show_online_status %}checked{% endif %}
+                    >
+                    Show status
+                </label>
+            </div>
+            <button class="primary" type="submit">Save privacy settings</button>
+        </form>
         <div class="setting-row">
             <div>
                 <strong>Account security</strong>
@@ -287,6 +311,18 @@
         <h2>❓ Help and support</h2>
         <p class="description">If something isn't working, return to the feed and try again. Never share your password with anyone offering support.</p>
         <a href="{{ url_for('feed') }}">Return to feed</a>
+    </section>
+
+    <section class="card" id="other-devices">
+        <h2>Log out other devices</h2>
+        <p class="description">
+            End Gotya sessions on your other devices. This device will stay signed in.
+        </p>
+        <form method="POST" action="{{ url_for('settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="logout_other_devices">
+            <button class="secondary" type="submit">Log out other devices</button>
+        </form>
     </section>
 
     <section class="card danger" id="logout">

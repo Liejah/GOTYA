@@ -7,9 +7,11 @@ import mimetypes
 from supabase import create_client
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, abort
+from flask import session, Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -24,6 +26,10 @@ from pywebpush import webpush, WebPushException
 from py_vapid import Vapid
 import uuid
 from sqlalchemy.exc import IntegrityError
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from email.message import EmailMessage
+import smtplib
+import ssl
 
 BASE_DIR = Path(__file__).resolve().parent
 PROFILE_PICTURE_DIR = BASE_DIR / "uploads" / "profile_pictures"
@@ -100,12 +106,27 @@ else:
     )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+# Keep authenticated browser sessions persistent for up to 31 days.
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=31)
+app.config["SESSION_REFRESH_EACH_REQUEST"] = True
+
 # Protect session cookies.
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = (
+    os.environ.get("SESSION_COOKIE_SECURE", "").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
 
 db = SQLAlchemy(app)
 csrf = CSRFProtect(app)
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"),
+)
 
 login_manager = LoginManager()
 login_manager.login_view = "login"
@@ -121,6 +142,12 @@ class User(UserMixin, db.Model):
     bio = db.Column(db.String(500), nullable=True)
     cover_photo = db.Column(db.String(255), nullable=True)
     last_seen = db.Column(db.DateTime, nullable=True)
+    session_version = db.Column(
+        db.Integer, nullable=False, default=1, server_default="1"
+    )
+
+    def get_id(self):
+        return f"{self.id}:{self.session_version}"
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -136,6 +163,169 @@ def is_verified_account(user):
 
 app.jinja_env.globals['is_verified_account'] = is_verified_account
 
+class LoginAttempt(db.Model):
+    """Hashed login identifier/IP pair used for temporary abuse throttling."""
+    __tablename__ = "login_attempt"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    failed_attempts = db.Column(db.Integer, nullable=False, default=0)
+    window_started_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow
+    )
+    blocked_until = db.Column(db.DateTime, nullable=True)
+
+
+def login_attempt_key(identity, remote_addr):
+    """Return a keyed digest without storing the raw identity or IP address."""
+    import hashlib
+    import hmac
+
+    normalized_identity = (identity or "").strip().casefold()[:254]
+    normalized_ip = (remote_addr or "unknown")[:64]
+    message = f"{normalized_identity}|{normalized_ip}".encode("utf-8")
+    secret = app.config["SECRET_KEY"].encode("utf-8")
+    return hmac.new(secret, message, hashlib.sha256).hexdigest()
+
+
+def login_is_blocked(key_hash):
+    """Check whether this identity/IP pair is in its temporary cooldown."""
+    now = datetime.utcnow()
+    attempt = LoginAttempt.query.filter_by(key_hash=key_hash).first()
+
+    if attempt is None:
+        return False
+
+    if attempt.blocked_until and attempt.blocked_until > now:
+        return True
+
+    if attempt.blocked_until and attempt.blocked_until <= now:
+        db.session.delete(attempt)
+        db.session.commit()
+        return False
+
+    if now - attempt.window_started_at >= timedelta(minutes=15):
+        db.session.delete(attempt)
+        db.session.commit()
+
+    return False
+
+
+def record_failed_login(key_hash):
+    """Count failures in a 15-minute window; cool down after five failures."""
+    now = datetime.utcnow()
+    attempt = LoginAttempt.query.filter_by(key_hash=key_hash).first()
+
+    if attempt is None:
+        attempt = LoginAttempt(
+            key_hash=key_hash,
+            failed_attempts=1,
+            window_started_at=now,
+        )
+        db.session.add(attempt)
+    elif now - attempt.window_started_at >= timedelta(minutes=15):
+        attempt.failed_attempts = 1
+        attempt.window_started_at = now
+        attempt.blocked_until = None
+    else:
+        attempt.failed_attempts += 1
+
+    if attempt.failed_attempts >= 5:
+        attempt.blocked_until = now + timedelta(minutes=15)
+
+    db.session.commit()
+
+
+def clear_failed_logins(key_hash):
+    """Clear the pair's failure counter after a successful login."""
+    LoginAttempt.query.filter_by(key_hash=key_hash).delete(
+        synchronize_session=False
+    )
+    db.session.commit()
+
+
+def password_reset_serializer():
+    """Create a serializer dedicated to password-reset tokens."""
+    return URLSafeTimedSerializer(
+        app.config["SECRET_KEY"],
+        salt="gotya-password-reset-v1",
+    )
+
+
+def create_password_reset_token(user):
+    """Bind the token to the user's current session version."""
+    return password_reset_serializer().dumps(
+        {"user_id": user.id, "session_version": user.session_version}
+    )
+
+
+def load_password_reset_user(token):
+    """Validate a reset token for at most 30 minutes."""
+    try:
+        data = password_reset_serializer().loads(token, max_age=1800)
+        user_id = int(data["user_id"])
+        version = int(data["session_version"])
+    except (BadSignature, SignatureExpired, TypeError, ValueError, KeyError):
+        return None
+
+    user = db.session.get(User, user_id)
+    if user is None or user.session_version != version:
+        return None
+
+    return user
+
+
+def send_password_reset_email(user, token):
+    """Send a reset link through configured Gmail SMTP; never log the token."""
+    mail_username = os.environ.get("GOTYA_MAIL_USERNAME", "").strip()
+    mail_password = os.environ.get("GOTYA_MAIL_APP_PASSWORD", "").strip()
+    mail_sender = os.environ.get("GOTYA_MAIL_SENDER", mail_username).strip()
+    public_base_url = os.environ.get("GOTYA_PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+    if not mail_username or not mail_password or not mail_sender:
+        app.logger.warning(
+            "Password-reset email is not configured; no email was sent."
+        )
+        return False
+
+    if public_base_url:
+        reset_url = (
+            f"{public_base_url}/reset-password/"
+            f"{token}"
+        )
+    else:
+        reset_url = url_for("reset_password", token=token, _external=True)
+
+    message = EmailMessage()
+    message["Subject"] = "Reset your Gotya password"
+    message["From"] = mail_sender
+    message["To"] = user.email
+    message.set_content(
+        "We received a request to reset your Gotya password.\n\n"
+        f"Use this link within 30 minutes:\n{reset_url}\n\n"
+        "If you did not request this, you can ignore this email."
+    )
+
+    host = os.environ.get("GOTYA_SMTP_HOST", "smtp.gmail.com").strip()
+    try:
+        port = int(os.environ.get("GOTYA_SMTP_PORT", "587"))
+    except ValueError:
+        app.logger.error("Password-reset SMTP port is invalid.")
+        return False
+
+    try:
+        with smtplib.SMTP(host, port, timeout=15) as smtp:
+            smtp.ehlo()
+            smtp.starttls(context=ssl.create_default_context())
+            smtp.ehlo()
+            smtp.login(mail_username, mail_password)
+            smtp.send_message(message)
+        return True
+    except Exception:
+        app.logger.exception("Password-reset email delivery failed.")
+        return False
+
+
 class UserPreference(db.Model):
     """Per-user preferences, stored separately from existing account data."""
     __tablename__ = "user_preference"
@@ -149,6 +339,9 @@ class UserPreference(db.Model):
         index=True
     )
     theme = db.Column(db.String(10), nullable=False, default="system")
+    show_online_status = db.Column(
+        db.Boolean, nullable=False, default=True, server_default=db.true()
+    )
     user = db.relationship("User")
 
 
@@ -520,7 +713,23 @@ class LiveLocationShare(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(User, int(user_id))
+    try:
+        if ":" in str(user_id):
+            raw_id, raw_version = str(user_id).rsplit(":", 1)
+            expected_version = int(raw_version)
+        else:
+            # Compatibility with existing sessions created before versioned IDs.
+            raw_id = str(user_id)
+            expected_version = 1
+
+        user = db.session.get(User, int(raw_id))
+    except (TypeError, ValueError):
+        return None
+
+    if user is None or user.session_version != expected_version:
+        return None
+
+    return user
 
 
 
@@ -534,6 +743,10 @@ def migrate_existing_database_schema():
                 "profile_picture": "VARCHAR(255)",
                 "bio": "VARCHAR(500)",
                 "cover_photo": "VARCHAR(255)",
+                "session_version": "INTEGER NOT NULL DEFAULT 1",
+            },
+            "user_preference": {
+                "show_online_status": "BOOLEAN NOT NULL DEFAULT TRUE",
             },
             "message": {
                 "is_unsent": "BOOLEAN NOT NULL DEFAULT FALSE",
@@ -583,6 +796,11 @@ def migrate_existing_database_schema():
                 print(f"Database migration: added {table}.{column}")
 
 
+# Ensure the separate preference table exists before additive migrations.
+with app.app_context():
+    UserPreference.__table__.create(bind=db.engine, checkfirst=True)
+    LoginAttempt.__table__.create(bind=db.engine, checkfirst=True)
+
 # Run after all SQLAlchemy models have been declared.
 migrate_existing_database_schema()
 
@@ -600,6 +818,7 @@ def health():
 
 
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per hour", methods=["POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for("messages"))
@@ -635,6 +854,7 @@ def register():
 
             try:
                 db.session.commit()
+                session.permanent = True
                 login_user(user)
                 flash("Your ConnectHub account has been created!", "success")
                 return redirect(url_for("messages"))
@@ -660,7 +880,68 @@ def register():
     return render_template("register.html")
 
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per hour", methods=["POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("messages"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = User.query.filter_by(email=email).first() if email else None
+
+        if user:
+            token = create_password_reset_token(user)
+            send_password_reset_email(user, token)
+
+        # Do not reveal whether this email address belongs to an account.
+        flash(
+            "If an account uses that email address, password-reset "
+            "instructions will be sent if email delivery is available.",
+            "success",
+        )
+        return redirect(url_for("forgot_password"))
+
+    return render_template("forgot_password.html")
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for("messages"))
+
+    user = load_password_reset_user(token)
+    if user is None:
+        flash(
+            "That password-reset link is invalid, expired, or already used. "
+            "Request a new one.",
+            "error",
+        )
+        return redirect(url_for("forgot_password"))
+
+    if request.method == "POST":
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if len(new_password) < 12:
+            flash("Your new password must be at least 12 characters long.", "error")
+        elif new_password != confirm_password:
+            flash("The new passwords do not match.", "error")
+        else:
+            user.set_password(new_password)
+            user.session_version += 1
+            db.session.commit()
+            flash(
+                "Your password has been reset. Please sign in with your new password.",
+                "success",
+            )
+            return redirect(url_for("login"))
+
+    return render_template("reset_password.html", token=token)
+
+
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("messages"))
@@ -668,6 +949,15 @@ def login():
     if request.method == "POST":
         identity = request.form.get("identity", "").strip()
         password = request.form.get("password", "")
+        attempt_key = login_attempt_key(identity, request.remote_addr)
+
+        if login_is_blocked(attempt_key):
+            flash(
+                "Too many failed login attempts. Please wait 15 minutes "
+                "before trying again.",
+                "error",
+            )
+            return render_template("login.html"), 429
 
         user = User.query.filter(
             db.or_(
@@ -677,9 +967,12 @@ def login():
         ).first()
 
         if user and user.check_password(password):
+            clear_failed_logins(attempt_key)
+            session.permanent = True
             login_user(user)
             return redirect(url_for("messages"))
 
+        record_failed_login(attempt_key)
         flash("Invalid username/email or password.", "error")
 
     return render_template("login.html")
@@ -2077,6 +2370,19 @@ def user_presence(user_id):
     ):
         return jsonify({"error": "Presence unavailable."}), 403
 
+    # Respect the other user's saved presence-visibility preference.
+    if db.inspect(db.engine).has_table("user_preference"):
+        preference = UserPreference.query.filter_by(
+            user_id=person.id
+        ).first()
+        if preference is not None and not preference.show_online_status:
+            return jsonify({
+                "visible": False,
+                "active": False,
+                "last_seen_seconds": None,
+                "offline_since": None
+            })
+
     now = datetime.utcnow()
     last_seen = person.last_seen
     seconds_ago = (
@@ -2091,6 +2397,7 @@ def user_presence(user_id):
     )
 
     return jsonify({
+        "visible": True,
         "active": active,
         "last_seen_seconds": seconds_ago,
         "offline_since": offline_since
@@ -2324,6 +2631,31 @@ def settings():
     if request.method == "POST":
         action = request.form.get("action", "").strip()
 
+        if action == "save_online_status":
+            value = request.form.get("show_online_status", "off").strip().lower()
+            if value not in {"on", "off"}:
+                flash("Please choose a valid online-status setting.", "error")
+                return redirect(url_for("settings", _anchor="privacy"))
+
+            UserPreference.__table__.create(bind=db.engine, checkfirst=True)
+            preference = UserPreference.query.filter_by(
+                user_id=current_user.id
+            ).first()
+
+            if preference is None:
+                preference = UserPreference(
+                    user_id=current_user.id,
+                    theme="system",
+                    show_online_status=(value == "on")
+                )
+                db.session.add(preference)
+            else:
+                preference.show_online_status = (value == "on")
+
+            db.session.commit()
+            flash("Online-status privacy setting saved.", "success")
+            return redirect(url_for("settings", _anchor="privacy"))
+
         if action == "save_theme":
             theme = request.form.get("theme", "system").strip().lower()
 
@@ -2352,6 +2684,15 @@ def settings():
 
             return redirect(url_for("settings", _anchor="appearance"))
 
+        if action == "logout_other_devices":
+            # Incrementing the version invalidates sessions on other devices.
+            current_user.session_version += 1
+            db.session.commit()
+            # Re-establish this browser's session with the new version.
+            login_user(current_user, fresh=True)
+            flash("Other devices have been logged out.", "success")
+            return redirect(url_for("settings", _anchor="logout"))
+
         if action == "change_password":
             current_password = request.form.get("current_password", "")
             new_password = request.form.get("new_password", "")
@@ -2367,7 +2708,10 @@ def settings():
                 flash("Choose a password different from your current password.", "error")
             else:
                 current_user.set_password(new_password)
+                current_user.session_version += 1
                 db.session.commit()
+                # Keep this browser signed in with the new versioned session ID.
+                login_user(current_user, fresh=True)
                 flash("Your password has been changed successfully.", "success")
 
             return redirect(url_for("settings", _anchor="password"))
@@ -2381,6 +2725,9 @@ def settings():
         user_id=current_user.id
     ).first()
     theme = preference.theme if preference else "system"
+    show_online_status = (
+        preference.show_online_status if preference else True
+    )
 
     if theme not in {"system", "light", "dark"}:
         theme = "system"
@@ -2388,7 +2735,8 @@ def settings():
     return render_template(
         "settings.html",
         user=current_user,
-        theme=theme
+        theme=theme,
+        show_online_status=show_online_status
     )
 
 @app.route("/feed", methods=["GET", "POST"])
