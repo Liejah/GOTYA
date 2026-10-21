@@ -1,4 +1,4 @@
-
+﻿
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -128,6 +128,13 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+
+VERIFIED_ACCOUNT_IDS = frozenset({1, 2, 4})
+
+def is_verified_account(user):
+    return getattr(user, 'id', None) in VERIFIED_ACCOUNT_IDS
+
+app.jinja_env.globals['is_verified_account'] = is_verified_account
 
 class UserPreference(db.Model):
     """Per-user preferences, stored separately from existing account data."""
@@ -1612,6 +1619,7 @@ def conversation_updates(user_id):
                 "sender_name": (
                     replied_to.sender.username if replied_to.sender else "Message"
                 ),
+                "sender_verified": bool(replied_to.sender and is_verified_account(replied_to.sender)),
                 "preview": reply_preview,
             }
         elif replied_to:
@@ -1632,6 +1640,7 @@ def conversation_updates(user_id):
                 "sender_name": (
                     replied_to.sender.username if replied_to.sender else "Message"
                 ),
+                "sender_verified": bool(replied_to.sender and is_verified_account(replied_to.sender)),
                 "preview": reply_preview,
             }
 
@@ -1639,6 +1648,7 @@ def conversation_updates(user_id):
             "id": item.id,
             "sender_id": item.sender_id,
             "sender_name": item.sender.username if item.sender else "Message",
+            "sender_verified": bool(item.sender and is_verified_account(item.sender)),
             "is_unsent": bool(item.is_unsent),
             "content": (
                 "This message was unsent."
@@ -1758,6 +1768,7 @@ def inbox_updates():
         conversations.append({
             "user_id": person.id,
             "username": person.username,
+            "is_verified": is_verified_account(person),
             "profile_picture": (
                 url_for(
                     "profile_picture_file",
@@ -2932,6 +2943,7 @@ def push_vapid_public_key():
     if not public_key:
         return jsonify({"error": "Push notifications are not configured."}), 503
     return jsonify({"publicKey": public_key})
+
 
 
 @app.route("/push/subscribe", methods=["POST"])

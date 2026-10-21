@@ -367,7 +367,7 @@
                 {% endif %}
             </div>
             <div class="post-author-details">
-                <div class="author">{{ post.author.username }}</div>
+                <div class="author">{{ post.author.username }}{% if is_verified_account(post.author) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</div>
                     </div>
         </div>
         <div class="date">{{ post.created_at.strftime('%b %d, %Y at %I:%M %p') }}</div>
@@ -412,7 +412,7 @@
         <section class="comments">
             {% for comment in post.comments|sort(attribute='created_at') %}
             <div class="comment">
-                <div class="comment-author">{{ comment.author.username }}</div>
+                <div class="comment-author">{{ comment.author.username }}{% if is_verified_account(comment.author) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</div>
                 <div class="content">{{ comment.content }}</div>
                 <div class="comment-date">
                     {{ comment.created_at.strftime('%b %d, %Y at %I:%M %p') }}

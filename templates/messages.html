@@ -246,7 +246,7 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
 <a class="person" href="{{ url_for('conversation', user_id=person.id) }}">
 <div class="avatar" data-user-id="{{ person.id }}">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div>
 <div class="person-info">
-<div class="name">{{ person.username }}</div>
+<div class="name">{{ person.username }}{% if is_verified_account(person) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</div>
 <div class="preview">
 {% if last_message %}
 {% if last_message.sender_id == current_user.id %}You: {% endif %}{{ last_message.content }}
@@ -278,7 +278,30 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
     unreadBadge.hidden = unread === 0;
   }
 
+  function createInboxVerifiedBadge() {
+    const badge = document.createElement("span");
+    badge.className = "gotya-verified-badge";
+    badge.title = "Verified account";
+    badge.setAttribute("aria-label", "Verified account");
+    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("width", "8");
+    svg.setAttribute("height", "8");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M3.5 8.2 6.4 11 12.5 4.8");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "2.2");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(path);
+    badge.appendChild(svg);
+    return badge;
+  }
   function makeConversation(item) {
+
     const link = document.createElement("a");
     link.className = "person";
     link.href = `/messages/${encodeURIComponent(item.user_id)}`;
@@ -302,7 +325,8 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
 
     const name = document.createElement("div");
     name.className = "name";
-    name.textContent = item.username || "Friend";
+    name.appendChild(document.createTextNode(item.username || "Friend"));
+    if (item.is_verified) name.appendChild(createInboxVerifiedBadge());
 
     const preview = document.createElement("div");
     preview.className = "preview";
@@ -370,7 +394,10 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
         const name = link.querySelector(".name");
         const preview = link.querySelector(".preview");
 
-        if (name) name.textContent = item.username || "Friend";
+        if (name) {
+          name.replaceChildren(document.createTextNode(item.username || "Friend"));
+          if (item.is_verified) name.appendChild(createInboxVerifiedBadge());
+        }
 
         if (preview) {
           preview.textContent = item.preview || "";

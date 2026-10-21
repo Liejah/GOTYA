@@ -682,7 +682,7 @@ h1 {
                         <span aria-hidden="true">&#9998;</span> Edit profile
                     </a>
 
-                    <h1>{{ user.username }}</h1>
+                    <h1>{{ user.username }}{% if is_verified_account(user) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</h1>
                     <p class="muted" style="margin:0;">{{ friend_count }} friends</p>
                     {% if user.bio %}
                         <p class="profile-bio">{{ user.bio }}</p>
