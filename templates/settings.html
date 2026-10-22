@@ -98,7 +98,56 @@
         }
         button.primary, .button.primary { background: var(--brand); color: white; }
         button.secondary { background: var(--line); color: var(--text); }
-        main { width: min(760px, 100%); margin: 28px auto; padding: 0 16px 40px; }
+        main { width: min(980px, 100%); margin: 28px auto; padding: 0 16px 40px; }
+        .settings-layout {
+            display: grid;
+            grid-template-columns: 225px minmax(0, 1fr);
+            gap: 22px;
+            align-items: start;
+        }
+        .settings-nav {
+            position: sticky;
+            top: 82px;
+            display: grid;
+            gap: 5px;
+            padding: 12px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+        }
+        .settings-nav a {
+            display: block;
+            padding: 10px 12px;
+            border-radius: 9px;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .settings-nav a:hover,
+        .settings-nav a:focus-visible {
+            background: var(--soft-blue);
+            outline: none;
+        }
+        .settings-content { min-width: 0; }
+        .settings-group-title {
+            margin: 24px 0 10px;
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: .09em;
+            text-transform: uppercase;
+        }
+        .settings-group-title:first-child { margin-top: 0; }
+        @media (max-width: 700px) {
+            .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+            .settings-nav {
+                position: static;
+                display: flex;
+                overflow-x: auto;
+                gap: 4px;
+                padding: 8px;
+            }
+            .settings-nav a { flex: 0 0 auto; white-space: nowrap; }
+        }
         .page-title { margin: 0 0 6px; font-size: 28px; }
         .subtitle { margin: 0 0 22px; color: var(--muted); line-height: 1.5; }
         .card {
@@ -179,6 +228,18 @@
 <main>
     <h1 class="page-title">Settings</h1>
     <p class="subtitle">Manage your account, security, notifications, and preferences.</p>
+    <div class="settings-layout">
+        <nav class="settings-nav" aria-label="Settings categories">
+            <a href="#account">Account</a>
+            <a href="#password">Password</a>
+            <a href="#notifications">Notifications</a>
+            <a href="#privacy">Privacy and safety</a>
+            <a href="#appearance">Appearance</a>
+            <a href="#help">Help and support</a>
+            <a href="#other-devices">Other devices</a>
+            <a href="#logout">Log out</a>
+        </nav>
+        <div class="settings-content">
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
@@ -188,6 +249,7 @@
         {% endfor %}
     {% endwith %}
 
+    <h2 class="settings-group-title">TOOLS AND CONTROL</h2>
     <section class="card" id="account">
         <h2>👤 Account information</h2>
         <p class="description">Your current account details.</p>
@@ -245,6 +307,7 @@
         </p>
     </section>
 
+    <h2 class="settings-group-title">AUDIENCE AND VISIBILITY</h2>
     <section class="card" id="privacy">
         <h2>🛡️ Privacy and safety</h2>
         <p class="description">Keep your account secure and share information carefully.</p>
@@ -333,6 +396,8 @@
             <button class="secondary" type="submit">Log out of Gotya</button>
         </form>
     </section>
+        </div>
+    </div>
 </main>
 
 <script>
