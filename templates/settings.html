@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-font-scale="{{ font_scale }}" data-reduce-motion="{{ 'true' if reduce_motion else 'false' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -213,9 +213,47 @@
             .detail { flex-direction: column; gap: 5px; }
             .setting-row { align-items: flex-start; }
         }
+
+        /* GOTYA_SETTINGS_ACCESSIBILITY_V1 */
+        html[data-font-scale="large"] { font-size: 112.5%; }
+        html[data-font-scale="extra-large"] { font-size: 125%; }
+
+        body[data-high-contrast="true"] {
+            --brand: #005fcc;
+            --page: #ffffff;
+            --surface: #ffffff;
+            --text: #000000;
+            --muted: #333333;
+            --line: #555555;
+            --soft-blue: #e8f2ff;
+        }
+        body[data-theme="dark"][data-high-contrast="true"] {
+            --brand: #8ab4ff;
+            --page: #000000;
+            --surface: #080808;
+            --text: #ffffff;
+            --muted: #f0f0f0;
+            --line: #bbbbbb;
+            --soft-blue: #101f33;
+            color-scheme: dark;
+        }
+
+        html[data-reduce-motion="true"] {
+            scroll-behavior: auto !important;
+        }
+        html[data-reduce-motion="true"] *,
+        html[data-reduce-motion="true"] *::before,
+        html[data-reduce-motion="true"] *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
+        /* END GOTYA_SETTINGS_ACCESSIBILITY_V1 */
+
     </style>
 </head>
-<body data-theme="{{ theme }}">
+<body data-theme="{{ theme }}" data-high-contrast="{{ 'true' if high_contrast else 'false' }}" data-font-scale="{{ font_scale }}">
 <header>
     <h1>Gotya</h1>
     <nav aria-label="Main navigation">
@@ -347,6 +385,58 @@
                 <small>Only start location sharing with people you trust. Stop sharing from the conversation when finished.</small>
             </div>
         </div>
+    </section>
+
+    <section class="card" id="reaction-preferences">
+        <h2>Reaction preferences</h2>
+        <p class="description">Choose whether reaction counts should be visible. This saves your preference; it does not delete reaction data.</p>
+        <form method="POST" action="{{ url_for('settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_reaction_preferences">
+            <label class="setting-row">
+                <span>
+                    <strong>Show reaction counts</strong><br>
+                    <small>Turn this off to hide counts where Gotya supports this preference.</small>
+                </span>
+                <input type="checkbox" name="reaction_counts_visible" value="on"
+                       {% if reaction_counts_visible %}checked{% endif %}>
+            </label>
+            <button class="primary" type="submit">Save reaction preferences</button>
+        </form>
+    </section>
+
+    <section class="card" id="accessibility-options">
+        <h2>Accessibility</h2>
+        <p class="description">Save display preferences for your Gotya account. App-wide visual effects will be connected and tested separately.</p>
+        <form method="POST" action="{{ url_for('settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_accessibility_preferences">
+            <div class="field">
+                <label for="font_scale">Text size</label>
+                <select id="font_scale" name="font_scale">
+                    <option value="normal" {% if font_scale == "normal" %}selected{% endif %}>Normal</option>
+                    <option value="large" {% if font_scale == "large" %}selected{% endif %}>Large</option>
+                    <option value="extra-large" {% if font_scale == "extra-large" %}selected{% endif %}>Extra large</option>
+                </select>
+            </div>
+            <label class="setting-row">
+                <span>
+                    <strong>Reduce motion</strong><br>
+                    <small>Prefer fewer animations and movement effects where supported.</small>
+                </span>
+                <input type="checkbox" name="reduce_motion" value="on"
+                       {% if reduce_motion %}checked{% endif %}>
+            </label>
+            <label class="setting-row">
+                <span>
+                    <strong>High contrast</strong><br>
+                    <small>Request stronger contrast where this preference is supported.</small>
+                </span>
+                <input type="checkbox" name="high_contrast" value="on"
+                       {% if high_contrast %}checked{% endif %}>
+            </label>
+            <button class="primary" type="submit">Save accessibility preferences</button>
+        </form>
     </section>
 
     <section class="card" id="appearance">
@@ -489,5 +579,322 @@
     button.addEventListener("click", enablePush);
 })();
 </script>
+
+<style>
+/* GOTYA_SETTINGS_CATEGORY_MENU_V1 */
+body.gotya-settings-enhanced main > .page-title,
+body.gotya-settings-enhanced main > .subtitle,
+body.gotya-settings-enhanced .settings-layout {
+    display: none !important;
+}
+#gotyaSettingsMenu, #gotyaSettingsDetail {
+    max-width: 900px;
+    margin: 24px auto;
+    padding: 0 16px;
+}
+.gotya-settings-brand {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    margin-bottom: 24px;
+}
+.gotya-settings-mark {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: #1877f2;
+    color: white;
+    font-size: 29px;
+    font-weight: 800;
+}
+.gotya-settings-brand h2 { margin: 0 0 5px; }
+.gotya-settings-brand p { margin: 0; opacity: .75; }
+.gotya-settings-intro { margin: 0 0 26px; line-height: 1.6; }
+.gotya-settings-group { margin-top: 24px; }
+.gotya-settings-menu-title {
+    margin: 0 0 12px;
+    font-size: .85rem;
+    letter-spacing: .12em;
+}
+.gotya-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.gotya-settings-choice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-height: 68px;
+    padding: 17px;
+    text-align: left;
+    border: 1px solid var(--border-color, #d9dee7);
+    border-radius: 14px;
+    background: var(--card-bg, transparent);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+.gotya-settings-choice:hover { border-color: #1877f2; }
+.gotya-settings-choice span:first-child { font-weight: 650; }
+.gotya-settings-arrow { opacity: .65; font-size: 1.25rem; }
+#gotyaSettingsDetail .gotya-settings-back {
+    margin: 0 0 18px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color, #d9dee7);
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+#gotyaSettingsDetail > h2 { margin-top: 4px; }
+.gotya-settings-placeholder {
+    padding: 18px;
+    border: 1px solid var(--border-color, #d9dee7);
+    border-radius: 14px;
+    line-height: 1.6;
+}
+@media (max-width: 560px) {
+    .gotya-settings-grid { grid-template-columns: minmax(0, 1fr); }
+    #gotyaSettingsMenu, #gotyaSettingsDetail { padding: 0 12px; }
+}
+</style>
+<script>
+(function () {
+    "use strict";
+
+    const main = document.querySelector("main");
+    const layout = document.querySelector(".settings-layout");
+    if (!main || !layout) return;
+
+    const groups = [
+        {
+            heading: "TOOLS AND CONTROL",
+            items: [
+                {
+                    id: "privacy-control",
+                    label: "Privacy and control",
+                    description: "Account information, password and security controls.",
+                    sections: ["account", "password", "other-devices", "logout"]
+                },
+                {
+                    id: "reactions",
+                    label: "Reaction preferences",
+                    description: "Choose whether reaction counts are displayed.",
+                    sections: ["reaction-preferences"]
+                },
+                {
+                    id: "notifications",
+                    label: "Notifications",
+                    description: "Manage available notification options.",
+                    sections: ["notifications"]
+                },
+                {
+                    id: "accessibility",
+                    label: "Accessibility",
+                    description: "Adjust text size, contrast, motion, and display theme.",
+                    sections: ["appearance", "accessibility-options"]
+                },
+                {
+                    id: "dashboards",
+                    label: "Dashboards",
+                    description: "Your activity and account dashboards.",
+                    message: "Dashboard controls are not available yet."
+                }
+            ]
+        },
+        {
+            heading: "AUDIENCE AND VISIBILITY",
+            items: [{
+                id: "profile-locking",
+                label: "Profile locking",
+                description: "Learn about profile visibility controls.",
+                message: "Profile locking is not implemented yet. Your current profile visibility has not been changed."
+            }]
+        },
+        {
+            heading: "PROFILE DETAILS",
+            items: [{
+                id: "profile-details",
+                label: "Profile details",
+                description: "View your current account details.",
+                sections: ["account"]
+            }]
+        },
+        {
+            heading: "BLOCKING",
+            items: [{
+                id: "blocking",
+                label: "Blocked people and blocklist",
+                description: "Manage people you block.",
+                message: "Blocking controls are not available in this Settings view yet. No users have been blocked or unblocked."
+            }]
+        },
+        {
+            heading: "ACTIVE STATUS",
+            items: [{
+                id: "active-status",
+                label: "Show when you are active",
+                description: "Control whether your online status is shown.",
+                sections: ["privacy"]
+            }]
+        },
+        {
+            heading: "STANDARDS AND LEGAL POLICIES",
+            items: [
+                {
+                    id: "privacy-policy",
+                    label: "Privacy policy",
+                    description: "Review Gotya's privacy policy.",
+                    message: "The privacy policy page has not been connected to this Settings menu yet."
+                },
+                {
+                    id: "cookies-policy",
+                    label: "Cookies policy",
+                    description: "Review information about cookies and similar technologies.",
+                    message: "The cookies policy page has not been connected to this Settings menu yet."
+                },
+                {
+                    id: "community-standards",
+                    label: "Community standards",
+                    description: "Review the standards for using Gotya.",
+                    message: "The community standards page has not been connected to this Settings menu yet."
+                },
+                {
+                    id: "terms-of-service",
+                    label: "Terms of service",
+                    description: "Review the terms governing use of Gotya.",
+                    message: "The terms of service page has not been connected to this Settings menu yet."
+                }
+            ]
+        }
+    ];
+
+    const categories = groups.flatMap(group => group.items);
+    const originalContent = layout.querySelector(".settings-content") || layout;
+    const sectionsById = {};
+
+    originalContent.querySelectorAll("section.card[id]").forEach(section => {
+        sectionsById[section.id] = section;
+    });
+
+    const menu = document.createElement("section");
+    menu.id = "gotyaSettingsMenu";
+    menu.innerHTML = `
+        <div class="gotya-settings-brand">
+            <div class="gotya-settings-mark" aria-hidden="true">G</div>
+            <div>
+                <h2>Gotya Settings</h2>
+                <p>Control your experience and privacy</p>
+            </div>
+        </div>
+        <p class="gotya-settings-intro">Manage who sees your content, how you're notified, and how your profile appears.</p>
+    `;
+
+    groups.forEach(group => {
+        const groupElement = document.createElement("section");
+        groupElement.className = "gotya-settings-group";
+
+        const heading = document.createElement("h3");
+        heading.className = "gotya-settings-menu-title";
+        heading.textContent = group.heading;
+        groupElement.appendChild(heading);
+
+        const grid = document.createElement("div");
+        grid.className = "gotya-settings-grid";
+
+        group.items.forEach(category => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "gotya-settings-choice";
+            button.innerHTML =
+                `<span></span><span class="gotya-settings-arrow" aria-hidden="true">&#8250;</span>`;
+            button.querySelector("span").textContent = category.label;
+            button.addEventListener("click", () => openCategory(category));
+            grid.appendChild(button);
+        });
+
+        groupElement.appendChild(grid);
+        menu.appendChild(groupElement);
+    });
+
+    const detail = document.createElement("section");
+    detail.id = "gotyaSettingsDetail";
+    detail.hidden = true;
+    detail.innerHTML = `
+        <button type="button" class="gotya-settings-back">&#8592; Back to Settings</button>
+        <h2 id="gotyaSettingsDetailTitle"></h2>
+        <p id="gotyaSettingsDetailDescription"></p>
+        <div class="gotya-settings-detail-content"></div>
+    `;
+
+    layout.parentNode.insertBefore(menu, layout);
+    menu.parentNode.insertBefore(detail, menu.nextSibling);
+
+    function openCategory(category) {
+        menu.hidden = true;
+        detail.hidden = false;
+
+        detail.querySelector("#gotyaSettingsDetailTitle").textContent = category.label;
+        detail.querySelector("#gotyaSettingsDetailDescription").textContent = category.description;
+
+        const content = detail.querySelector(".gotya-settings-detail-content");
+        content.replaceChildren();
+
+        let addedSection = false;
+        if (category.sections) {
+            category.sections.forEach(id => {
+                const section = sectionsById[id];
+                if (section) {
+                    content.appendChild(section);
+                    addedSection = true;
+                }
+            });
+        }
+
+        if (!addedSection) {
+            const message = document.createElement("div");
+            message.className = "gotya-settings-placeholder";
+            message.textContent = category.message ||
+                "This setting is not available yet. No changes have been made.";
+            content.appendChild(message);
+        }
+
+        window.scrollTo(0, 0);
+    }
+
+    function showMenu() {
+        detail.hidden = true;
+        menu.hidden = false;
+        window.scrollTo(0, 0);
+    }
+
+    detail.querySelector(".gotya-settings-back").addEventListener("click", showMenu);
+    document.body.classList.add("gotya-settings-enhanced");
+
+    const hashToCategory = {
+        "#privacy": "active-status",
+        "#appearance": "accessibility",
+        "#notifications": "notifications",
+        "#account": "profile-details",
+        "#password": "privacy-control",
+        "#other-devices": "privacy-control",
+        "#logout": "privacy-control",
+        "#help": "privacy-policy"
+    };
+
+    const requestedId = hashToCategory[window.location.hash];
+    if (requestedId) {
+        const category = categories.find(item => item.id === requestedId);
+        if (category) openCategory(category);
+    }
+})();
+</script>
+
 </body>
 </html>
