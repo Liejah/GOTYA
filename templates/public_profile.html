@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1877f2">
+    <title>{{ profile_user.username }} | Gotya</title>
+    <style>
+        :root { color-scheme: light dark; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 20px 14px 40px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f0f2f5; color: #1c1e21;
+        }
+        .page { max-width: 760px; margin: 0 auto; }
+        .top, .card {
+            background: #fff; border-radius: 14px; padding: 18px;
+            margin-bottom: 14px; box-shadow: 0 1px 3px #00000012;
+        }
+        .top a, .nav a { color: #1877f2; text-decoration: none; }
+        .nav { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
+        .identity { display: flex; gap: 14px; align-items: center; }
+        .avatar {
+            width: 76px; height: 76px; border-radius: 50%;
+            object-fit: cover; background: #e4e6eb; flex-shrink: 0;
+        }
+        .avatar-fallback {
+            display: grid; place-items: center; font-size: 28px; font-weight: 700;
+        }
+        h1 { margin: 0 0 5px; font-size: 24px; overflow-wrap: anywhere; }
+        .muted { color: #65676b; font-size: 14px; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+        button, .button {
+            border: 0; border-radius: 8px; padding: 10px 14px;
+            background: #1877f2; color: white; font-weight: 650;
+            text-decoration: none; cursor: pointer; font: inherit;
+        }
+        .secondary { background: #e4e6eb; color: #1c1e21; }
+        .post-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+        .post-meta { color: #65676b; font-size: 13px; margin-bottom: 10px; }
+        @media (prefers-color-scheme: dark) {
+            body { background: #18191a; color: #e4e6eb; }
+            .top, .card { background: #242526; }
+            .muted, .post-meta { color: #b0b3b8; }
+            .secondary { background: #3a3b3c; color: #e4e6eb; }
+        }
+
+        /* GOTYA_PUBLIC_PROFILE_DESIGN_V2 */
+        .public-cover {
+            height: clamp(180px, 30vw, 300px);
+            margin-bottom: 82px;
+            position: relative;
+            border-radius: 18px;
+            overflow: visible;
+            background: linear-gradient(135deg, #1877f2, #79b8ff);
+            box-shadow: 0 4px 18px #00000012;
+        }
+        .public-cover-image {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 18px;
+        }
+        .public-cover-video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 18px;
+        }
+        .public-cover-placeholder {
+            height: 100%;
+            display: grid;
+            place-items: center;
+            color: white;
+            font-size: clamp(32px, 7vw, 54px);
+            font-weight: 900;
+            letter-spacing: .04em;
+        }
+        .public-cover .identity {
+            position: absolute;
+            left: 24px;
+            bottom: -68px;
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            max-width: calc(100% - 48px);
+        }
+        .public-cover .avatar {
+            width: 112px;
+            height: 112px;
+            flex: 0 0 112px;
+            border: 5px solid var(--card);
+        }
+        .public-cover .identity-text {
+            min-width: 0;
+            padding-bottom: 8px;
+        }
+        .public-cover .identity-text p {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        .public-verified {
+            display: inline-flex;
+            width: 16px;
+            height: 16px;
+            align-items: center;
+            justify-content: center;
+            margin-left: 4px;
+            border-radius: 50%;
+            background: #16a34a;
+            color: white;
+            vertical-align: middle;
+        }
+        .profile-tabs {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            margin: 18px 0;
+            padding: 6px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: var(--card);
+        }
+        .profile-tab {
+            flex: 1 0 auto;
+            min-width: 72px;
+            padding: 12px 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 700;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+        .profile-tab.active { background: #e7f3ff; color: #1877f2; }
+        .profile-post {
+            padding: 18px 0;
+            border-bottom: 1px solid var(--line);
+        }
+        .profile-post:last-child { border-bottom: 0; }
+        .profile-post-header {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            min-width: 0;
+        }
+        .profile-post-avatar {
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border-radius: 50%;
+            background: #e7f3ff;
+            color: #1877f2;
+            font-weight: 800;
+        }
+        .profile-post-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .profile-post-author { min-width: 0; flex: 1; font-weight: 750; overflow-wrap: anywhere; }
+        .profile-post-time { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 400; }
+        .profile-post-menu { position: relative; margin-left: auto; }
+        .profile-post-menu > button {
+            width: 38px;
+            height: 38px;
+            padding: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--muted);
+            font-size: 22px;
+        }
+        .profile-post-menu-panel {
+            position: absolute;
+            z-index: 10;
+            top: 40px;
+            right: 0;
+            min-width: 175px;
+            padding: 6px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--card);
+            box-shadow: 0 8px 24px #00000020;
+        }
+        .profile-post-menu-panel[hidden] { display: none; }
+        .profile-post-menu-panel button {
+            display: block;
+            width: 100%;
+            padding: 10px 12px;
+            text-align: left;
+            background: transparent;
+            color: var(--text);
+        }
+        .profile-post-content {
+            margin-top: 12px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            line-height: 1.6;
+        }
+        .profile-post-actions {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 4px;
+            margin-top: 14px;
+            padding-top: 8px;
+            border-top: 1px solid var(--line);
+        }
+        .profile-post-action {
+            display: block;
+            width: 100%;
+            padding: 9px 2px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--muted);
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .profile-post-action:disabled { opacity: .55; }
+        .public-empty { padding: 24px 12px; text-align: center; color: var(--muted); }
+        @media (max-width: 600px) {
+            .public-cover { height: 185px; margin-bottom: 112px; border-radius: 14px; }
+            .public-cover-image { border-radius: 14px; }
+            .public-cover .identity {
+                left: 12px;
+                right: 12px;
+                bottom: -102px;
+                max-width: none;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                text-align: center;
+            }
+            .public-cover .avatar { width: 96px; height: 96px; flex-basis: 96px; }
+            .public-cover .identity-text { padding: 0; }
+            .profile-tab { padding: 11px 12px; }
+        }
+        @media (max-width: 380px) {
+            .profile-post-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+    </style>
+</head>
+<body>
+<div class="page">
+    <nav class="nav" aria-label="Main navigation">
+        <a href="{{ url_for('feed') }}">Feed</a>
+        <a href="{{ url_for('friends') }}">Friends</a>
+        <a href="{{ url_for('profile') }}">My profile</a>
+        <a href="{{ url_for('messages') }}">Messages</a>
+    </nav>
+
+    <section class="public-cover" aria-label="Profile cover photo">
+        {% if profile_user.cover_video %}
+            <video class="public-cover-video"
+                   src="{{ url_for('cover_video_file', filename=profile_user.cover_video) }}"
+                   aria-label="{{ profile_user.username }}'s cover video"
+                   autoplay muted loop playsinline preload="metadata"></video>
+        {% elif profile_user.cover_photo %}
+            <img class="public-cover-image"
+                 src="{{ url_for('cover_photo_file', filename=profile_user.cover_photo) }}"
+                 alt="{{ profile_user.username }}'s cover photo">
+        {% else %}
+            <div class="public-cover-placeholder">GOTYA</div>
+        {% endif %}
+        <div class="identity">
+            <div class="identity-text">
+            {% if profile_user.profile_picture %}
+                <img class="avatar"
+                     src="{{ url_for('profile_picture_file', filename=profile_user.profile_picture) }}"
+                     alt="{{ profile_user.username }}'s profile picture">
+            {% else %}
+                <div class="avatar avatar-fallback" aria-hidden="true">
+                    {{ profile_user.username[0]|upper }}
+                </div>
+            {% endif %}
+            <div>
+                <h1>
+                    {{ profile_user.username }}
+                    {% if is_verified_account(profile_user) %}
+                    <span title="Verified account" aria-label="Verified account"
+                          class="public-verified"><svg aria-hidden="true" viewBox="0 0 16 16" width="10" height="10" fill="none"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    {% endif %}
+                </h1>
+                <div class="muted">{{ friend_count }} friends</div>
+                {% if profile_user.bio %}
+                    <p>{{ profile_user.bio }}</p>
+                {% endif %}
+            </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="top profile-action-card">
+        {% if profile_user.id != current_user.id %}
+        <div class="actions">
+            {% if friendship and friendship.status == "accepted" %}
+                <button class="secondary" type="button" onclick="document.getElementById('unfriendDialog').showModal()">Friends</button>
+                <dialog id="unfriendDialog" aria-labelledby="unfriendTitle">
+                    <h2 id="unfriendTitle">Unfriend this person?</h2>
+                    <p>Are you sure you want to remove this person from your friends list?</p>
+                    <div class="actions">
+                        <form method="post" action="{{ url_for('remove_friend', user_id=profile_user.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="danger" type="submit">Yes, unfriend</button>
+                        </form>
+                        <button class="secondary" type="button" onclick="document.getElementById('unfriendDialog').close()">No, keep friend</button>
+                    </div>
+                </dialog>
+            {% elif friendship and friendship.status == "pending" and friendship.requester_id == current_user.id %}
+                <button class="secondary" type="button" disabled>Request sent</button>
+            {% elif friendship and friendship.status == "pending" and friendship.recipient_id == current_user.id %}
+                <a class="button" href="{{ url_for('friends') }}">Respond to request</a>
+            {% else %}
+                <form method="post" action="{{ url_for('send_friend_request', user_id=profile_user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Add Friend</button>
+                </form>
+            {% endif %}
+
+            {% if is_following %}
+                <form method="post" action="{{ url_for('unfollow_user', user_id=profile_user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="secondary" type="submit">Unfollow</button>
+                </form>
+            {% else %}
+                <form method="post" action="{{ url_for('follow_user', user_id=profile_user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="secondary" type="submit">Follow</button>
+                </form>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+
+    {% set active_tab = request.args.get('tab', 'all') %}
+    <nav class="profile-tabs" aria-label="Profile sections">
+        <a class="profile-tab{% if active_tab == 'all' %} active{% endif %}" href="{{ url_for('public_profile', user_id=profile_user.id, tab='all') }}">All</a>
+        <a class="profile-tab{% if active_tab == 'about' %} active{% endif %}" href="{{ url_for('public_profile', user_id=profile_user.id, tab='about') }}">About</a>
+        <a class="profile-tab{% if active_tab == 'friends' %} active{% endif %}" href="{{ url_for('public_profile', user_id=profile_user.id, tab='friends') }}">Friends</a>
+        <a class="profile-tab{% if active_tab == 'photos' %} active{% endif %}" href="{{ url_for('public_profile', user_id=profile_user.id, tab='photos') }}">Photos</a>
+    </nav>
+
+    {% if active_tab == 'about' %}
+        <section class="card">
+            <h2>About {{ profile_user.username }}</h2>
+            {% if profile_user.bio %}
+                <p class="post-content">{{ profile_user.bio }}</p>
+            {% else %}
+                <p class="muted">No bio has been shared on this profile.</p>
+            {% endif %}
+        </section>
+    {% elif active_tab == 'friends' %}
+        <section class="card">
+            <h2>Friends</h2>
+            <p>{{ friend_count }} friends</p>
+            <p class="muted">Only the friend count is shown here. A friends list can be added with its own privacy checks.</p>
+        </section>
+    {% elif active_tab == 'photos' %}
+        <section class="card">
+            <h2>Photos</h2>
+            <p class="muted">A public post-photo gallery is not available yet. Private-message photos are not shown here.</p>
+        </section>
+    {% else %}
+    <section class="card">
+    <h2>Posts</h2>
+    {% for post in profile_posts %}
+        <article class="profile-post" id="post-{{ post.id }}">
+            <div class="profile-post-header">
+                <div class="profile-post-avatar">
+                    {% if post.author.profile_picture %}
+                        <img src="{{ url_for('profile_picture_file', filename=post.author.profile_picture) }}" alt="{{ post.author.username }}'s profile picture">
+                    {% else %}
+                        {{ post.author.username[0]|upper }}
+                    {% endif %}
+                </div>
+                <div class="profile-post-author">
+                    <div>
+                        {{ post.author.username }}
+                        {% if is_verified_account(post.author) %}
+                        <span class="public-verified" title="Verified account" aria-label="Verified account"><svg aria-hidden="true" viewBox="0 0 16 16" width="9" height="9" fill="none"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                        {% endif %}
+                    </div>
+                    <div class="profile-post-time">
+                        <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">{{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}</time>
+                        &middot; {{ 'Friends' if post.audience == 'friends' else 'Public' }}
+                    </div>
+                </div>
+                <div class="profile-post-menu">
+                    <button type="button" aria-label="Post options" aria-expanded="false" title="Post options">&#8942;</button>
+                    <div class="profile-post-menu-panel" hidden>
+                        <button type="button" disabled>Save post (coming soon)</button>
+                        <button type="button" disabled>Report post (coming soon)</button>
+                    </div>
+                </div>
+            </div>
+            <div class="profile-post-content">{{ post.content }}</div>
+            <div class="profile-post-actions" aria-label="Post actions">
+                <a class="profile-post-action" href="{{ url_for('feed', _anchor='post-' ~ post.id) }}">Like</a>
+                <a class="profile-post-action" href="{{ url_for('feed', _anchor='post-' ~ post.id) }}">Comments</a>
+                <button class="profile-post-action" type="button" disabled>Share</button>
+                <button class="profile-post-action" type="button" disabled>Repost</button>
+            </div>
+        </article>
+    {% else %}
+        <section class="card">
+            <p class="muted">No posts are available to you on this profile.</p>
+        </section>
+    {% endfor %}
+    </section>
+    {% endif %}
+</div>
+<script>
+document.addEventListener("click", function (event) {
+    const trigger = event.target.closest(".profile-post-menu > button");
+    if (trigger) {
+        const panel = trigger.parentElement.querySelector(".profile-post-menu-panel");
+        const opening = panel.hidden;
+        document.querySelectorAll(".profile-post-menu-panel").forEach(function (item) {
+            item.hidden = true;
+            const button = item.parentElement.querySelector(":scope > button");
+            if (button) button.setAttribute("aria-expanded", "false");
+        });
+        panel.hidden = !opening;
+        trigger.setAttribute("aria-expanded", String(opening));
+        return;
+    }
+    if (!event.target.closest(".profile-post-menu")) {
+        document.querySelectorAll(".profile-post-menu-panel").forEach(function (panel) {
+            panel.hidden = true;
+            const button = panel.parentElement.querySelector(":scope > button");
+            if (button) button.setAttribute("aria-expanded", "false");
+        });
+    }
+});
+</script>
+</body>
+</html>

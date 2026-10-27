@@ -1,4 +1,4 @@
-﻿
+
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -25,18 +25,235 @@ from werkzeug.utils import secure_filename
 from pywebpush import webpush, WebPushException
 from py_vapid import Vapid
 import uuid
+import re
+import shutil
+import tempfile
 from sqlalchemy.exc import IntegrityError
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from email.message import EmailMessage
 import smtplib
 import ssl
+import warnings
+import zipfile
+from PIL import Image, UnidentifiedImageError
+from cover_video_processing import (
+    MAX_BYTES as COVER_VIDEO_MAX_BYTES,
+    CoverVideoError,
+    normalize_cover_video,
+    validate_cover_video,
+)
+
+IMAGE_UPLOAD_FORMATS = {
+    ".jpg": "JPEG",
+    ".jpeg": "JPEG",
+    ".png": "PNG",
+    ".gif": "GIF",
+    ".webp": "WEBP",
+}
+
+IMAGE_UPLOAD_MIME_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+
+def validate_uploaded_image(file_bytes, extension):
+    """Reject malformed images and files whose contents contradict their extension."""
+    extension = extension.lower()
+    expected_format = IMAGE_UPLOAD_FORMATS.get(extension)
+
+    if expected_format is None:
+        raise ValueError("This image format is not supported.")
+
+    if not file_bytes:
+        raise ValueError("The uploaded image is empty.")
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+
+            with Image.open(BytesIO(file_bytes)) as image:
+                if image.format != expected_format:
+                    raise ValueError("The image contents do not match the file extension.")
+                if image.width < 1 or image.height < 1:
+                    raise ValueError("The image dimensions are invalid.")
+                image.verify()
+
+            # Reopen after verify(), then decode the image data.
+            with Image.open(BytesIO(file_bytes)) as image:
+                if image.format != expected_format:
+                    raise ValueError("The image contents do not match the file extension.")
+                image.load()
+
+    except ValueError:
+        raise
+    except (
+        UnidentifiedImageError,
+        OSError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+    ) as exc:
+        raise ValueError("The image is invalid, incomplete, or too large to process safely.") from exc
+
+    return IMAGE_UPLOAD_MIME_TYPES[extension]
+
+
+ATTACHMENT_MIME_TYPES = {
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "gif": "image/gif",
+    "webp": "image/webp",
+    "pdf": "application/pdf",
+    "txt": "text/plain",
+    "csv": "text/csv",
+    "doc": "application/msword",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xls": "application/vnd.ms-excel",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "ppt": "application/vnd.ms-powerpoint",
+    "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "zip": "application/zip",
+    "webm": "video/webm",
+    "ogg": "audio/ogg",
+    "mp4": "video/mp4",
+    "m4a": "audio/mp4",
+    "mp3": "audio/mpeg",
+    "wav": "audio/wav",
+}
+
+
+def validate_uploaded_attachment(file_bytes, extension):
+    """Check basic file signatures without extracting uploaded archives."""
+    ext = extension.lower().lstrip(".")
+    if not file_bytes:
+        raise ValueError("The uploaded file is empty.")
+
+    signatures = {
+        "pdf": lambda b: b.startswith(b"%PDF-"),
+        "doc": lambda b: b.startswith(bytes.fromhex("D0CF11E0A1B11AE1")),
+        "xls": lambda b: b.startswith(bytes.fromhex("D0CF11E0A1B11AE1")),
+        "ppt": lambda b: b.startswith(bytes.fromhex("D0CF11E0A1B11AE1")),
+        "webm": lambda b: b.startswith(bytes.fromhex("1A45DFA3")),
+        "ogg": lambda b: b.startswith(b"OggS"),
+        "mp4": lambda b: len(b) >= 8 and b[4:8] == b"ftyp",
+        "m4a": lambda b: len(b) >= 8 and b[4:8] == b"ftyp",
+        "wav": lambda b: len(b) >= 12 and b[:4] == b"RIFF" and b[8:12] == b"WAVE",
+        "mp3": lambda b: b.startswith(b"ID3") or (
+            len(b) >= 2 and b[0] == 0xFF and (b[1] & 0xE0) == 0xE0
+        ),
+    }
+
+    if ext in ("txt", "csv"):
+        if b"\x00" in file_bytes:
+            raise ValueError("The text file contains invalid binary data.")
+        return
+
+    if ext in ("zip", "docx", "xlsx", "pptx"):
+        try:
+            with zipfile.ZipFile(BytesIO(file_bytes)) as archive:
+                entries = archive.infolist()
+                names = {entry.filename for entry in entries}
+
+                if not entries or len(entries) > 10000:
+                    raise ValueError("The archive has an invalid number of files.")
+
+                expanded_total = 0
+                for entry in entries:
+                    name = entry.filename.replace("\\\\", "/")
+                    parts = name.split("/")
+                    if name.startswith("/") or any(part == ".." for part in parts):
+                        raise ValueError("The archive contains an unsafe file path.")
+                    if entry.flag_bits & 0x1:
+                        raise ValueError("Password-protected archives are not supported.")
+                    expanded_total += entry.file_size
+                    if expanded_total > 200 * 1024 * 1024:
+                        raise ValueError("The expanded archive is too large.")
+                    if entry.file_size > 1024 * 1024 and entry.compress_size == 0:
+                        raise ValueError("The archive contains suspicious compressed data.")
+                    if entry.compress_size and entry.file_size > 1000 * entry.compress_size:
+                        raise ValueError("The archive compression ratio is too high.")
+
+                required = {
+                    "docx": {"[Content_Types].xml", "word/document.xml"},
+                    "xlsx": {"[Content_Types].xml", "xl/workbook.xml"},
+                    "pptx": {"[Content_Types].xml", "ppt/presentation.xml"},
+                }
+                if ext in required and not required[ext].issubset(names):
+                    raise ValueError("The Office file contents do not match its extension.")
+
+                if ext == "zip" and not file_bytes.startswith(b"PK"):
+                    raise ValueError("The archive signature is invalid.")
+        except ValueError:
+            raise
+        except (zipfile.BadZipFile, OSError, RuntimeError) as exc:
+            raise ValueError("The uploaded archive is invalid.") from exc
+        return
+
+    check = signatures.get(ext)
+    if check and not check(file_bytes):
+        raise ValueError("The file contents do not match its extension.")
+
+    # Require enough structure to reject files containing only a short header.
+    if ext == "ogg":
+        if len(file_bytes) < 27 or not file_bytes.startswith(b"OggS") or file_bytes[4] != 0:
+            raise ValueError("The OGG file is incomplete or invalid.")
+        segment_count = file_bytes[26]
+        if len(file_bytes) < 27 + segment_count:
+            raise ValueError("The OGG file is incomplete or invalid.")
+        page_size = 27 + segment_count + sum(file_bytes[27:27 + segment_count])
+        if len(file_bytes) <= page_size:
+            raise ValueError("The OGG file contains no audio data.")
+
+    elif ext == "webm":
+        if len(file_bytes) < 16:
+            raise ValueError("The WebM file is incomplete or invalid.")
+
+    elif ext in ("mp4", "m4a"):
+        if len(file_bytes) < 16 or file_bytes[4:8] != b"ftyp":
+            raise ValueError("The media file is incomplete or invalid.")
+        box_size = int.from_bytes(file_bytes[:4], "big")
+        if box_size not in (0, 1) and box_size < 16:
+            raise ValueError("The media file has an invalid header.")
+
+    elif ext == "wav":
+        if len(file_bytes) < 44 or file_bytes[:4] != b"RIFF" or file_bytes[8:12] != b"WAVE":
+            raise ValueError("The WAV file is incomplete or invalid.")
+        if b"data" not in file_bytes[12:]:
+            raise ValueError("The WAV file has no audio data.")
+
+    elif ext == "mp3":
+        has_id3 = file_bytes.startswith(b"ID3") and len(file_bytes) >= 10
+        has_frame = len(file_bytes) >= 4 and file_bytes[0] == 0xFF and (file_bytes[1] & 0xE0) == 0xE0
+        if len(file_bytes) < 128 or not (has_id3 or has_frame):
+            raise ValueError("The MP3 file is incomplete or invalid.")
+
+    elif ext in ("doc", "xls", "ppt"):
+        if len(file_bytes) < 512:
+            raise ValueError("The Office file is incomplete or invalid.")
+
 
 BASE_DIR = Path(__file__).resolve().parent
 PROFILE_PICTURE_DIR = BASE_DIR / "uploads" / "profile_pictures"
 COVER_PHOTO_DIR = BASE_DIR / "uploads" / "cover_photos"
+COVER_VIDEO_DIR = BASE_DIR / "uploads" / "cover_videos"
 COVER_PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+COVER_VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_PICTURE_DIR.mkdir(parents=True, exist_ok=True)
 load_dotenv(BASE_DIR / ".env")
+
+# Explicit executable paths; environment variables override local defaults.
+FFMPEG_PATH = os.environ.get(
+    "GOTYA_FFMPEG_PATH",
+    r"C:\Tools\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe",
+)
+FFPROBE_PATH = os.environ.get(
+    "GOTYA_FFPROBE_PATH",
+    r"C:\Tools\ffmpeg-9.0.2-essentials_build\bin\ffprobe.exe",
+)
 
 # --------------------------------------------------------
 # SUPABASE PRIVATE FILE STORAGE
@@ -75,6 +292,23 @@ def download_from_supabase(storage_path):
 
 
 app = Flask(__name__)
+
+app.config["MAX_CONTENT_LENGTH"] = 450 * 1024 * 1024
+
+
+@app.after_request
+def add_upload_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@app.errorhandler(413)
+def handle_request_too_large(error):
+    return (
+        "This upload is too large. The maximum request size is 450 MiB.",
+        413,
+        {"Content-Type": "text/plain; charset=utf-8"},
+    )
 
 # Web Push configuration. The private key must never be sent to the browser.
 app.config["VAPID_PUBLIC_KEY"] = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
@@ -141,6 +375,7 @@ class User(UserMixin, db.Model):
     profile_picture = db.Column(db.String(255), nullable=True)
     bio = db.Column(db.String(500), nullable=True)
     cover_photo = db.Column(db.String(255), nullable=True)
+    cover_video = db.Column(db.String(255), nullable=True)
     last_seen = db.Column(db.DateTime, nullable=True)
     session_version = db.Column(
         db.Integer, nullable=False, default=1, server_default="1"
@@ -342,6 +577,18 @@ class UserPreference(db.Model):
     show_online_status = db.Column(
         db.Boolean, nullable=False, default=True, server_default=db.true()
     )
+    reaction_counts_visible = db.Column(
+        db.Boolean, nullable=False, default=True, server_default=db.true()
+    )
+    font_scale = db.Column(
+        db.String(16), nullable=False, default="normal", server_default="normal"
+    )
+    reduce_motion = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
+    high_contrast = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
     user = db.relationship("User")
 
 
@@ -371,6 +618,10 @@ def inject_gotya_theme():
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String(2000), nullable=False)
+    audience = db.Column(
+        db.String(20), nullable=False,
+        default="public", server_default="public"
+    )
     created_at = db.Column(
         db.DateTime,
         nullable=False,
@@ -458,6 +709,33 @@ class Friendship(db.Model):
         db.CheckConstraint(
             "status IN ('pending', 'accepted', 'declined')",
             name="ck_friendship_status"
+        ),
+    )
+
+
+class Follow(db.Model):
+    __tablename__ = "user_follow"
+
+    id = db.Column(db.Integer, primary_key=True)
+    follower_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    followed_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=db.func.current_timestamp()
+    )
+
+    follower = db.relationship("User", foreign_keys=[follower_id])
+    followed = db.relationship("User", foreign_keys=[followed_id])
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "follower_id", "followed_id", name="uq_user_follow_direction"
+        ),
+        db.CheckConstraint(
+            "follower_id != followed_id", name="ck_user_follow_not_self"
         ),
     )
 
@@ -743,10 +1021,18 @@ def migrate_existing_database_schema():
                 "profile_picture": "VARCHAR(255)",
                 "bio": "VARCHAR(500)",
                 "cover_photo": "VARCHAR(255)",
+                "cover_video": "VARCHAR(255)",
                 "session_version": "INTEGER NOT NULL DEFAULT 1",
             },
             "user_preference": {
                 "show_online_status": "BOOLEAN NOT NULL DEFAULT TRUE",
+                "reaction_counts_visible": "BOOLEAN NOT NULL DEFAULT TRUE",
+                "font_scale": "VARCHAR(16) NOT NULL DEFAULT 'normal'",
+                "reduce_motion": "BOOLEAN NOT NULL DEFAULT FALSE",
+                "high_contrast": "BOOLEAN NOT NULL DEFAULT FALSE",
+            },
+            "post": {
+                "audience": "VARCHAR(20) NOT NULL DEFAULT 'public'",
             },
             "message": {
                 "is_unsent": "BOOLEAN NOT NULL DEFAULT FALSE",
@@ -800,6 +1086,7 @@ def migrate_existing_database_schema():
 with app.app_context():
     UserPreference.__table__.create(bind=db.engine, checkfirst=True)
     LoginAttempt.__table__.create(bind=db.engine, checkfirst=True)
+    Follow.__table__.create(bind=db.engine, checkfirst=True)
 
 # Run after all SQLAlchemy models have been declared.
 migrate_existing_database_schema()
@@ -1070,7 +1357,7 @@ def profile():
             try:
                 cover_file.stream.seek(0)
                 file_bytes = cover_file.read()
-                content_type = cover_file.mimetype or "application/octet-stream"
+                content_type = validate_uploaded_image(file_bytes, extension)
 
                 upload_to_supabase(
                     "cover_photos/" + filename,
@@ -1082,6 +1369,10 @@ def profile():
                 current_user.cover_photo = filename
                 db.session.commit()
                 flash("Cover photo updated successfully!", "success")
+            except ValueError as exc:
+                db.session.rollback()
+                destination.unlink(missing_ok=True)
+                flash(str(exc), "error")
             except Exception:
                 db.session.rollback()
                 destination.unlink(missing_ok=True)
@@ -1118,7 +1409,7 @@ def profile():
         try:
             uploaded_file.stream.seek(0)
             file_bytes = uploaded_file.read()
-            content_type = uploaded_file.mimetype or "application/octet-stream"
+            content_type = validate_uploaded_image(file_bytes, extension)
 
             upload_to_supabase(
                 "profile_pictures/" + filename,
@@ -1129,6 +1420,11 @@ def profile():
 
             current_user.profile_picture = filename
             db.session.commit()
+        except ValueError as exc:
+            db.session.rollback()
+            destination.unlink(missing_ok=True)
+            flash(str(exc), "error")
+            return redirect(url_for("profile"))
         except Exception:
             db.session.rollback()
             destination.unlink(missing_ok=True)
@@ -1155,13 +1451,159 @@ def profile():
         .count()
     )
 
+    preference = UserPreference.query.filter_by(
+        user_id=current_user.id
+    ).first()
+    reaction_counts_visible = (
+        preference.reaction_counts_visible if preference else True
+    )
+
+    profile_tab = request.args.get("tab", "all").strip().lower()
+    if profile_tab not in {"all", "about", "friends", "photos"}:
+        profile_tab = "all"
+
+    profile_posts = Post.query.filter_by(
+        user_id=current_user.id
+    ).order_by(Post.created_at.desc(), Post.id.desc()).all()
+
+    accepted_friendships = Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            Friendship.requester_id == current_user.id,
+            Friendship.recipient_id == current_user.id,
+        ),
+    ).all()
+
+    profile_friend_ids = {
+        item.recipient_id if item.requester_id == current_user.id
+        else item.requester_id
+        for item in accepted_friendships
+    }
+
+    profile_friends = (
+        User.query.filter(User.id.in_(profile_friend_ids))
+        .order_by(User.username.asc()).all()
+        if profile_friend_ids else []
+    )
+
     return render_template(
         "profile.html",
         user=current_user,
         post_count=post_count,
         friend_count=friend_count,
         likes_received=likes_received,
+        reaction_counts_visible=reaction_counts_visible,
+        profile_tab=profile_tab,
+        profile_posts=profile_posts,
+        profile_friends=profile_friends,
     )
+
+
+@app.route("/u/<int:user_id>")
+@login_required
+def public_profile(user_id):
+    """Display another member's profile without exposing their private posts."""
+    profile_user = db.session.get(User, user_id)
+
+    if profile_user is None:
+        flash("That profile could not be found.", "error")
+        return redirect(url_for("friends"))
+
+    friendship = Friendship.query.filter(
+        db.or_(
+            db.and_(
+                Friendship.requester_id == current_user.id,
+                Friendship.recipient_id == profile_user.id,
+            ),
+            db.and_(
+                Friendship.requester_id == profile_user.id,
+                Friendship.recipient_id == current_user.id,
+            ),
+        )
+    ).first() if profile_user.id != current_user.id else None
+
+    is_following = (
+        Follow.query.filter_by(
+            follower_id=current_user.id,
+            followed_id=profile_user.id,
+        ).first() is not None
+        if profile_user.id != current_user.id else False
+    )
+
+    all_profile_posts = Post.query.filter_by(
+        user_id=profile_user.id
+    ).order_by(Post.created_at.desc(), Post.id.desc()).all()
+
+    visible_profile_posts = [
+        post for post in all_profile_posts
+        if _can_view_post(post, current_user.id)
+    ]
+
+    friend_count = Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            Friendship.requester_id == profile_user.id,
+            Friendship.recipient_id == profile_user.id,
+        ),
+    ).count()
+
+    return render_template(
+        "public_profile.html",
+        profile_user=profile_user,
+        profile_posts=visible_profile_posts,
+        friendship=friendship,
+        is_following=is_following,
+        friend_count=friend_count,
+    )
+
+
+@app.route("/follow/<int:user_id>", methods=["POST"])
+@login_required
+def follow_user(user_id):
+    target = db.session.get(User, user_id)
+    if target is None or target.id == current_user.id:
+        flash("You cannot follow that account.", "error")
+        return redirect(url_for("friends"))
+
+    existing = Follow.query.filter_by(
+        follower_id=current_user.id,
+        followed_id=target.id,
+    ).first()
+
+    if existing is None:
+        db.session.add(Follow(
+            follower_id=current_user.id,
+            followed_id=target.id,
+        ))
+        db.session.commit()
+        flash(f"You are now following {target.username}.", "success")
+    else:
+        flash(f"You already follow {target.username}.", "info")
+
+    return redirect(url_for("public_profile", user_id=target.id))
+
+
+@app.route("/unfollow/<int:user_id>", methods=["POST"])
+@login_required
+def unfollow_user(user_id):
+    target = db.session.get(User, user_id)
+    if target is None or target.id == current_user.id:
+        flash("That account cannot be unfollowed.", "error")
+        return redirect(url_for("friends"))
+
+    existing = Follow.query.filter_by(
+        follower_id=current_user.id,
+        followed_id=target.id,
+    ).first()
+
+    if existing is not None:
+        db.session.delete(existing)
+        db.session.commit()
+        flash(f"You unfollowed {target.username}.", "success")
+    else:
+        flash("You are not following that account.", "info")
+
+    return redirect(url_for("public_profile", user_id=target.id))
 
 
 @app.route("/profile-pictures/<path:filename>")
@@ -1171,7 +1613,9 @@ def profile_picture_file(filename):
         file_bytes = download_from_supabase("profile_pictures/" + filename)
         return send_file(
             BytesIO(file_bytes),
-            mimetype=mimetypes.guess_type(filename)[0] or "application/octet-stream",
+            mimetype=IMAGE_UPLOAD_MIME_TYPES.get(
+                Path(filename).suffix.lower(), "application/octet-stream"
+            ),
             download_name=filename
         )
     except Exception:
@@ -1186,12 +1630,154 @@ def cover_photo_file(filename):
         file_bytes = download_from_supabase("cover_photos/" + filename)
         return send_file(
             BytesIO(file_bytes),
-            mimetype=mimetypes.guess_type(filename)[0] or "application/octet-stream",
+            mimetype=IMAGE_UPLOAD_MIME_TYPES.get(
+                Path(filename).suffix.lower(), "application/octet-stream"
+            ),
             download_name=filename
         )
     except Exception:
         app.logger.exception("Supabase cover-photo retrieval failed")
         return send_from_directory(COVER_PHOTO_DIR, filename)
+
+
+
+@app.route("/profile/cover-video", methods=["POST"])
+@login_required
+def upload_cover_video():
+    # Allow a small multipart/form overhead, while enforcing the actual file
+    # size independently below. Do not alter the app-wide request limit.
+    if request.content_length and request.content_length > COVER_VIDEO_MAX_BYTES + 1024 * 1024:
+        flash("The cover-video upload exceeds the allowed size.", "error")
+        return redirect(url_for("edit_profile"))
+
+    video_file = request.files.get("cover_video")
+    if video_file is None or not video_file.filename:
+        flash("Choose a video to upload.", "error")
+        return redirect(url_for("edit_profile"))
+
+    extension = Path(secure_filename(video_file.filename)).suffix.lower()
+    if extension not in {".mp4", ".mov"}:
+        flash("Choose an MP4 or MOV video.", "error")
+        return redirect(url_for("edit_profile"))
+
+    try:
+        video_file.stream.seek(0, 2)
+        file_size = video_file.stream.tell()
+        video_file.stream.seek(0)
+    except (OSError, AttributeError):
+        flash("The selected video could not be read.", "error")
+        return redirect(url_for("edit_profile"))
+
+    if file_size <= 0 or file_size > COVER_VIDEO_MAX_BYTES:
+        flash("Videos must be non-empty and no larger than 15 MiB.", "error")
+        return redirect(url_for("edit_profile"))
+
+    filename = uuid.uuid4().hex + ".mp4"
+    destination = COVER_VIDEO_DIR / filename
+    stored_locally = False
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="gotya-cover-video-") as temp_name:
+            temp_dir = Path(temp_name)
+            input_path = temp_dir / ("upload" + extension)
+            output_path = temp_dir / "normalized.mp4"
+
+            video_file.stream.seek(0)
+            with input_path.open("xb") as handle:
+                shutil.copyfileobj(video_file.stream, handle, length=64 * 1024)
+
+            if input_path.stat().st_size != file_size:
+                raise CoverVideoError("The uploaded video could not be read completely.")
+
+            validate_cover_video(input_path, FFPROBE_PATH)
+            normalize_cover_video(
+                input_path, output_path, FFMPEG_PATH, FFPROBE_PATH
+            )
+            normalized_bytes = output_path.read_bytes()
+
+            if not normalized_bytes or len(normalized_bytes) > COVER_VIDEO_MAX_BYTES:
+                raise CoverVideoError("The processed video exceeds the allowed size.")
+
+            # Keep a local copy so the existing local-storage fallback works.
+            with destination.open("xb") as handle:
+                handle.write(normalized_bytes)
+            stored_locally = True
+
+            # When Supabase is configured, require its upload to succeed
+            # before changing the selected cover. Failed uploads preserve the
+            # existing cover and the local temporary copy is cleaned up.
+            if supabase_storage is not None:
+                try:
+                    upload_to_supabase(
+                        "cover_videos/" + filename,
+                        normalized_bytes,
+                        "video/mp4",
+                    )
+                except Exception as exc:
+                    app.logger.exception("Supabase cover-video upload failed")
+                    raise CoverVideoError(
+                        "Video storage is temporarily unavailable. Your existing cover was kept."
+                    ) from exc
+
+        previous_video = current_user.cover_video
+        current_user.cover_video = filename
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        flash("Cover video updated successfully.", "success")
+
+        # Do not delete the previous video here. It may be referenced by a
+        # concurrent request or exist only in remote storage. Cleanup can be
+        # handled separately after storage lifecycle behavior is verified.
+        return redirect(url_for("edit_profile"))
+
+    except CoverVideoError as exc:
+        db.session.rollback()
+        if stored_locally:
+            destination.unlink(missing_ok=True)
+        flash(str(exc), "error")
+        return redirect(url_for("edit_profile"))
+    except Exception:
+        db.session.rollback()
+        if stored_locally:
+            destination.unlink(missing_ok=True)
+        app.logger.exception("Cover-video upload failed")
+        flash("The cover video could not be saved. Your existing cover was kept.", "error")
+        return redirect(url_for("edit_profile"))
+
+
+@app.route("/cover-videos/<path:filename>", methods=["GET"])
+@login_required
+def cover_video_file(filename):
+    # Only serve generated UUID MP4 names; reject paths and user-supplied names.
+    if not re.fullmatch(r"[0-9a-f]{32}\.mp4", filename):
+        abort(404)
+
+    try:
+        file_bytes = download_from_supabase("cover_videos/" + filename)
+        response = send_file(
+            BytesIO(file_bytes),
+            mimetype="video/mp4",
+            download_name=filename,
+            conditional=True,
+        )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
+    except Exception:
+        app.logger.warning(
+            "Supabase cover-video retrieval unavailable; trying local storage",
+            exc_info=True,
+        )
+        response = send_from_directory(
+            COVER_VIDEO_DIR, filename, mimetype="video/mp4", conditional=True
+        )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
 
 
 @app.route("/friends", methods=["GET"])
@@ -1247,6 +1833,11 @@ def friends():
         User.username.asc()
     ).all() if friend_ids else []
 
+    following_ids = {
+        item.followed_id
+        for item in Follow.query.filter_by(follower_id=current_user.id).all()
+    }
+
     return render_template(
         "friends.html",
         query=query,
@@ -1255,6 +1846,7 @@ def friends():
         outgoing=outgoing,
         friends=found_friends,
         relationships=relationships,
+        following_ids=following_ids,
     )
 
 
@@ -1344,6 +1936,18 @@ def respond_friend_request(request_id):
         flash("Invalid friend-request action.", "error")
     else:
         item.status = "accepted" if action == "accept" else "declined"
+
+        if action == "accept":
+            existing_follow = Follow.query.filter_by(
+                follower_id=item.requester_id,
+                followed_id=current_user.id,
+            ).first()
+            if existing_follow is None:
+                db.session.add(Follow(
+                    follower_id=item.requester_id,
+                    followed_id=current_user.id,
+                ))
+
         db.session.commit()
         flash(
             "You are now friends!" if action == "accept"
@@ -1428,7 +2032,15 @@ def messages():
                     Message.recipient_id == current_user.id
                 )
             )
-        ).order_by(Message.created_at.desc(), Message.id.desc()).first()
+        ).filter(
+            Message.id.notin_(
+                db.session.query(MessageHidden.message_id).filter_by(
+                    user_id=current_user.id
+                )
+            )
+        ).order_by(
+            Message.created_at.desc(), Message.id.desc()
+        ).first()
         recent.append((person, latest))
 
     recent.sort(
@@ -1441,6 +2053,8 @@ def messages():
 
     unread_count = Message.query.filter_by(
         recipient_id=current_user.id, read_at=None
+    ).filter(
+        Message.is_unsent.is_(False)
     ).count()
 
     return render_template(
@@ -1552,6 +2166,20 @@ def conversation(user_id):
                     error = "Each file must be 15 MB or smaller."
                     break
 
+                try:
+                    upload.stream.seek(0)
+                    file_bytes = upload.read()
+
+                    if extension in image_extensions:
+                        validate_uploaded_image(file_bytes, "." + extension)
+                    else:
+                        validate_uploaded_attachment(file_bytes, extension)
+
+                    upload.stream.seek(0)
+                except ValueError as exc:
+                    error = str(exc)
+                    break
+
                 prepared.append((upload, original_name, extension, file_size))
 
             if error:
@@ -1578,10 +2206,8 @@ def conversation(user_id):
 
                             upload.stream.seek(0)
                             file_bytes = upload.read()
-                            content_type = (
-                                "image/" + ("jpeg" if extension in {"jpg", "jpeg"} else extension)
-                                if extension in image_extensions
-                                else (upload.mimetype or "application/octet-stream")
+                            content_type = ATTACHMENT_MIME_TYPES.get(
+                                extension, "application/octet-stream"
                             )
 
                             upload_to_supabase(remote_path, file_bytes, content_type)
@@ -1640,6 +2266,8 @@ def conversation(user_id):
         sender_id=person.id,
         recipient_id=current_user.id,
         read_at=None
+    ).filter(
+        Message.is_unsent.is_(False)
     ).all()
 
     if unread:
@@ -1729,12 +2357,20 @@ def conversation(user_id):
     except Exception:
         db.session.rollback()
 
+    preference = UserPreference.query.filter_by(
+        user_id=current_user.id
+    ).first()
+    reaction_counts_visible = (
+        preference.reaction_counts_visible if preference else True
+    )
+
     return render_template(
         "conversation.html",
         person=person,
         history=history,
         reaction_map=reaction_map,
-        reaction_emojis=reaction_emojis
+        reaction_emojis=reaction_emojis,
+        reaction_counts_visible=reaction_counts_visible
     )
 
 
@@ -1816,6 +2452,7 @@ def conversation_updates(user_id):
         conversation_filter,
         Message.id > after_id
     ).order_by(Message.id.asc()).limit(100).all()
+    next_after_id = max((item.id for item in new_messages), default=after_id)
 
     hidden_ids_for_user = {
         item.message_id
@@ -1985,6 +2622,7 @@ def conversation_updates(user_id):
             _chat_typing.pop(typing_key, None)
 
     return jsonify({
+        "next_after_id": next_after_id,
         "messages": [message_data(item) for item in new_messages],
         "receipts": [message_data(item) for item in outgoing],
         "reaction_updates": reaction_updates,
@@ -2084,7 +2722,8 @@ def inbox_updates():
     # Acknowledge delivery for messages received by the active inbox.
     pending_delivery = Message.query.filter(
         Message.recipient_id == current_user.id,
-        Message.delivered_at.is_(None)
+        Message.delivered_at.is_(None),
+        Message.is_unsent.is_(False)
     ).all()
 
     if pending_delivery:
@@ -2096,6 +2735,8 @@ def inbox_updates():
     unread_count = Message.query.filter_by(
         recipient_id=current_user.id,
         read_at=None
+    ).filter(
+        Message.is_unsent.is_(False)
     ).count()
 
     return jsonify({
@@ -2590,9 +3231,21 @@ def message_attachment_file(message_id):
         flash("You cannot access that attachment.", "error")
         return redirect(url_for("messages"))
 
+    hidden_message = MessageHidden.query.filter_by(
+        message_id=message.id,
+        user_id=current_user.id
+    ).first()
+    if hidden_message is not None:
+        abort(404)
+
     attachment_dir = BASE_DIR / "uploads" / "message_attachments"
-    is_image = (message.attachment_mimetype or "").startswith("image/")
-    is_audio = (message.attachment_mimetype or "").startswith("audio/")
+    extension = Path(message.attachment_filename).suffix.lower().lstrip(".")
+    trusted_mimetype = ATTACHMENT_MIME_TYPES.get(
+        extension, "application/octet-stream"
+    )
+    is_image = trusted_mimetype.startswith("image/")
+    is_audio = trusted_mimetype.startswith("audio/")
+    download_name = message.attachment_original_name or "attachment"
 
     try:
         file_bytes = download_from_supabase(
@@ -2600,20 +3253,18 @@ def message_attachment_file(message_id):
         )
         return send_file(
             BytesIO(file_bytes),
-            mimetype=message.attachment_mimetype or (
-                mimetypes.guess_type(message.attachment_filename)[0]
-                or "application/octet-stream"
-            ),
+            mimetype=trusted_mimetype,
             as_attachment=not (is_image or is_audio),
-            download_name=message.attachment_original_name or "attachment"
+            download_name=download_name
         )
     except Exception:
         app.logger.exception("Supabase message-attachment retrieval failed")
         return send_from_directory(
             attachment_dir,
             message.attachment_filename,
+            mimetype=trusted_mimetype,
             as_attachment=not (is_image or is_audio),
-            download_name=message.attachment_original_name or "attachment"
+            download_name=download_name
         )
 
 
@@ -2684,6 +3335,58 @@ def settings():
 
             return redirect(url_for("settings", _anchor="appearance"))
 
+        if action == "save_reaction_preferences":
+            value = request.form.get("reaction_counts_visible", "off")
+            if value not in {"on", "off"}:
+                flash("Please choose a valid reaction-count preference.", "error")
+                return redirect(url_for("settings", _anchor="reactions"))
+
+            UserPreference.__table__.create(bind=db.engine, checkfirst=True)
+            preference = UserPreference.query.filter_by(
+                user_id=current_user.id
+            ).first()
+            if preference is None:
+                preference = UserPreference(
+                    user_id=current_user.id,
+                    theme="system",
+                    show_online_status=True
+                )
+                db.session.add(preference)
+
+            preference.reaction_counts_visible = (value == "on")
+            db.session.commit()
+            flash("Reaction preferences saved.", "success")
+            return redirect(url_for("settings", _anchor="reactions"))
+
+        if action == "save_accessibility_preferences":
+            font_scale = request.form.get("font_scale", "normal").strip().lower()
+            if font_scale not in {"normal", "large", "extra-large"}:
+                flash("Please choose a valid font size.", "error")
+                return redirect(url_for("settings", _anchor="accessibility"))
+
+            UserPreference.__table__.create(bind=db.engine, checkfirst=True)
+            preference = UserPreference.query.filter_by(
+                user_id=current_user.id
+            ).first()
+            if preference is None:
+                preference = UserPreference(
+                    user_id=current_user.id,
+                    theme="system",
+                    show_online_status=True
+                )
+                db.session.add(preference)
+
+            preference.font_scale = font_scale
+            preference.reduce_motion = (
+                request.form.get("reduce_motion", "off") == "on"
+            )
+            preference.high_contrast = (
+                request.form.get("high_contrast", "off") == "on"
+            )
+            db.session.commit()
+            flash("Accessibility preferences saved.", "success")
+            return redirect(url_for("settings", _anchor="accessibility"))
+
         if action == "logout_other_devices":
             # Incrementing the version invalidates sessions on other devices.
             current_user.session_version += 1
@@ -2728,6 +3431,15 @@ def settings():
     show_online_status = (
         preference.show_online_status if preference else True
     )
+    reaction_counts_visible = (
+        preference.reaction_counts_visible if preference else True
+    )
+    font_scale = preference.font_scale if preference else "normal"
+    reduce_motion = preference.reduce_motion if preference else False
+    high_contrast = preference.high_contrast if preference else False
+
+    if font_scale not in {"normal", "large", "extra-large"}:
+        font_scale = "normal"
 
     if theme not in {"system", "light", "dark"}:
         theme = "system"
@@ -2736,21 +3448,56 @@ def settings():
         "settings.html",
         user=current_user,
         theme=theme,
-        show_online_status=show_online_status
+        show_online_status=show_online_status,
+        reaction_counts_visible=reaction_counts_visible,
+        font_scale=font_scale,
+        reduce_motion=reduce_motion,
+        high_contrast=high_contrast
     )
+
+def _can_view_post(post, viewer_id):
+    """Check whether a signed-in user may view a post."""
+    if post.user_id == viewer_id:
+        return True
+
+    audience = getattr(post, "audience", None) or "public"
+    if audience == "public":
+        return True
+    if audience != "friends":
+        return False
+
+    return Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            db.and_(
+                Friendship.requester_id == post.user_id,
+                Friendship.recipient_id == viewer_id,
+            ),
+            db.and_(
+                Friendship.requester_id == viewer_id,
+                Friendship.recipient_id == post.user_id,
+            ),
+        ),
+    ).first() is not None
+
 
 @app.route("/feed", methods=["GET", "POST"])
 @login_required
 def feed():
     if request.method == "POST":
         content = request.form.get("content", "").strip()
+        audience = request.form.get("audience", "public").strip().lower()
 
-        if not content:
+        if audience not in {"public", "friends"}:
+            flash("Please choose a valid post audience.", "error")
+        elif not content:
             flash("Please write something before posting.", "error")
         elif len(content) > 2000:
             flash("Posts cannot exceed 2000 characters.", "error")
         else:
-            post = Post(content=content, author=current_user)
+            post = Post(
+                content=content, author=current_user, audience=audience
+            )
             db.session.add(post)
             db.session.commit()
             flash("Your post was published!", "success")
@@ -2759,8 +3506,23 @@ def feed():
     posts = Post.query.order_by(
         Post.created_at.desc(), Post.id.desc()
     ).all()
+    posts = [
+        post for post in posts
+        if _can_view_post(post, current_user.id)
+    ]
 
-    return render_template("feed.html", posts=posts)
+    preference = UserPreference.query.filter_by(
+        user_id=current_user.id
+    ).first()
+    reaction_counts_visible = (
+        preference.reaction_counts_visible if preference else True
+    )
+
+    return render_template(
+        "feed.html",
+        posts=posts,
+        reaction_counts_visible=reaction_counts_visible
+    )
 
 
 @app.route("/post/<int:post_id>/like", methods=["POST"])
@@ -2769,6 +3531,9 @@ def toggle_like(post_id):
     post = db.session.get(Post, post_id)
     if post is None:
         flash("That post could not be found.", "error")
+        return redirect(url_for("feed"))
+    if not _can_view_post(post, current_user.id):
+        flash("That post is not available to you.", "error")
         return redirect(url_for("feed"))
 
     existing = PostLike.query.filter_by(
@@ -2795,6 +3560,8 @@ def add_comment(post_id):
 
     if post is None:
         flash("That post could not be found.", "error")
+    elif not _can_view_post(post, current_user.id):
+        flash("That post is not available to you.", "error")
     elif not content:
         flash("Please write a comment first.", "error")
     elif len(content) > 1000:
@@ -2822,12 +3589,14 @@ def notifications_updates():
 
     unread_count = Message.query.filter(
         Message.recipient_id == current_user.id,
-        Message.read_at.is_(None)
+        Message.read_at.is_(None),
+        Message.is_unsent.is_(False)
     ).count()
 
     unread_messages = Message.query.filter(
         Message.recipient_id == current_user.id,
-        Message.read_at.is_(None)
+        Message.read_at.is_(None),
+        Message.is_unsent.is_(False)
     ).order_by(Message.created_at.desc()).limit(20).all()
 
     message_items = [
@@ -3422,6 +4191,16 @@ if __name__ == "__main__":
                 print("Added cover_photo column without resetting user data.")
             else:
                 print("Cover-photo database column already exists.")
+
+            if "cover_video" not in columns:
+                connection.execute(
+                    db.text(
+                        "ALTER TABLE user ADD COLUMN cover_video VARCHAR(255)"
+                    )
+                )
+                print("Added cover_video column without resetting user data.")
+            else:
+                print("Cover-video database column already exists.")
 
         # Safely add message delivery timestamps without resetting chat history.
         message_columns = {

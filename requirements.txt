@@ -16,3 +16,5 @@ supabase==2.32.0
 
 pywebpush>=2.0.0,<3.0.0
 Flask-Limiter==4.1.1
+
+Pillow==13.0.0

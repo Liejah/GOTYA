@@ -841,6 +841,7 @@ main {
   overflow-wrap: anywhere;
 }
 .reply-quote-sender { font-size: 12px; font-weight: 700; }
+.message-sender-label{display:flex;align-items:center;max-width:100%;margin:0 0 2px 7px;font-size:11px;font-weight:600;line-height:1.2;color:var(--muted);overflow-wrap:anywhere;}
 .reply-quote-text { font-size: 12px; opacity: .85; }
 .reply-preview {
   display: flex;
@@ -902,7 +903,7 @@ main {
 <div class="chat-header">
 <a class="back" href="{{ url_for('messages') }}" aria-label="Back to messages">&#8592;</a>
 <div class="avatar">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div>
-<div class="person-info"><div class="name">{{ person.username }}</div><div class="status" id="personPresence" aria-live="polite"><span class="presence-dot" aria-hidden="true"></span><span id="presenceLabel">Checking status...</span></div></div>
+<div class="person-info"><div class="name">{{ person.username }}{% if is_verified_account(person) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</div><div class="status" id="personPresence" aria-live="polite"><span class="presence-dot" aria-hidden="true"></span><span id="presenceLabel">Checking status...</span></div></div>
 
 <button type="button" class="gotya-call-btn" id="gotyaStartVideoCall">
     Video call
@@ -953,16 +954,17 @@ main {
 {% if history %}
 {% for item in history %}
 {% if loop.first or (item.created_at - loop.previtem.created_at).total_seconds() >= 600 %}
-<div class="time-separator">{{ item.created_at.strftime('%b %d · %I:%M %p') }}</div>
+<div class="time-separator">{{ item.created_at.strftime('%b %d Ãƒâ€šÃ‚Â· %I:%M %p') }}</div>
 {% endif %}
 <div class="message-row {{ 'mine' if item.sender_id == current_user.id else '' }}{% if item.is_unsent %} is-unsent{% endif %}" data-message-id="{{ item.id }}" data-sender-id="{{ item.sender_id }}" data-created-at="{{ item.created_at.isoformat() }}" data-message-preview="{{ 'This message was unsent.' if item.is_unsent else ((item.content or item.attachment_original_name or ('Photo' if item.attachment_mimetype and item.attachment_mimetype.startswith('image/') else 'Attachment'))[:140]) }}" data-message-sender="{{ (item.sender.username if item.sender else 'Message') }}">
+{% if item.sender_id != current_user.id and not item.is_unsent %}<div class="message-sender-label">{{ item.sender.username if item.sender else "Message" }}{% if item.sender and is_verified_account(item.sender) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</div>{% endif %}
 <div class="bubble">
 {% if item.is_unsent %}
 <div class="message-text">This message was unsent.</div>
 {% else %}
 {% if item.reply_to %}
 <div class="reply-quote" tabindex="0" role="button" data-reply-target="{{ item.reply_to.id }}">
-<span class="reply-quote-sender">{{ item.reply_to.sender.username if item.reply_to.sender else 'Message' }}</span>
+<span class="reply-quote-sender">{{ item.reply_to.sender.username if item.reply_to.sender else 'Message' }}{% if item.reply_to.sender and is_verified_account(item.reply_to.sender) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</span>
 <span class="reply-quote-text">{{ 'This message was unsent.' if item.reply_to.is_unsent else ((item.reply_to.content or item.reply_to.attachment_original_name or ('Photo' if item.reply_to.attachment_mimetype and item.reply_to.attachment_mimetype.startswith('image/') else 'Attachment'))[:140]) }}</span>
 </div>
 {% endif %}
@@ -991,8 +993,8 @@ main {
 {% if not item.is_unsent %}<div class="message-reactions" data-reaction-message-id="{{ item.id }}">
   <div class="reaction-summary">
     {% for reaction in reaction_map.get(item.id, []) %}
-    <button type="button" class="reaction-chip{% if reaction.reacted_by_me %} reacted-by-me{% endif %}" data-emoji="{{ reaction.emoji }}" data-reacted-by-me="{{ 'true' if reaction.reacted_by_me else 'false' }}" aria-pressed="{{ 'true' if reaction.reacted_by_me else 'false' }}" aria-label="{{ reaction.emoji }} {{ reaction.count }} reactions">
-      <span>{{ reaction.emoji }}</span><span class="reaction-count">{{ reaction.count }}</span>
+    <button type="button" class="reaction-chip{% if reaction.reacted_by_me %} reacted-by-me{% endif %}" data-emoji="{{ reaction.emoji }}" data-reacted-by-me="{{ 'true' if reaction.reacted_by_me else 'false' }}" aria-pressed="{{ 'true' if reaction.reacted_by_me else 'false' }}" aria-label="{{ (reaction.emoji ~ ' ' ~ reaction.count ~ ' reactions') if reaction_counts_visible else (reaction.emoji ~ ' reaction') }}">
+      <span>{{ reaction.emoji }}</span>{% if reaction_counts_visible %}<span class="reaction-count">{{ reaction.count }}</span>{% endif %}
     </button>
     {% endfor %}
   </div>
@@ -1035,15 +1037,15 @@ main {
 
   <div id="plusMenu" class="plus-menu" hidden>
     <button type="button" class="plus-menu-item" id="openLocationOptions">
-      <span class="menu-icon location-menu-icon" aria-hidden="true">⌖</span>
+      <span class="menu-icon location-menu-icon" aria-hidden="true">&#128205;</span>
       <span>Send live location</span>
     </button>
     <button type="button" class="plus-menu-item" id="openAttachmentOptions">
-      <span class="menu-icon file-menu-icon" aria-hidden="true">ï¼‹</span>
+      <span class="menu-icon file-menu-icon" aria-hidden="true">&#128206;</span>
       <span>Attach photos or files</span>
     </button>
     <button type="button" class="plus-menu-item" id="startVoiceRecording">
-      <span class="menu-icon voice-menu-icon" aria-hidden="true">♫</span>
+      <span class="menu-icon voice-menu-icon" aria-hidden="true">&#127908;</span>
       <span>Voice message</span>
     </button>
   </div>
@@ -2325,8 +2327,31 @@ if (input) {
     if (text !== undefined && text !== null) node.textContent = text;
     return node;
   }
+  function createVerifiedBadge() {
+    const badge = document.createElement("span");
+    badge.className = "gotya-verified-badge";
+    badge.title = "Verified account";
+    badge.setAttribute("aria-label", "Verified account");
+    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("width", "8");
+    svg.setAttribute("height", "8");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M3.5 8.2 6.4 11 12.5 4.8");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "2.2");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(path);
+    badge.appendChild(svg);
+    return badge;
+  }
 
   let reactionEmojis = {{ reaction_emojis|tojson }};
+  let reactionCountsVisible = {{ reaction_counts_visible|tojson }};
 
   function renderReactionBar(row, messageId, reactions) {
     if (!row) return;
@@ -2354,11 +2379,15 @@ if (input) {
       chip.setAttribute("aria-pressed", String(Boolean(reaction.reacted_by_me)));
       chip.setAttribute(
         "aria-label",
-        reaction.emoji + " " + reaction.count + " reactions"
+        reactionCountsVisible
+          ? reaction.emoji + " " + reaction.count + " reactions"
+          : reaction.emoji + " reaction"
       );
       if (reaction.reacted_by_me) chip.classList.add("reacted-by-me");
       chip.appendChild(makeElement("span", "", reaction.emoji));
-      chip.appendChild(makeElement("span", "reaction-count", String(reaction.count)));
+      if (reactionCountsVisible) {
+        chip.appendChild(makeElement("span", "reaction-count", String(reaction.count)));
+      }
       summary.appendChild(chip);
     }
 
@@ -2447,9 +2476,11 @@ if (input) {
     quote.tabIndex = 0;
     quote.setAttribute("role", "button");
     quote.dataset.replyTarget = String(replyTo.id);
-    quote.appendChild(makeElement(
+    const senderLabel = makeElement(
       "span", "reply-quote-sender", replyTo.sender_name || "Message"
-    ));
+    );
+    quote.appendChild(senderLabel);
+    if (replyTo.sender_verified) senderLabel.appendChild(createVerifiedBadge());
     quote.appendChild(makeElement(
       "span", "reply-quote-text", replyTo.preview || "Message"
     ));
@@ -2545,6 +2576,11 @@ if (input) {
       }
     }
 
+    if (!mine && !isUnsent && message.sender_name && !(isImage && !message.content)) {
+      const senderLabel = makeElement("div", "message-sender-label", message.sender_name);
+      if (message.sender_verified) senderLabel.appendChild(createVerifiedBadge());
+      bubble.insertBefore(senderLabel, bubble.firstChild);
+    }
     row.appendChild(bubble);
     const messagePreview = isUnsent ? "This message was unsent." :
       (message.content || message.attachment_name || (isImage ? "Photo" : "Attachment"));
@@ -2594,7 +2630,7 @@ if (input) {
       if (!receipt) continue;
 
       if (message.read_at) {
-        receipt.textContent = "Seen at " + message.read_at.split(" · ").pop();
+        receipt.textContent = "Seen at " + message.read_at.split(" Ãƒâ€šÃ‚Â· ").pop();
       } else if (message.delivered_at) {
         receipt.textContent = "Delivered";
       } else {
@@ -2620,6 +2656,7 @@ if (input) {
         addMessage(message);
         lastId = Math.max(lastId, Number(message.id) || 0);
       }
+      lastId = Math.max(lastId, Number(data.next_after_id) || 0);
       for (const update of data.reaction_updates || []) {
         updateReactionBar(update.message_id, update.reactions || []);
       }
@@ -2856,6 +2893,12 @@ if (input) {
         return;
       }
       const data = await response.json();
+
+      if (data.visible === false) {
+        status.classList.remove("is-active");
+        label.textContent = "Status hidden";
+        return;
+      }
 
       status.classList.toggle("is-active", data.active === true);
       label.textContent = data.active === true
@@ -3609,5 +3652,904 @@ if ("serviceWorker" in navigator) {
 </script>
 <!-- GOTYA_VIDEO_CALL_JS_END -->
 
+
+<script id="GOTYA_PHOTO_VIEWER_SCRIPT">
+(() => {
+  "use strict";
+
+  let overlay = null;
+  let activeImage = null;
+  let previousFocus = null;
+  let editCanvas = null;
+  let cropSession = null;
+  // GOTYA_FREEFORM_CROP_INTEGRATION
+
+  const style = document.createElement("style");
+  style.id = "GOTYA_PHOTO_VIEWER_STYLE";
+  style.textContent = `
+    .gotya-photo-viewer {
+      position:fixed;inset:0;z-index:10000;display:flex;
+      align-items:center;justify-content:center;
+      padding:58px 12px 18px;box-sizing:border-box;
+      background:rgba(0,0,0,.94);
+    }
+    .gotya-photo-viewer[hidden]{display:none}
+    .gotya-photo-viewer .gpv-image-wrap {
+      display:flex;align-items:center;justify-content:center;
+      width:100%;height:100%;min-height:0;
+    }
+    .gotya-photo-viewer .gpv-image {
+      display:block;max-width:100%;max-height:100%;
+      width:auto;height:auto;object-fit:contain;
+      border-radius:3px;user-select:none;
+    }
+    .gotya-photo-viewer .gpv-toolbar {
+      position:absolute;top:0;left:0;right:0;
+      display:flex;align-items:center;justify-content:space-between;
+      gap:10px;padding:10px 14px;
+      background:linear-gradient(rgba(0,0,0,.55),transparent);
+    }
+    .gotya-photo-viewer .gpv-actions {
+      display:flex;align-items:center;gap:10px;
+    }
+    .gotya-photo-viewer .gpv-button {
+      display:flex;align-items:center;justify-content:center;
+      width:44px;height:44px;padding:0;border:0;border-radius:50%;
+      background:rgba(255,255,255,.13);color:white;
+      font-size:25px;cursor:pointer;
+    }
+    .gotya-photo-viewer .gpv-button:hover {
+      background:rgba(255,255,255,.25);
+    }
+    .gotya-photo-viewer .gpv-button:focus-visible {
+      outline:2px solid white;outline-offset:3px;
+    }
+    .gotya-photo-viewer .gpv-status {
+      position:absolute;bottom:14px;left:12px;right:12px;
+      color:white;text-align:center;font-size:13px;
+    }
+    .gotya-photo-viewer .gpv-image-wrap{position:relative;overflow:hidden}
+    .gotya-photo-viewer .gpv-crop-overlay{
+      position:absolute;z-index:4;box-sizing:border-box;border:2px solid #fff;
+      box-shadow:0 0 0 9999px rgba(0,0,0,.58);touch-action:none;cursor:move;
+      min-width:40px;min-height:40px
+    }
+    .gotya-photo-viewer .gpv-crop-grid{
+      position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(to right,transparent 33.1%,#ffffffa0 33.3%,transparent 33.6%,transparent 66.4%,#ffffffa0 66.6%,transparent 66.9%),linear-gradient(to bottom,transparent 33.1%,#ffffffa0 33.3%,transparent 33.6%,transparent 66.4%,#ffffffa0 66.6%,transparent 66.9%)
+    }
+    .gotya-photo-viewer .gpv-crop-handle{
+      position:absolute;width:15px;height:15px;border:2px solid #087cf0;
+      background:#fff;border-radius:4px;z-index:2;touch-action:none
+    }
+    .gotya-photo-viewer .gpv-crop-handle.nw{left:-8px;top:-8px;cursor:nwse-resize}
+    .gotya-photo-viewer .gpv-crop-handle.n{left:calc(50% - 7px);top:-8px;cursor:ns-resize}
+    .gotya-photo-viewer .gpv-crop-handle.ne{right:-8px;top:-8px;cursor:nesw-resize}
+    .gotya-photo-viewer .gpv-crop-handle.e{right:-8px;top:calc(50% - 7px);cursor:ew-resize}
+    .gotya-photo-viewer .gpv-crop-handle.se{right:-8px;bottom:-8px;cursor:nwse-resize}
+    .gotya-photo-viewer .gpv-crop-handle.s{left:calc(50% - 7px);bottom:-8px;cursor:ns-resize}
+    .gotya-photo-viewer .gpv-crop-handle.sw{left:-8px;bottom:-8px;cursor:nesw-resize}
+    .gotya-photo-viewer .gpv-crop-handle.w{left:-8px;top:calc(50% - 7px);cursor:ew-resize}
+    .gotya-photo-viewer .gpv-crop-actions{
+      position:absolute;z-index:5;top:10px;right:10px;left:auto;bottom:auto;transform:none;
+      display:flex;gap:8px;padding:7px;background:#171a21ed;
+      border:1px solid #ffffff24;border-radius:12px;box-shadow:0 8px 25px #0008
+    }
+    .gotya-photo-viewer .gpv-crop-actions button{
+      border:0;border-radius:8px;padding:9px 13px;font-size:12px;font-weight:750;color:white
+    }
+    .gotya-photo-viewer .gpv-crop-apply{background:#087cf0}
+    .gotya-photo-viewer .gpv-crop-cancel{background:#343b48}
+    body.gotya-viewer-open{overflow:hidden}
+  `;
+  document.head.appendChild(style);
+
+  function makeButton(label, symbol, action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "gpv-button";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.textContent = symbol;
+    button.addEventListener("click", action);
+    return button;
+  }
+
+  function closeViewer() {
+    if (!overlay) return;
+    overlay.remove();
+    overlay = null;
+    activeImage = null;
+    editCanvas = null;
+    cropSession = null;
+    document.body.classList.remove("gotya-viewer-open");
+    if (previousFocus && previousFocus.isConnected) previousFocus.focus();
+    previousFocus = null;
+  }
+
+  function showStatus(message) {
+    const status = overlay && overlay.querySelector(".gpv-status");
+    if (status) status.textContent = message;
+  }
+
+  async function savePhoto() {
+    if (!activeImage) return;
+    const source = activeImage.currentSrc || activeImage.src;
+    try {
+      showStatus("Preparing photo...");
+      let blob;
+      const hasEditedCopy = editCanvas && editCanvas.isConnected;
+      if (hasEditedCopy) {
+        blob = await new Promise((resolve, reject) => {
+          editCanvas.toBlob(result => result ? resolve(result) : reject(new Error("Could not create edited photo.")), "image/png");
+        });
+      } else {
+        const response = await fetch(source, { credentials: "same-origin" });
+        if (!response.ok) throw new Error("Photo download failed.");
+        blob = await response.blob();
+      }
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      const originalName = (activeImage.alt || "gotya-photo")
+        .replace(/[\\/:*?"<>|]/g, "_").trim();
+      link.download = hasEditedCopy ? "gotya-edited-photo.png" : (originalName || "gotya-photo");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+      showStatus(hasEditedCopy ? "Edited copy saved to your device." : "Photo saved to your device.");
+      window.setTimeout(() => { if (overlay) showStatus(""); }, 1800);
+    } catch (error) {
+      console.error("Gotya photo save failed:", error);
+      showStatus("Could not save the photo. Please try again.");
+    }
+  }
+
+  async function copyPhoto() {
+    if (!activeImage) return;
+
+    try {
+      let blob;
+
+      if (editCanvas && editCanvas.isConnected) {
+        blob = await canvasToBlob(editCanvas);
+      } else {
+        const source = activeImage.currentSrc || activeImage.src;
+        const response = await fetch(source, { credentials: "same-origin" });
+        if (!response.ok) throw new Error("Could not load the photo for copying.");
+        blob = await response.blob();
+      }
+
+      if (!navigator.clipboard || typeof ClipboardItem === "undefined" ||
+          !window.isSecureContext || typeof navigator.clipboard.write !== "function") {
+        showStatus("This browser cannot copy image data directly. Use Save photo, then paste or attach the saved image.");
+        return;
+      }
+
+      let clipboardBlob = blob;
+      if (blob.type !== "image/png") {
+        const bitmap = await createImageBitmap(blob);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        canvas.getContext("2d").drawImage(bitmap, 0, 0);
+        bitmap.close();
+        clipboardBlob = await canvasToBlob(canvas);
+      }
+
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": clipboardBlob })
+      ]);
+
+      showStatus("Photo copied. You can paste it into a compatible app.");
+    } catch (error) {
+      console.error("Gotya photo copy failed:", error);
+      showStatus("Could not copy the image. Check clipboard permission, or use Save photo instead.");
+    }
+  }
+  async function sharePhoto() { // GOTYA_EDITED_PHOTO_SHARE_FIX
+    if (!activeImage) return;
+
+    const source = activeImage.currentSrc || activeImage.src;
+    const hasEditedCopy = editCanvas && editCanvas.isConnected;
+
+    if (hasEditedCopy) {
+      try {
+        const blob = await canvasToBlob(editCanvas);
+        const file = new File([blob], "gotya-edited-photo.png", {
+          type: "image/png"
+        });
+
+        if (
+          typeof navigator.share === "function" &&
+          typeof navigator.canShare === "function" &&
+          navigator.canShare({ files: [file] })
+        ) {
+          await navigator.share({
+            title: "Edited photo",
+            text: "Photo shared from Gotya",
+            files: [file]
+          });
+          showStatus("");
+          return;
+        }
+
+        showStatus("This browser cannot share edited image files. Use Save photo to save your edited copy.");
+        return;
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+        console.error("Gotya edited-photo sharing failed:", error);
+        showStatus("Could not share the edited photo. Try Save photo instead.");
+        return;
+      }
+    }
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: "Photo",
+          text: "Photo shared from Gotya",
+          url: source
+        });
+        showStatus("");
+        return;
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+      }
+    }
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(source);
+        showStatus("Photo link copied.");
+        return;
+      }
+    } catch (error) {
+      console.warn("Gotya clipboard API unavailable:", error);
+    }
+
+    try {
+      const field = document.createElement("textarea");
+      field.value = source;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      const copied = document.execCommand("copy");
+      field.remove();
+
+      if (copied) {
+        showStatus("Photo link copied.");
+        return;
+      }
+    } catch (error) {
+      console.warn("Gotya fallback copy failed:", error);
+    }
+
+    window.prompt("Copy this Gotya photo link:", source);
+    showStatus("If the link box appeared, copy the link manually.");
+  }
+
+  function removeCropUI() {
+    if (!overlay) { cropSession = null; return; }
+    overlay.querySelector(".gpv-crop-overlay")?.remove();
+    overlay.querySelector(".gpv-crop-actions")?.remove();
+    cropSession = null;
+  }
+
+  function setCropRect(box, rect) {
+    box.style.left = rect.x + "px";
+    box.style.top = rect.y + "px";
+    box.style.width = rect.w + "px";
+    box.style.height = rect.h + "px";
+  }
+
+  function canvasToBlob(canvas) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Could not create edited photo.")), "image/png");
+    });
+  }
+
+  function showEditedCanvas(canvas) {
+    if (!overlay) return;
+    const wrap = overlay.querySelector(".gpv-image-wrap");
+    const oldImage = wrap && wrap.querySelector(".gpv-image");
+    if (!wrap || !oldImage) return;
+    canvas.className = "gpv-image";
+    canvas.setAttribute("aria-label", "Edited photo preview");
+    canvas.style.width = "auto";
+    canvas.style.height = "auto";
+    canvas.style.maxWidth = "100%";
+    canvas.style.maxHeight = "100%";
+    canvas.style.objectFit = "contain";
+    wrap.replaceChild(canvas, oldImage);
+    editCanvas = canvas;
+  }
+
+  async function beginCrop() {
+    if (!overlay || !activeImage) return;
+    removeCropUI();
+    const wrap = overlay.querySelector(".gpv-image-wrap");
+    let display = wrap && wrap.querySelector(".gpv-image");
+    if (!wrap || !display) return;
+
+    // Create a separate canvas copy. Never draw onto the original message image.
+    if (!(editCanvas && editCanvas.isConnected)) {
+      try {
+        if (display.decode) await display.decode();
+        else if (!display.complete || !display.naturalWidth) {
+          await new Promise((resolve, reject) => {
+            display.onload = resolve;
+            display.onerror = reject;
+          });
+        }
+      } catch (_) {
+        showStatus("Could not load this photo for cropping.");
+        return;
+      }
+      if (!display.naturalWidth || !display.naturalHeight) {
+        showStatus("This photo is not ready to crop yet.");
+        return;
+      }
+      const copy = document.createElement("canvas");
+      copy.width = display.naturalWidth;
+      copy.height = display.naturalHeight;
+      try { copy.getContext("2d").drawImage(display, 0, 0); }
+      catch (error) {
+        console.error("Gotya crop copy failed:", error);
+        showStatus("This photo could not be prepared for cropping.");
+        return;
+      }
+      showEditedCanvas(copy);
+    }
+
+    display = wrap.querySelector(".gpv-image");
+    if (!display) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const imageRect = display.getBoundingClientRect();
+    const bounds = {
+      x: imageRect.left - wrapRect.left,
+      y: imageRect.top - wrapRect.top,
+      w: imageRect.width,
+      h: imageRect.height
+    };
+    if (bounds.w < 40 || bounds.h < 40) {
+      showStatus("The photo is too small to crop.");
+      return;
+    }
+
+    const box = document.createElement("div");
+    box.className = "gpv-crop-overlay";
+    box.setAttribute("role", "group");
+    box.setAttribute("aria-label", "Crop selection. Drag inside to move, or drag an edge or corner to resize.");
+    const grid = document.createElement("div");
+    grid.className = "gpv-crop-grid";
+    box.appendChild(grid);
+    for (const name of ["nw", "n", "ne", "e", "se", "s", "sw", "w"]) {
+      const handle = document.createElement("div");
+      handle.className = "gpv-crop-handle " + name;
+      handle.dataset.handle = name;
+      handle.setAttribute("aria-hidden", "true");
+      box.appendChild(handle);
+    }
+    const actions = document.createElement("div");
+    actions.className = "gpv-crop-actions";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "gpv-crop-cancel";
+    cancel.textContent = "Cancel";
+    const apply = document.createElement("button");
+    apply.type = "button";
+    apply.className = "gpv-crop-apply";
+    apply.textContent = "Done";
+    actions.append(cancel, apply);
+    wrap.append(box, actions);
+
+    const rect = { x: bounds.x + bounds.w * 0.1, y: bounds.y + bounds.h * 0.1, w: bounds.w * 0.8, h: bounds.h * 0.8 };
+    setCropRect(box, rect);
+    cropSession = { box, actions, source: editCanvas, bounds, rect };
+    let drag = null;
+    box.addEventListener("pointerdown", event => {
+      if (!cropSession) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const handle = event.target.closest("[data-handle]");
+      drag = { mode: handle ? handle.dataset.handle : "move", sx: event.clientX, sy: event.clientY, initial: { ...rect } };
+      try { box.setPointerCapture(event.pointerId); } catch (_) {}
+    });
+    box.addEventListener("pointermove", event => {
+      if (!drag || !cropSession) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const dx = event.clientX - drag.sx;
+      const dy = event.clientY - drag.sy;
+      const r = drag.initial;
+      const min = Math.min(40, bounds.w, bounds.h);
+      let x = r.x, y = r.y, w = r.w, h = r.h;
+      if (drag.mode === "move") {
+        x = Math.max(bounds.x, Math.min(bounds.x + bounds.w - r.w, r.x + dx));
+        y = Math.max(bounds.y, Math.min(bounds.y + bounds.h - r.h, r.y + dy));
+      } else {
+        if (drag.mode.includes("w")) { const nx = Math.max(bounds.x, Math.min(r.x + r.w - min, r.x + dx)); w = r.x + r.w - nx; x = nx; }
+        if (drag.mode.includes("e")) w = Math.max(min, Math.min(bounds.x + bounds.w - r.x, r.w + dx));
+        if (drag.mode.includes("n")) { const ny = Math.max(bounds.y, Math.min(r.y + r.h - min, r.y + dy)); h = r.y + r.h - ny; y = ny; }
+        if (drag.mode.includes("s")) h = Math.max(min, Math.min(bounds.y + bounds.h - r.y, r.h + dy));
+      }
+      Object.assign(rect, { x, y, w, h });
+      setCropRect(box, rect);
+    });
+    const finishDrag = () => { drag = null; };
+    box.addEventListener("pointerup", finishDrag);
+    box.addEventListener("pointercancel", finishDrag);
+    cancel.addEventListener("click", () => {
+      removeCropUI();
+      showStatus("Crop cancelled. The original photo is unchanged.");
+    });
+    apply.addEventListener("click", () => {
+      if (!cropSession) return;
+      const session = cropSession;
+      const b = session.bounds;
+      const r = session.rect;
+      const scaleX = session.source.width / b.w;
+      const scaleY = session.source.height / b.h;
+      const sx = Math.max(0, Math.round((r.x - b.x) * scaleX));
+      const sy = Math.max(0, Math.round((r.y - b.y) * scaleY));
+      const sw = Math.min(session.source.width - sx, Math.max(1, Math.round(r.w * scaleX)));
+      const sh = Math.min(session.source.height - sy, Math.max(1, Math.round(r.h * scaleY)));
+      if (sw < 1 || sh < 1) { showStatus("Choose a larger crop area."); return; }
+      const result = document.createElement("canvas");
+      result.width = sw;
+      result.height = sh;
+      result.getContext("2d").drawImage(session.source, sx, sy, sw, sh, 0, 0, sw, sh);
+      removeCropUI();
+      showEditedCanvas(result);
+      showStatus("Crop applied to an edited copy. Save photo to keep it.");
+    });
+    showStatus("Drag an edge or corner to crop, or drag inside to move the selection.");
+  }
+
+
+  // GOTYA_ALL_PHOTO_FEATURES_V2
+  function gpvAllImages() {
+    return Array.from(document.querySelectorAll('img.message-image')).filter(img => img.isConnected && (img.currentSrc || img.src));
+  }
+
+  function gpvEnhancementStyles() {
+    if (document.getElementById('gpv-enhancement-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'gpv-enhancement-styles';
+    style.textContent = `
+      .gotya-photo-viewer{isolation:isolate;overflow:hidden;background:rgba(0,0,0,.78)}
+      .gotya-photo-viewer:before{content:"";position:absolute;z-index:-1;inset:-35px;background-image:var(--gpv-bg);background-size:cover;background-position:center;filter:blur(32px) brightness(.34) saturate(1.12);transform:scale(1.1);pointer-events:none}
+      .gotya-photo-viewer .gpv-editor-bar{position:absolute;z-index:8;left:8px;right:8px;bottom:8px;display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid #ffffff25;border-radius:13px;background:#12151de8;backdrop-filter:blur(12px)}
+      .gotya-photo-viewer .gpv-editor-bar button{border:1px solid #ffffff24;border-radius:8px;background:#262c37;color:#fff;padding:8px 10px;font-size:12px;font-weight:650;cursor:pointer}
+      .gotya-photo-viewer .gpv-editor-bar button:hover{background:#354052}
+      .gotya-photo-viewer .gpv-thumbs{display:flex;gap:3px;max-width:min(35vw,220px);overflow-x:auto;padding:2px}
+      .gotya-photo-viewer .gpv-thumb{flex:0 0 27px;width:27px;height:23px;padding:0!important;border:2px solid transparent!important;border-radius:4px!important;overflow:hidden}
+      .gotya-photo-viewer .gpv-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+      .gotya-photo-viewer .gpv-thumb.active{border-color:#1688ff!important}
+      .gotya-photo-viewer .gpv-image-wrap{padding-bottom:88px;box-sizing:border-box;touch-action:pan-y}
+      .gotya-photo-viewer canvas.gpv-image{touch-action:none;cursor:crosshair}
+      @media(max-width:600px){.gotya-photo-viewer .gpv-editor-bar{left:5px;right:5px;bottom:5px;gap:4px}.gotya-photo-viewer .gpv-editor-bar button{padding:7px;font-size:11px}.gotya-photo-viewer .gpv-thumbs{order:20;flex-basis:100%;max-width:100%;justify-content:center}.gotya-photo-viewer .gpv-image-wrap{padding-bottom:125px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function gpvMovePhoto(delta) {
+    if (!overlay || cropSession) return;
+    const images = gpvAllImages();
+    const current = images.indexOf(activeImage);
+    if (current < 0 || images.length < 2) { showStatus('There are no other photos in this conversation yet.'); return; }
+    openViewer(images[(current + delta + images.length) % images.length]);
+  }
+
+  function gpvRefreshThumbs(bar) {
+    const strip = bar.querySelector('.gpv-thumbs');
+    if (!strip) return;
+    strip.replaceChildren();
+    const images = gpvAllImages();
+    const current = images.indexOf(activeImage);
+    const start = Math.max(0, Math.min(current - 3, images.length - 7));
+    images.slice(start, start + 7).forEach(img => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'gpv-thumb' + (img === activeImage ? ' active' : '');
+      button.title = img.alt || 'Shared photo';
+      button.setAttribute('aria-label', 'Open photo: ' + button.title);
+      const thumb = document.createElement('img');
+      thumb.src = img.currentSrc || img.src;
+      thumb.alt = '';
+      button.appendChild(thumb);
+      button.addEventListener('click', () => openViewer(img));
+      strip.appendChild(button);
+    });
+  }
+
+  function gpvGetEditCanvas() {
+    if (!overlay || !activeImage) return null;
+    if (editCanvas && editCanvas.isConnected) return editCanvas;
+    const shown = overlay.querySelector('.gpv-image');
+    if (!shown) return null;
+    const w = shown.tagName === 'CANVAS' ? shown.width : shown.naturalWidth;
+    const h = shown.tagName === 'CANVAS' ? shown.height : shown.naturalHeight;
+    if (!w || !h) { showStatus('Wait for the photo to load before editing.'); return null; }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    try { ctx.drawImage(shown, 0, 0, w, h); }
+    catch (_) { showStatus('This photo cannot be edited in the browser.'); return null; }
+    showEditedCanvas(canvas);
+    return editCanvas;
+  }
+
+  function gpvRotatePhoto() {
+    if (cropSession) { showStatus('Apply or cancel cropping before rotating.'); return; }
+    const canvas = gpvGetEditCanvas();
+    if (!canvas) return;
+    const copy = document.createElement('canvas'); copy.width = canvas.width; copy.height = canvas.height;
+    copy.getContext('2d').drawImage(canvas, 0, 0);
+    const result = document.createElement('canvas'); result.width = copy.height; result.height = copy.width;
+    const ctx = result.getContext('2d'); ctx.translate(result.width / 2, result.height / 2); ctx.rotate(Math.PI / 2);
+    ctx.drawImage(copy, -copy.width / 2, -copy.height / 2);
+    showEditedCanvas(result);
+    showStatus('Rotated edited copy. Save it or attach it to your message to keep the changes.');
+  }
+
+  function gpvAddText() {
+    if (cropSession) { showStatus('Apply or cancel cropping before adding text.'); return; }
+    const value = window.prompt('Text to add to the photo:');
+    if (!value || !value.trim()) return;
+    const canvas = gpvGetEditCanvas(); if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const size = Math.max(20, Math.round(canvas.width / 18));
+    ctx.font = 'bold ' + size + 'px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.lineWidth = Math.max(3, size / 10); ctx.strokeStyle = '#111'; ctx.fillStyle = '#fff';
+    const label = value.trim().slice(0, 120); const y = canvas.height - Math.max(12, size * .35);
+    ctx.strokeText(label, canvas.width / 2, y, canvas.width * .9); ctx.fillText(label, canvas.width / 2, y, canvas.width * .9);
+    showStatus('Text added to the edited copy.');
+  }
+
+  function gpvToggleDraw() {
+    if (cropSession) { showStatus('Apply or cancel cropping before drawing.'); return; }
+    const canvas = gpvGetEditCanvas(); if (!canvas) return;
+    if (canvas.dataset.gpvDrawing === 'on') {
+      canvas.dataset.gpvDrawing = 'off';
+      if (canvas._gpvDrawCleanup) canvas._gpvDrawCleanup();
+      canvas.style.cursor = 'default'; showStatus('Drawing mode off.'); return;
+    }
+    canvas.dataset.gpvDrawing = 'on'; canvas.style.cursor = 'crosshair';
+    let drawing = false;
+    const point = e => { const r = canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}; };
+    const down = e => { if(canvas.dataset.gpvDrawing!=='on') return; e.preventDefault(); drawing=true; try{canvas.setPointerCapture(e.pointerId)}catch(_){} const p=point(e),c=canvas.getContext('2d'); c.beginPath();c.moveTo(p.x,p.y);c.strokeStyle='#1688ff';c.lineWidth=Math.max(4,canvas.width/250);c.lineCap='round';c.lineJoin='round'; };
+    const move = e => { if(!drawing||canvas.dataset.gpvDrawing!=='on') return; e.preventDefault(); const p=point(e),c=canvas.getContext('2d');c.lineTo(p.x,p.y);c.stroke(); };
+    const up = () => { drawing=false; };
+    canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+    canvas._gpvDrawCleanup=()=>{canvas.removeEventListener('pointerdown',down);canvas.removeEventListener('pointermove',move);canvas.removeEventListener('pointerup',up);canvas.removeEventListener('pointercancel',up);};
+    showStatus('Draw with your mouse or finger. Tap Draw again to finish.');
+  }
+
+  async function gpvEditedFile() {
+    if (editCanvas && editCanvas.isConnected) {
+      const blob = await canvasToBlob(editCanvas);
+      return new File([blob], 'gotya-edited-photo.png', {type:'image/png'});
+    }
+    const url = activeImage && (activeImage.currentSrc || activeImage.src);
+    if (!url) throw new Error('No photo is selected.');
+    const response = await fetch(url, {credentials:'same-origin'});
+    if (!response.ok) throw new Error('Could not read the original photo.');
+    const blob = await response.blob();
+    if (!/^image\/(jpeg|png|gif|webp)$/.test(blob.type)) throw new Error('This photo format is not supported for sending.');
+    const base = (activeImage.alt || 'gotya-photo').replace(/[\\/:*?"<>|]/g, '_').trim() || 'gotya-photo';
+    const ext = blob.type === 'image/png' ? '.png' : blob.type === 'image/webp' ? '.webp' : blob.type === 'image/gif' ? '.gif' : '.jpg';
+    return new File([blob], base.includes('.') ? base : base + ext, {type:blob.type});
+  }
+
+  async function gpvAttachToComposer() {
+    if (cropSession) { showStatus('Apply or cancel cropping before sending.'); return; }
+    try {
+      const file = await gpvEditedFile();
+      const input = document.querySelector('form.composer input[type="file"][name="photos"], form.composer input[name="photos"]');
+      if (!input) { showStatus('Could not find GotyaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢s photo upload field. Save the edited copy and attach it using the composer.'); return; }
+      if (file.size > 15 * 1024 * 1024) { showStatus('The edited photo exceeds GotyaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢s 15 MB per-file limit. Save it and use a smaller image.'); return; }
+      const transfer = new DataTransfer();
+      Array.from(input.files || []).forEach(f => transfer.items.add(f));
+      transfer.items.add(file); input.files = transfer.files;
+      input.dispatchEvent(new Event('change', {bubbles:true}));
+      closeViewer();
+      input.closest('form')?.scrollIntoView({behavior:'smooth',block:'center'});
+      window.alert('Photo attached to the Gotya composer. Review the attachment and press Send to deliver it.');
+    } catch (error) {
+      console.error('Gotya photo attach failed:', error);
+      showStatus(error.message || 'Could not attach the photo. Use Save photo, then attach it normally.');
+    }
+  }
+
+  async function gpvForwardPhoto() {
+    if (cropSession) { showStatus('Apply or cancel cropping before forwarding.'); return; }
+    const rawId = window.prompt('Enter the Gotya user ID of the friend to forward this photo to. You can cancel without sending.');
+    if (rawId === null || !rawId.trim()) return;
+    if (!/^\d+$/.test(rawId.trim()) || Number(rawId) < 1) { showStatus('Enter a valid numeric Gotya user ID.'); return; }
+    const userId = Number(rawId);
+    if (userId === Number(document.body.dataset.currentUserId)) { showStatus('You cannot forward a photo to yourself.'); return; }
+    try {
+      const targetUrl = '/messages/' + userId;
+      const pageResponse = await fetch(targetUrl, {credentials:'same-origin'});
+      if (!pageResponse.ok) throw new Error('Could not open that conversation. Check the user ID and friendship status.');
+      const doc = new DOMParser().parseFromString(await pageResponse.text(), 'text/html');
+      const form = doc.querySelector('form.composer');
+      const csrf = form?.querySelector('input[name="csrf_token"]')?.value;
+      if (!form || !csrf) throw new Error('That conversation is unavailable. Gotya only allows messages to accepted friends.');
+      const file = await gpvEditedFile();
+      if (file.size > 15 * 1024 * 1024) throw new Error('This photo exceeds GotyaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢s 15 MB per-file limit.');
+      const data = new FormData(); data.append('csrf_token',csrf); data.append('content','Forwarded a photo'); data.append('photos',file,file.name);
+      const post = await fetch(targetUrl,{method:'POST',body:data,credentials:'same-origin',redirect:'follow'});
+      const html = await post.text();
+      if (!post.ok || /You can message accepted friends only|That conversation is unavailable|Please log in/i.test(html)) throw new Error('Gotya did not accept the forward. Check the user ID and make sure you are friends.');
+      showStatus('Forward request submitted. Open that conversation and confirm the photo appears.');
+    } catch (error) {
+      console.error('Gotya photo forward failed:',error);
+      showStatus(error.message || 'Could not forward the photo. Save it and attach it in the other conversation.');
+    }
+  }
+
+  function gpvBuildTools() {
+    const bar = document.createElement("div");
+    bar.className = "gpv-editor-bar";
+    const strip = document.createElement("div");
+    strip.className = "gpv-thumbs";
+    strip.setAttribute("aria-label", "Photos in this conversation");
+    bar.appendChild(strip);
+    gpvRefreshThumbs(bar);
+    return bar;
+  }
+  function openViewer(image) {
+    if (!image || !image.src) return;
+    closeViewer();
+    activeImage = image;
+    editCanvas = null;
+    cropSession = null;
+    previousFocus = image;
+
+    overlay = document.createElement("div");
+    overlay.className = "gotya-photo-viewer";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Photo viewer");
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "gpv-toolbar";
+
+    const left = document.createElement("div");
+    left.className = "gpv-actions";
+    left.appendChild(makeButton("Close photo", "X", closeViewer));
+
+    const right = document.createElement("div");
+    right.className = "gpv-actions";
+
+    const editButton = makeButton("Edit photo", "\u270E", () => {
+      if (!overlay) return;
+      let panel = overlay.querySelector(".gpv-edit-panel");
+      if (panel) {
+        panel.remove();
+        return;
+      }
+      panel = document.createElement("div");
+      panel.className = "gpv-edit-panel";
+      Object.assign(panel.style, {
+        position: "absolute",
+        top: "68px",
+        right: "12px",
+        zIndex: "30",
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+        padding: "10px",
+        borderRadius: "12px",
+        background: "#171a22",
+        border: "1px solid #ffffff30"
+      });
+      [
+        ["Crop", beginCrop],
+        ["Rotate", gpvRotatePhoto],
+        ["Add text", gpvAddText],
+        ["Draw", gpvToggleDraw],
+        ["Attach to message", gpvAttachToComposer]
+      ].forEach(([label, action]) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.textContent = label;
+        item.style.cssText = "padding:9px 12px;border:0;border-radius:8px;background:#292e39;color:white;text-align:left;cursor:pointer";
+        item.addEventListener("click", () => {
+          panel.remove();
+          action();
+        });
+        panel.appendChild(item);
+      });
+      overlay.appendChild(panel);
+    });
+
+    right.appendChild(editButton);
+    right.appendChild(makeButton("Save photo", "\u2B07", savePhoto));
+
+    const menuHost = document.createElement("div");
+    menuHost.style.position = "relative";
+    const menuTrigger = makeButton("More photo actions", "\u22EF", () => {
+      const menu = menuHost.querySelector(".gpv-main-menu");
+      if (menu) {
+        menu.remove();
+        return;
+      }
+
+      const popup = document.createElement("div");
+      popup.className = "gpv-main-menu";
+      Object.assign(popup.style, {
+        position: "absolute",
+        top: "48px",
+        right: "0",
+        zIndex: "40",
+        minWidth: "160px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px",
+        padding: "8px",
+        borderRadius: "12px",
+        background: "#171a22",
+        border: "1px solid #ffffff30",
+        boxShadow: "0 8px 28px #0008"
+      });
+
+      [
+        ["\u21AA  Share", sharePhoto],
+        ["\u27A6  Forward", gpvForwardPhoto],
+        ["\u2398  Copy", copyPhoto],
+        ["T  Add text", gpvAddText]
+      ].forEach(([label, action]) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.textContent = label;
+        item.style.cssText = "padding:10px;border:0;border-radius:8px;background:transparent;color:white;text-align:left;cursor:pointer";
+        item.addEventListener("click", async () => {
+          if (!activeImage) {
+            showStatus("No active photo was found. Close and reopen the photo viewer.");
+            return;
+          }
+          showStatus("Starting: " + label.replace(/^[^\s]+\s*/, ""));
+          try {
+            await Promise.resolve(action());
+          } catch (error) {
+            console.error("Gotya photo action failed:", error);
+            showStatus(error && error.message ? error.message : "This photo action failed. Please try again.");
+          }
+        });
+        popup.appendChild(item);
+      });
+
+      menuHost.appendChild(popup);
+    });
+
+    menuHost.appendChild(menuTrigger);
+    right.appendChild(menuHost);
+    toolbar.append(left, right);
+
+    const wrap = document.createElement("div");
+    wrap.className = "gpv-image-wrap";
+    const largeImage = document.createElement("img");
+    largeImage.className = "gpv-image";
+    largeImage.src = image.currentSrc || image.src;
+    largeImage.alt = image.alt || "Shared photo";
+    wrap.appendChild(largeImage);
+
+    const status = document.createElement("div");
+    status.className = "gpv-status";
+    status.setAttribute("aria-live", "polite");
+
+    gpvEnhancementStyles();
+    overlay.style.setProperty("--gpv-bg", 'url("' + (image.currentSrc || image.src).replace(/"/g, '\"') + '")');
+    const gpvTools = gpvBuildTools();
+    overlay.append(toolbar, wrap, gpvTools, status);
+    // GOTYA_VIEWER_CONTROLS_TOGGLE_V1
+    let gpvControlsHidden = false;
+    const gpvToggleControls = () => {
+      gpvControlsHidden = !gpvControlsHidden;
+      overlay.classList.toggle("gpv-controls-hidden", gpvControlsHidden);
+    };
+
+    wrap.addEventListener("click", event => {
+      if (cropSession || (editCanvas && editCanvas.dataset.gpvDrawing === "on")) return;
+      if (event.target.closest("button, .gpv-text-overlay")) return;
+      gpvToggleControls();
+    });
+
+    const gpvToggleStyle = document.createElement("style");
+    gpvToggleStyle.textContent = `
+      .gotya-photo-viewer .gpv-toolbar,
+      .gotya-photo-viewer .gpv-editor-bar {
+        transition: transform .24s ease, opacity .24s ease;
+      }
+      .gotya-photo-viewer .gpv-toolbar {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      .gotya-photo-viewer .gpv-editor-bar {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      .gotya-photo-viewer.gpv-controls-hidden .gpv-toolbar {
+        transform: translateY(-120%);
+        opacity: 0;
+        pointer-events: none;
+      }
+      .gotya-photo-viewer.gpv-controls-hidden .gpv-editor-bar {
+        transform: translateY(130%);
+        opacity: 0;
+        pointer-events: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .gotya-photo-viewer .gpv-toolbar,
+        .gotya-photo-viewer .gpv-editor-bar {
+          transition: none;
+        }
+      }
+    `;
+    document.head.appendChild(gpvToggleStyle);
+
+    let gpvSwipeStart = null;
+    wrap.addEventListener('pointerdown', event => {
+      if (cropSession || (editCanvas && editCanvas.dataset.gpvDrawing === 'on')) return;
+      gpvSwipeStart = {x:event.clientX,y:event.clientY};
+    });
+    wrap.addEventListener('pointerup', event => {
+      if (!gpvSwipeStart || cropSession) { gpvSwipeStart = null; return; }
+      const dx=event.clientX-gpvSwipeStart.x, dy=event.clientY-gpvSwipeStart.y; gpvSwipeStart=null;
+      if (Math.abs(dx)>55 && Math.abs(dx)>Math.abs(dy)*1.25) gpvMovePhoto(dx>0?1:-1);
+    });
+    wrap.addEventListener('pointercancel',()=>{gpvSwipeStart=null;});
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay && !cropSession) closeViewer();
+    });
+    document.body.appendChild(overlay);
+    document.body.classList.add("gotya-viewer-open");
+    overlay.querySelector('[aria-label="Close photo"]').focus();
+  }
+
+  document.addEventListener('keydown', function gotyaPhotoNavigationKeys(event) {
+    if (!overlay || cropSession || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      const target = event.target;
+      if (target && /INPUT|TEXTAREA|SELECT/.test(target.tagName)) return;
+      event.preventDefault(); gpvMovePhoto(event.key === 'ArrowLeft' ? -1 : 1);
+    }
+  });
+
+  // Delegation supports both existing photos and messages added live.
+  document.addEventListener("click", event => {
+    const image = event.target.closest("img.message-image");
+    if (!image || !image.closest(".message-row")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openViewer(image);
+  }, true);
+
+  document.addEventListener("keydown", event => {
+    if (!overlay) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (cropSession) {
+        removeCropUI();
+        showStatus("Crop cancelled. The original photo is unchanged.");
+      } else {
+        closeViewer();
+      }
+    }
+  });
+})();
+</script>
+
+
+<script id="GOTYA_PHOTO_TOOLBAR_THREE_DOT_MENU_V1">/* Replaced by the main photo viewer toolbar. */</script>
+
+<script id="GOTYA_PHOTO_TOOLBAR_CLEANUP_MODERN_ICONS_V1">/* Replaced by the main photo viewer toolbar. */</script>
 </body>
 </html>

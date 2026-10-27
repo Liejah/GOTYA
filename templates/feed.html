@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <link rel="manifest" href="/static/manifest.json">
@@ -234,6 +234,51 @@
         .comment-form textarea { min-height: 42px; flex: 1; padding: 10px 12px; border-radius: 22px; }
         .comment-form button { flex: 0 0 auto; border-radius: 50%; padding: 9px; }
         .empty { text-align: center; color: var(--muted); padding: 30px 16px; }
+        /* GOTYA POST DESIGN */
+        .post-author-row { position: relative; }
+        .post-author-details { flex: 1; }
+        .post-header-meta { color: var(--muted); font-size: 12px; }
+        .post-header-meta time { display: inline-block; }
+        .post-menu-wrap { position: relative; margin-left: auto; align-self: flex-start; }
+        .post-menu-button {
+            width: 38px; height: 38px; padding: 0; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: transparent; color: var(--muted); font-size: 22px;
+            line-height: 1;
+        }
+        .post-menu-button:hover { background: var(--page); color: var(--text); }
+        .post-menu-panel {
+            position: absolute; z-index: 20; top: 42px; right: 0;
+            min-width: 165px; padding: 6px; border: 1px solid var(--line);
+            border-radius: 12px; background: var(--surface);
+            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+        }
+        .post-menu-panel[hidden] { display: none; }
+        .post-menu-item {
+            display: block; width: 100%; padding: 10px 12px;
+            text-align: left; color: var(--text); background: transparent;
+            border-radius: 8px; font-weight: 600;
+        }
+        .post-menu-item:hover { background: var(--page); }
+        .post-caption { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+        .post-action-row {
+            display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 4px; border-top: 1px solid var(--line);
+            margin-top: 14px; padding-top: 8px;
+        }
+        .post-action-label {
+            min-width: 0; padding: 9px 3px; display: flex; gap: 6px;
+            align-items: center; justify-content: center; background: transparent;
+            color: var(--muted); font-size: 13px; font-weight: 700;
+        }
+        .post-action-label:hover { background: var(--page); color: var(--text); }
+        .post-like-action { margin: 0; min-width: 0; }
+        .post-like-action .like-button { width: 100%; min-width: 0; border-radius: 8px; }
+        .post-like-action .like-text { line-height: 1.2; }
+        .post-action-row > .post-action-label { width: 100%; border-radius: 8px; }
+        @media (max-width: 420px) {
+            .post-action-label { gap: 3px; font-size: 11px; }
+        }
         .post-author-row { display: flex; align-items: center; gap: 11px; margin-bottom: 12px; min-width: 0; }
         .post-avatar {
             width: 46px; height: 46px; flex: 0 0 46px; border-radius: 50%; overflow: hidden;
@@ -351,6 +396,13 @@
             </div>
             <textarea id="content" name="content" maxlength="2000"
                 placeholder="Share something with Gotya..." required></textarea>
+            <div class="post-audience-control" style="margin: 12px 0;">
+                <label for="post-audience"><strong>Who can see your post?</strong></label>
+                <select id="post-audience" name="audience" style="display: block; margin-top: 6px; padding: 8px; max-width: 100%;">
+                    <option value="public" selected>Public - anyone on Gotya</option>
+                    <option value="friends">Friends - accepted friends only</option>
+                </select>
+            </div>
             <div class="publish"><button type="submit">Publish Post</button></div>
         </form>
     </section>
@@ -367,14 +419,44 @@
                 {% endif %}
             </div>
             <div class="post-author-details">
-                <div class="author">{{ post.author.username }}{% if is_verified_account(post.author) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</div>
-                    </div>
+                <div class="author">
+                    <a href="{{ url_for('public_profile', user_id=post.author.id) }}" style="color:inherit;text-decoration:none;">
+                        {{ post.author.username }}
+                    </a>
+                    {% if is_verified_account(post.author) %}
+                    <span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;vertical-align:middle;margin-left:4px;flex-shrink:0;">
+                        <svg aria-hidden="true" viewBox="0 0 16 16" width="9" height="9" fill="none"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="post-header-meta">
+                    <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">
+                        {{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}
+                    </time>
+                    Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
+                </div>
+            </div>
+            <div class="post-menu-wrap">
+                <button class="post-menu-button" type="button" aria-label="Post options" title="Post options" aria-expanded="false">
+                    &#8942;
+                </button>
+                <div class="post-menu-panel" hidden>
+                    <button class="post-menu-item" type="button" disabled>Save post (coming soon)</button>
+                    <button class="post-menu-item" type="button" disabled>Report post (coming soon)</button>
+                </div>
+            </div>
         </div>
-        <div class="date">{{ post.created_at.strftime('%b %d, %Y at %I:%M %p') }}</div>
-        <div class="content">{{ post.content }}</div>
+        <div class="content post-caption">{{ post.content }}</div>
 
         <div class="actions">
-            <form method="POST" action="{{ url_for('toggle_like', post_id=post.id) }}">
+            {% if reaction_counts_visible %}
+            <span>{{ post.likes|length }} {{ 'like' if post.likes|length == 1 else 'likes' }}</span>
+            {% endif %}
+            <span class="comment-count">{{ post.comments|length }} comments</span>
+        </div>
+
+        <div class="post-action-row">
+            <form class="post-like-action" method="POST" action="{{ url_for('toggle_like', post_id=post.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% set liked = namespace(value=false) %}
                 {% for like in post.likes %}
@@ -382,7 +464,7 @@
                         {% set liked.value = true %}
                     {% endif %}
                 {% endfor %}
-                <button class="like-button {{ 'is-liked' if liked.value else '' }}"
+                <button class="like-button post-action-label {{ 'is-liked' if liked.value else '' }}"
                         type="submit"
                         aria-label="{{ 'Unlike post' if liked.value else 'Like post' }}"
                         title="{{ 'Unlike' if liked.value else 'Like' }}">
@@ -395,18 +477,13 @@
                               stroke-linecap="round"
                               stroke-linejoin="round"/>
                     </svg>
+                    <span class="like-text">{{ 'Liked' if liked.value else 'Like' }}</span>
                 </button>
             </form>
-            <span>{{ post.likes|length }} {{ 'like' if post.likes|length == 1 else 'likes' }}</span>
-            <span class="comment-count">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-4 2 1.2-4A7.5 7.5 0 1 1 20 11.5Z"
-                          fill="none" stroke="currentColor"
-                          stroke-width="1.8" stroke-linecap="round"
-                          stroke-linejoin="round"/>
-                </svg>
-                {{ post.comments|length }}
-            </span>
+
+            <a class="post-action-label" href="#post-{{ post.id }}" onclick="this.closest('article').querySelector('.comments textarea')?.focus(); return false;">Comments</a>
+            <button class="post-action-label" type="button" disabled title="Share is coming soon">Share</button>
+            <button class="post-action-label" type="button" disabled title="Repost is coming soon">Repost</button>
         </div>
 
         <section class="comments">
@@ -606,6 +683,119 @@ if ("serviceWorker" in navigator) {
 })();
 </script>
 
+<script>
+document.addEventListener("click", function (event) {
+    const trigger = event.target.closest(
+        ".post-menu-button, .profile-post-menu > button"
+    );
+
+    if (trigger) {
+        const wrap = trigger.closest(".post-menu-wrap, .profile-post-menu");
+        if (!wrap) return;
+
+        const panel = wrap.querySelector(
+            ".post-menu-panel, .profile-post-menu-panel"
+        );
+        if (!panel) return;
+
+        const opening = panel.hidden;
+        document.querySelectorAll(
+            ".post-menu-panel, .profile-post-menu-panel"
+        ).forEach(function (otherPanel) {
+            otherPanel.hidden = true;
+            const otherWrap = otherPanel.closest(
+                ".post-menu-wrap, .profile-post-menu"
+            );
+            const otherTrigger = otherWrap && otherWrap.querySelector(
+                ".post-menu-button, :scope > button"
+            );
+            if (otherTrigger) otherTrigger.setAttribute("aria-expanded", "false");
+        });
+
+        panel.hidden = !opening;
+        trigger.setAttribute("aria-expanded", String(opening));
+        event.stopPropagation();
+        return;
+    }
+
+    if (!event.target.closest(".post-menu-wrap, .profile-post-menu")) {
+        document.querySelectorAll(
+            ".post-menu-panel, .profile-post-menu-panel"
+        ).forEach(function (panel) {
+            panel.hidden = true;
+            const wrap = panel.closest(".post-menu-wrap, .profile-post-menu");
+            const button = wrap && wrap.querySelector(
+                ".post-menu-button, :scope > button"
+            );
+            if (button) button.setAttribute("aria-expanded", "false");
+        });
+    }
+});
+</script>
+<script id="GOTYA_VIEWER_TIMEZONE_FORMATTER_V1">
+(function () {
+    const selector = ".post-header-meta time, .profile-post-time, .profile-post-time time";
+
+    function formatPostTime(time) {
+        if (time.dataset.gotyaLocalTime === "true") return;
+
+        const raw = (time.getAttribute("datetime") || "").trim();
+        if (!raw) return;
+
+        // Existing naive database timestamps follow Gotya's UTC convention.
+        const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+        const normalized = hasTimezone ? raw : raw + "Z";
+        const date = new Date(normalized);
+
+        if (Number.isNaN(date.getTime())) return;
+
+        const elapsed = Date.now() - date.getTime();
+        const recent = elapsed >= 0 && elapsed <= 24 * 60 * 60 * 1000;
+
+        if (recent) {
+            if (elapsed < 60 * 1000) {
+                time.textContent = "Just now";
+            } else if (elapsed < 60 * 60 * 1000) {
+                const minutes = Math.floor(elapsed / (60 * 1000));
+                time.textContent = minutes + (minutes === 1 ? " minute ago" : " minutes ago");
+            } else {
+                const hours = Math.floor(elapsed / (60 * 60 * 1000));
+                time.textContent = hours + (hours === 1 ? " hour ago" : " hours ago");
+            }
+        } else {
+            time.textContent = new Intl.DateTimeFormat(undefined, {
+                month: "short",
+                day: "numeric"
+            }).format(date);
+        }
+
+        time.title = new Intl.DateTimeFormat(undefined, {
+            dateStyle: "full",
+            timeStyle: "short"
+        }).format(date);
+
+        time.dataset.gotyaLocalTime = "true";
+    }
+
+    function formatAllPostTimes() {
+        document.querySelectorAll(selector).forEach(formatPostTime);
+    }
+
+    formatAllPostTimes();
+
+    // Reformat timestamps when the feed replaces a post after an action.
+    const observer = new MutationObserver(function () {
+        formatAllPostTimes();
+    });
+
+    if (document.body) {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+})();
+</script>
 </body>
 </html>
 

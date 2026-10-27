@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -351,6 +351,13 @@ h1 {
     object-fit: cover;
     border-radius: 18px;
 }
+.profile-cover-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 18px;
+}
 .profile-cover-placeholder {
     height: 100%;
     display: grid;
@@ -631,6 +638,124 @@ h1 {
             overflow-wrap: anywhere;
         }
 
+
+        /* GOTYA PROFILE TABS */
+        .profile-tabs {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            margin: 18px 0;
+            padding: 6px;
+            border: 1px solid var(--profile-line);
+            border-radius: 14px;
+            background: var(--profile-card);
+        }
+        .profile-tab {
+            flex: 1 0 auto;
+            min-width: 72px;
+            padding: 12px 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 700;
+            color: var(--profile-muted);
+            white-space: nowrap;
+        }
+        .profile-tab:hover {
+            background: var(--profile-hover);
+            text-decoration: none;
+        }
+        .profile-tab.active {
+            color: var(--profile-soft-text);
+            background: var(--profile-soft);
+        }
+        .profile-section-title {
+            margin: 0 0 8px;
+        }
+        /* GOTYA POST DESIGN */
+        .profile-post { position: relative; }
+        .profile-post-header {
+            display: flex; align-items: center; gap: 11px; min-width: 0;
+        }
+        .profile-post-avatar {
+            width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%;
+            overflow: hidden; display: flex; align-items: center;
+            justify-content: center; background: var(--profile-soft);
+            color: var(--profile-soft-text); font-size: 17px; font-weight: 800;
+        }
+        .profile-post-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .profile-post-author { min-width: 0; flex: 1; font-weight: 750; overflow-wrap: anywhere; }
+        .profile-post-time { display: block; margin-top: 3px; color: var(--profile-muted); font-size: 12px; font-weight: 400; }
+        .profile-post-menu { position: relative; margin-left: auto; align-self: flex-start; }
+        .profile-post-menu button {
+            width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%;
+            background: transparent; color: var(--profile-muted); font-size: 22px;
+        }
+        .profile-post-menu button:hover { background: var(--profile-hover); }
+        .profile-post-menu-panel {
+            position: absolute; z-index: 10; top: 40px; right: 0; min-width: 165px;
+            padding: 6px; border: 1px solid var(--profile-line);
+            border-radius: 12px; background: var(--profile-card);
+            box-shadow: 0 8px 24px rgba(0,0,0,.12);
+        }
+        .profile-post-menu-panel[hidden] { display: none; }
+        .profile-post-menu-panel button {
+            display: block; width: 100%; height: auto; padding: 10px 12px;
+            text-align: left; font-size: 14px; border-radius: 8px;
+        }
+        .profile-post-menu-panel button:hover { background: var(--profile-hover); }
+        .profile-post-actions {
+            display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 4px; margin-top: 14px; padding-top: 8px;
+            border-top: 1px solid var(--profile-line);
+        }
+        .profile-post-action {
+            padding: 9px 2px; border-radius: 8px; text-align: center;
+            color: var(--profile-muted); font-size: 12px; font-weight: 700;
+        }
+        .profile-post-action:hover { background: var(--profile-hover); }
+        .profile-post-content { margin-top: 12px; }
+        @media (max-width: 420px) {
+            .profile-post-action { font-size: 10px; }
+        }
+        .profile-post {
+            padding: 18px 0;
+            border-bottom: 1px solid var(--profile-line);
+        }
+        .profile-post:last-child {
+            border-bottom: 0;
+        }
+        .profile-post-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0;
+            color: var(--profile-muted);
+            font-size: 13px;
+        }
+        .profile-post-content {
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        .profile-friend-row {
+            padding: 14px 0;
+            border-bottom: 1px solid var(--profile-line);
+            overflow-wrap: anywhere;
+        }
+        .profile-friend-row:last-child {
+            border-bottom: 0;
+        }
+        .profile-empty {
+            padding: 24px 12px;
+            text-align: center;
+            color: var(--profile-muted);
+        }
+        @media (max-width: 480px) {
+            .profile-tab {
+                padding: 11px 12px;
+            }
+        }
+
     </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
@@ -658,7 +783,12 @@ h1 {
                 {% endfor %}
             {% endwith %}
         <section class="profile-cover" aria-label="Profile cover photo">
-            {% if user.cover_photo %}
+            {% if user.cover_video %}
+                <video class="profile-cover-video"
+                       src="{{ url_for('cover_video_file', filename=user.cover_video) }}"
+                       aria-label="{{ user.username }}'s cover video"
+                       autoplay muted loop playsinline preload="metadata"></video>
+            {% elif user.cover_photo %}
                 <img class="profile-cover-image"
                      src="{{ url_for('cover_photo_file', filename=user.cover_photo) }}"
                      alt="{{ user.username }}'s cover photo">
@@ -691,6 +821,22 @@ h1 {
             </div>
         </section>
 
+        <nav class="profile-tabs" aria-label="Profile sections">
+            <a class="profile-tab{% if profile_tab == 'all' %} active{% endif %}"
+               href="{{ url_for('profile', tab='all') }}"
+               {% if profile_tab == 'all' %}aria-current="page"{% endif %}>All</a>
+            <a class="profile-tab{% if profile_tab == 'about' %} active{% endif %}"
+               href="{{ url_for('profile', tab='about') }}"
+               {% if profile_tab == 'about' %}aria-current="page"{% endif %}>About</a>
+            <a class="profile-tab{% if profile_tab == 'friends' %} active{% endif %}"
+               href="{{ url_for('profile', tab='friends') }}"
+               {% if profile_tab == 'friends' %}aria-current="page"{% endif %}>Friends</a>
+            <a class="profile-tab{% if profile_tab == 'photos' %} active{% endif %}"
+               href="{{ url_for('profile', tab='photos') }}"
+               {% if profile_tab == 'photos' %}aria-current="page"{% endif %}>Photos</a>
+        </nav>
+
+        {% if profile_tab == 'all' %}
         <section class="card dashboard-card">
             <div class="dashboard-heading">
                 <div>
@@ -714,7 +860,7 @@ h1 {
                 </a>
                 <a class="stat-card" href="{{ url_for('feed') }}">
                     <span class="stat-icon" aria-hidden="true">LIKES</span>
-                    <strong class="stat-number">{{ likes_received }}</strong>
+                    <strong class="stat-number">{% if reaction_counts_visible %}{{ likes_received }}{% else %}<span class="visually-hidden">Hidden by your reaction-count preference</span><span aria-hidden="true">?</span>{% endif %}</strong>
                     <span class="stat-label">Likes received</span>
                 </a>
             </div>
@@ -738,6 +884,101 @@ h1 {
                 </a>
             </nav>
         </section>
+
+        <section class="card">
+            <h2 class="profile-section-title">Your posts</h2>
+            {% if profile_posts %}
+                {% for post in profile_posts %}
+                <article class="profile-post">
+                    <div class="profile-post-header">
+                        <div class="profile-post-avatar">
+                            {% if post.author.profile_picture %}
+                                <img src="{{ url_for('profile_picture_file', filename=post.author.profile_picture) }}"
+                                     alt="{{ post.author.username }}'s profile picture">
+                            {% else %}
+                                {{ post.author.username[0]|upper }}
+                            {% endif %}
+                        </div>
+                        <div class="profile-post-author">
+                            <div>
+                                {{ post.author.username }}
+                                {% if is_verified_account(post.author) %}
+                                <span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;vertical-align:middle;margin-left:4px;flex-shrink:0;">
+                                    <svg aria-hidden="true" viewBox="0 0 16 16" width="9" height="9" fill="none"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="profile-post-time">
+                                <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">
+                                    {{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}
+                                </time>
+                                Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
+                            </div>
+                        </div>
+                        <div class="profile-post-menu">
+                            <button type="button" aria-label="Post options" title="Post options" aria-expanded="false">&#8942;</button>
+                            <div class="profile-post-menu-panel" hidden>
+                                <button type="button" disabled>Save post (coming soon)</button>
+                                <button type="button" disabled>Report post (coming soon)</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-post-content">{{ post.content }}</div>
+                    <div class="profile-post-actions" aria-label="Post actions">
+                        <a class="profile-post-action" href="{{ url_for('feed', _anchor='post-' ~ post.id) }}">Like</a>
+                        <a class="profile-post-action" href="{{ url_for('feed', _anchor='post-' ~ post.id) }}">Comments</a>
+                        <button class="profile-post-action" type="button" disabled>Share</button>
+                        <button class="profile-post-action" type="button" disabled>Repost</button>
+                    </div>
+                </article>
+                {% endfor %}
+            {% else %}
+                <div class="profile-empty">You haven't shared any posts yet.</div>
+            {% endif %}
+        </section>
+
+        {% elif profile_tab == 'about' %}
+        <section class="card">
+            <h2 class="profile-section-title">About</h2>
+            <p><strong>Username</strong></p>
+            <p class="muted">{{ user.username }}</p>
+            <p><strong>Bio</strong></p>
+            {% if user.bio %}
+                <p class="muted" style="white-space:pre-wrap;">{{ user.bio }}</p>
+            {% else %}
+                <p class="muted">You haven't added a bio yet.</p>
+            {% endif %}
+            <a href="{{ url_for('edit_profile') }}">Edit profile information</a>
+        </section>
+
+        {% elif profile_tab == 'friends' %}
+        <section class="card">
+            <h2 class="profile-section-title">Friends</h2>
+            <p class="muted">{{ profile_friends|length }} accepted friends</p>
+            {% if profile_friends %}
+                {% for friend in profile_friends %}
+                <div class="profile-friend-row">
+                    <strong>{{ friend.username }}</strong>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="profile-empty">
+                    No friends to show yet.
+                    <p><a href="{{ url_for('friends') }}">Find friends</a></p>
+                </div>
+            {% endif %}
+        </section>
+
+        {% elif profile_tab == 'photos' %}
+        <section class="card">
+            <h2 class="profile-section-title">Photos</h2>
+            <div class="profile-empty">
+                <strong>Your photo gallery is not available yet.</strong>
+                <p>Photos shared in private messages are not displayed here.</p>
+                <p>Post-photo gallery support can be added separately.</p>
+            </div>
+        </section>
+        {% endif %}
     </main>
 <script>
 if ("serviceWorker" in navigator) {
@@ -795,6 +1036,119 @@ if ("serviceWorker" in navigator) {
 })();
 </script>
 
+<script>
+document.addEventListener("click", function (event) {
+    const trigger = event.target.closest(
+        ".post-menu-button, .profile-post-menu > button"
+    );
+
+    if (trigger) {
+        const wrap = trigger.closest(".post-menu-wrap, .profile-post-menu");
+        if (!wrap) return;
+
+        const panel = wrap.querySelector(
+            ".post-menu-panel, .profile-post-menu-panel"
+        );
+        if (!panel) return;
+
+        const opening = panel.hidden;
+        document.querySelectorAll(
+            ".post-menu-panel, .profile-post-menu-panel"
+        ).forEach(function (otherPanel) {
+            otherPanel.hidden = true;
+            const otherWrap = otherPanel.closest(
+                ".post-menu-wrap, .profile-post-menu"
+            );
+            const otherTrigger = otherWrap && otherWrap.querySelector(
+                ".post-menu-button, :scope > button"
+            );
+            if (otherTrigger) otherTrigger.setAttribute("aria-expanded", "false");
+        });
+
+        panel.hidden = !opening;
+        trigger.setAttribute("aria-expanded", String(opening));
+        event.stopPropagation();
+        return;
+    }
+
+    if (!event.target.closest(".post-menu-wrap, .profile-post-menu")) {
+        document.querySelectorAll(
+            ".post-menu-panel, .profile-post-menu-panel"
+        ).forEach(function (panel) {
+            panel.hidden = true;
+            const wrap = panel.closest(".post-menu-wrap, .profile-post-menu");
+            const button = wrap && wrap.querySelector(
+                ".post-menu-button, :scope > button"
+            );
+            if (button) button.setAttribute("aria-expanded", "false");
+        });
+    }
+});
+</script>
+<script id="GOTYA_VIEWER_TIMEZONE_FORMATTER_V1">
+(function () {
+    const selector = ".post-header-meta time, .profile-post-time, .profile-post-time time";
+
+    function formatPostTime(time) {
+        if (time.dataset.gotyaLocalTime === "true") return;
+
+        const raw = (time.getAttribute("datetime") || "").trim();
+        if (!raw) return;
+
+        // Existing naive database timestamps follow Gotya's UTC convention.
+        const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw);
+        const normalized = hasTimezone ? raw : raw + "Z";
+        const date = new Date(normalized);
+
+        if (Number.isNaN(date.getTime())) return;
+
+        const elapsed = Date.now() - date.getTime();
+        const recent = elapsed >= 0 && elapsed <= 24 * 60 * 60 * 1000;
+
+        if (recent) {
+            if (elapsed < 60 * 1000) {
+                time.textContent = "Just now";
+            } else if (elapsed < 60 * 60 * 1000) {
+                const minutes = Math.floor(elapsed / (60 * 1000));
+                time.textContent = minutes + (minutes === 1 ? " minute ago" : " minutes ago");
+            } else {
+                const hours = Math.floor(elapsed / (60 * 60 * 1000));
+                time.textContent = hours + (hours === 1 ? " hour ago" : " hours ago");
+            }
+        } else {
+            time.textContent = new Intl.DateTimeFormat(undefined, {
+                month: "short",
+                day: "numeric"
+            }).format(date);
+        }
+
+        time.title = new Intl.DateTimeFormat(undefined, {
+            dateStyle: "full",
+            timeStyle: "short"
+        }).format(date);
+
+        time.dataset.gotyaLocalTime = "true";
+    }
+
+    function formatAllPostTimes() {
+        document.querySelectorAll(selector).forEach(formatPostTime);
+    }
+
+    formatAllPostTimes();
+
+    // Reformat timestamps when the feed replaces a post after an action.
+    const observer = new MutationObserver(function () {
+        formatAllPostTimes();
+    });
+
+    if (document.body) {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+})();
+</script>
 </body>
 </html>
 

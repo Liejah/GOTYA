@@ -619,6 +619,16 @@ h1 {
         .editor-section { border-top:1px solid var(--edit-line); padding-top:18px; margin-top:22px; }
         .editor-section button { background:#1877f2; color:white; border:0; border-radius:8px; padding:11px 15px; cursor:pointer; }
         .current-photo { max-width:100%; max-height:180px; border-radius:12px; display:block; margin:12px 0; }
+        .media-preview-card { margin:14px 0; padding:14px; border:1px solid var(--edit-line); border-radius:14px; background:var(--edit-soft); }
+        .profile-preview-frame { position:relative; width:min(100%,240px); aspect-ratio:1 / 1; margin:12px auto; overflow:hidden; border-radius:50%; background:var(--edit-line); }
+        .cover-preview-frame { position:relative; width:100%; aspect-ratio:3 / 1; min-height:90px; margin:12px auto; overflow:hidden; border-radius:12px; background:var(--edit-line); }
+        .preview-existing, .preview-selected { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+        .preview-placeholder { position:absolute; inset:0; display:grid; place-items:center; color:var(--edit-muted); font-weight:700; text-align:center; padding:12px; }
+        .preview-placeholder[hidden], .preview-selected[hidden] { display:none; }
+        .media-preview-card .muted { overflow-wrap:anywhere; }
+        .media-preview-card button { margin:4px 6px 4px 0; }
+        .media-preview-card .preview-cancel { background:var(--edit-line); color:var(--edit-text); }
+        @media (max-width:480px) { .cover-preview-frame { aspect-ratio:2.2 / 1; } }
     </style>
 </head>
 <body data-theme="{{ gotya_theme|default("system") }}">
@@ -680,6 +690,17 @@ h1 {
                                required>
                     </label>
                     <button type="submit">Upload profile picture</button>
+                    <div class="media-preview-card">
+                        <div class="profile-preview-frame">
+                            {% if user.profile_picture %}
+                            <img class="preview-existing" src="{{ url_for('profile_picture_file', filename=user.profile_picture) }}" alt="Current profile picture">
+                            {% endif %}
+                            <img id="profile-picture-preview" class="preview-selected" alt="Selected profile picture preview" hidden>
+                            <span id="profile-picture-placeholder" class="preview-placeholder" {% if user.profile_picture %}hidden{% endif %}>Profile preview</span>
+                        </div>
+                        <p id="profile-picture-status" class="muted" aria-live="polite">Choose a file to preview it here.</p>
+                        <button type="button" class="preview-cancel" data-cancel-preview="profile_picture">Cancel selection</button>
+                    </div>
                 </form>
                 <p class="muted">JPG, PNG, WEBP, or GIF — maximum 5 MB.</p>
             </div>
@@ -700,9 +721,49 @@ h1 {
                                required>
                     </label>
                     <button type="submit">Upload cover photo</button>
+                    <div class="media-preview-card">
+                        <div class="cover-preview-frame">
+                            {% if user.cover_photo %}
+                            <img class="preview-existing" src="{{ url_for('cover_photo_file', filename=user.cover_photo) }}" alt="Current cover preview">
+                            {% endif %}
+                            <img id="cover-photo-preview" class="preview-selected" alt="Selected cover preview" hidden>
+                            <span id="cover-photo-placeholder" class="preview-placeholder" {% if user.cover_photo %}hidden{% endif %}>Cover preview</span>
+                        </div>
+                        <p id="cover-photo-status" class="muted" aria-live="polite">Choose a file to preview it here.</p>
+                        <button type="button" class="preview-cancel" data-cancel-preview="cover_photo">Cancel selection</button>
+                    </div>
                 </form>
                 <p class="muted">JPG, PNG, WEBP, or GIF — maximum 8 MB.</p>
             </div>
+
+            <div class="editor-section">
+                <h2>Cover video</h2>
+                {% if user.cover_video %}
+                    <video class="current-photo" style="display:block;width:100%;max-height:280px;object-fit:cover"
+                           src="{{ url_for('cover_video_file', filename=user.cover_video) }}"
+                           muted loop autoplay playsinline aria-label="Current cover video"></video>
+                {% endif %}
+                <form id="cover-video-form" method="POST"
+                      action="{{ url_for('upload_cover_video') }}" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="editor-field" for="cover_video">Choose a cover video
+                        <input id="cover_video" type="file" name="cover_video"
+                               accept=".mp4,.mov,video/mp4,video/quicktime" required>
+                    </label>
+                    <div class="media-preview-card">
+                        <div class="cover-preview-frame">
+                            <video id="cover-video-preview" class="preview-selected"
+                                   controls muted loop playsinline hidden></video>
+                            <span id="cover-video-placeholder" class="preview-placeholder">Cover video preview</span>
+                        </div>
+                        <p id="cover-video-status" class="muted" aria-live="polite">Choose an MP4 or MOV video to preview it.</p>
+                        <button type="button" id="cover-video-cancel" class="preview-cancel">Cancel selection</button>
+                    </div>
+                    <button type="submit">Upload cover video</button>
+                </form>
+                <p class="muted">MP4 or MOV, up to 15 MB and 10 seconds. The server validates and converts the video before saving it.</p>
+            </div>
+
         </section>
     </main>
 
@@ -750,6 +811,216 @@ h1 {
     stopped = true;
     clearInterval(timer);
   });
+})();
+</script>
+
+<script id="gotya-media-preview-script">
+(() => {
+    "use strict";
+
+    const configs = [
+        {
+            inputId: "profile_picture",
+            previewId: "profile-picture-preview",
+            placeholderId: "profile-picture-placeholder",
+            statusId: "profile-picture-status",
+            maxBytes: 5 * 1024 * 1024,
+            label: "Profile picture"
+        },
+        {
+            inputId: "cover_photo",
+            previewId: "cover-photo-preview",
+            placeholderId: "cover-photo-placeholder",
+            statusId: "cover-photo-status",
+            maxBytes: 8 * 1024 * 1024,
+            label: "Cover photo"
+        }
+    ];
+
+    const allowedExtensions = /\.(jpe?g|png|webp|gif)$/i;
+    const allowedMimeTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif"
+    ];
+
+    configs.forEach(config => {
+        const input = document.getElementById(config.inputId);
+        const preview = document.getElementById(config.previewId);
+        const placeholder = document.getElementById(config.placeholderId);
+        const status = document.getElementById(config.statusId);
+
+        if (!input || !preview || !placeholder || !status) return;
+
+        const existing = preview.parentElement.querySelector(".preview-existing");
+        let objectUrl = null;
+
+        function releasePreviewUrl() {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+                objectUrl = null;
+            }
+        }
+
+        function cancelSelection() {
+            releasePreviewUrl();
+            input.value = "";
+            preview.removeAttribute("src");
+            preview.hidden = true;
+
+            if (existing) {
+                existing.hidden = false;
+                placeholder.hidden = true;
+            } else {
+                placeholder.hidden = false;
+            }
+
+            status.textContent = "Selection cancelled. Your current image has not changed.";
+        }
+
+        input.addEventListener("change", () => {
+            releasePreviewUrl();
+            preview.removeAttribute("src");
+            preview.hidden = true;
+
+            const file = input.files && input.files[0];
+
+            if (!file) {
+                if (existing) {
+                    placeholder.hidden = true;
+                } else {
+                    placeholder.hidden = false;
+                }
+                status.textContent = "Choose a file to preview it here.";
+                return;
+            }
+
+            const validExtension = allowedExtensions.test(file.name);
+            const validMime = !file.type || allowedMimeTypes.includes(file.type);
+
+            if (!validExtension || !validMime || file.size > config.maxBytes) {
+                input.value = "";
+
+                if (!validExtension || !validMime) {
+                    status.textContent = "Choose a JPG, PNG, WebP, or GIF image.";
+                } else {
+                    status.textContent = config.label + " exceeds the " +
+                        (config.maxBytes / (1024 * 1024)) + " MB limit. Choose a smaller file.";
+                }
+
+                if (existing) {
+                    existing.hidden = false;
+                    placeholder.hidden = true;
+                } else {
+                    placeholder.hidden = false;
+                }
+                return;
+            }
+
+            objectUrl = URL.createObjectURL(file);
+            preview.src = objectUrl;
+            preview.hidden = false;
+            placeholder.hidden = true;
+
+            status.textContent = file.name + " — " +
+                (file.size / (1024 * 1024)).toFixed(2) +
+                " MB. Review the preview, then select Upload to save it.";
+        });
+
+        preview.addEventListener("error", () => {
+            if (!preview.hidden) {
+                status.textContent = "The selected image could not be previewed. Please choose another file.";
+                releasePreviewUrl();
+                preview.removeAttribute("src");
+                preview.hidden = true;
+                input.value = "";
+                placeholder.hidden = !!existing;
+            }
+        });
+
+        const cancelButton = document.querySelector(
+            '[data-cancel-preview="' + config.inputId + '"]'
+        );
+
+        if (cancelButton) {
+            cancelButton.addEventListener("click", cancelSelection);
+        }
+
+        window.addEventListener("pagehide", releasePreviewUrl);
+    });
+})();
+</script>
+
+<script id="gotya-cover-video-preview-script">
+(() => {
+    "use strict";
+    const input = document.getElementById("cover_video");
+    const video = document.getElementById("cover-video-preview");
+    const placeholder = document.getElementById("cover-video-placeholder");
+    const status = document.getElementById("cover-video-status");
+    const cancel = document.getElementById("cover-video-cancel");
+    const form = document.getElementById("cover-video-form");
+    if (!input || !video || !placeholder || !status || !cancel || !form) return;
+
+    let objectUrl = null;
+    function clearPreview(clearInput) {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+        video.hidden = true;
+        placeholder.hidden = false;
+        if (clearInput) input.value = "";
+        status.textContent = "Choose an MP4 or MOV video to preview it.";
+    }
+
+    input.addEventListener("change", () => {
+        clearPreview(false);
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const ext = file.name.toLowerCase().split(".").pop();
+        if (!["mp4", "mov"].includes(ext)) {
+            clearPreview(true);
+            status.textContent = "Choose an MP4 or MOV file.";
+            return;
+        }
+        if (file.size > 15 * 1024 * 1024) {
+            clearPreview(true);
+            status.textContent = "The video must be 15 MB or smaller.";
+            return;
+        }
+        objectUrl = URL.createObjectURL(file);
+        video.src = objectUrl;
+        video.hidden = false;
+        placeholder.hidden = true;
+        video.onloadedmetadata = () => {
+            if (!Number.isFinite(video.duration) || video.duration <= 0 || video.duration > 10) {
+                clearPreview(true);
+                status.textContent = "The video must be longer than 0 and no more than 10 seconds.";
+                return;
+            }
+            status.textContent = `Preview ready: ${video.videoWidth} ? ${video.videoHeight}, ${video.duration.toFixed(1)} seconds. The server will perform final validation.`;
+        };
+        video.onerror = () => {
+            clearPreview(true);
+            status.textContent = "This video could not be previewed. Try another MP4 or MOV file.";
+        };
+        video.load();
+    });
+
+    cancel.addEventListener("click", () => clearPreview(true));
+    form.addEventListener("submit", (event) => {
+        const file = input.files && input.files[0];
+        if (!file) {
+            event.preventDefault();
+            status.textContent = "Choose a video before uploading.";
+        }
+    });
+    window.addEventListener("pagehide", () => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+    });
 })();
 </script>
 
