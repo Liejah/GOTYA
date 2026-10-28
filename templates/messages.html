@@ -183,6 +183,80 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
   }
 }
 
+
+/* Modern Chats replacement; original conversation data and routes retained. */
+.chats-topbar{max-width:1000px;margin:auto;padding:7px 12px;min-height:54px;
+ display:flex;align-items:center;justify-content:space-between;gap:12px}
+.chats-heading h1{font-size:23px;letter-spacing:-.5px;margin:0;color:var(--ink)}
+.chats-heading p{font-size:12px;margin:2px 0 0;color:var(--muted)}
+.chats-top-actions{display:flex;align-items:center;gap:8px}
+.chats-icon-button{width:40px;height:40px;border:1px solid var(--line);
+ border-radius:50%;display:flex;align-items:center;justify-content:center;
+ background:var(--card);color:var(--ink);text-decoration:none;padding:9px}
+.chats-icon-button svg,.chats-search svg{width:21px;height:21px;fill:none;
+ stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.chats-icon-button.chats-compose{background:var(--blue);color:white;border-color:var(--blue)}
+.chats-hidden-heading{display:none!important}
+main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
+.heading{display:none!important}
+.chats-search{height:46px;display:flex;align-items:center;gap:10px;
+ background:var(--hover);border:1px solid var(--line);border-radius:15px;
+ padding:0 14px;margin:8px 0 17px;color:var(--muted)}
+.chats-search input{border:0;outline:0;background:transparent;color:var(--ink);
+ width:100%;min-width:0;font:inherit;font-size:14px}
+.chats-search input:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.chats-people{display:flex;gap:18px;overflow-x:auto;padding:0 1px 15px;
+ margin-bottom:3px;scrollbar-width:none}
+.chats-people::-webkit-scrollbar{display:none}
+.chats-person-shortcut{flex:0 0 58px;display:flex;flex-direction:column;
+ align-items:center;gap:6px;text-decoration:none;color:var(--ink);
+ font-size:11px;overflow:hidden}
+.chats-person-shortcut>span:last-child{max-width:64px;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap}
+.chats-shortcut-avatar{width:50px;height:50px;border-radius:50%;
+ display:flex;align-items:center;justify-content:center;overflow:hidden;
+ background:var(--soft-blue);color:var(--blue);font-weight:800;font-size:19px}
+.chats-shortcut-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.chats-filters{display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.chats-filter{padding:8px 18px;border-radius:999px;background:var(--hover);
+ color:var(--ink);font-size:13px;font-weight:700}
+.chats-filter.active{background:var(--blue);color:#fff}
+.chats-filter-spacer{flex:1}
+.chats-filters .badge{font-size:11px}
+.inbox{border:0;border-radius:0;box-shadow:none;background:transparent;overflow:visible}
+.inbox-title.chats-old-title{display:none!important}
+.person{gap:12px;padding:13px 2px;border-bottom:1px solid var(--line);
+ background:transparent}
+.person:hover{background:var(--hover);border-radius:12px}
+.person .avatar{width:50px;height:50px;min-width:50px;
+ background:var(--soft-blue);color:var(--blue);font-size:19px}
+.person .avatar img{border-radius:50%}
+.person .name{font-size:14px;margin-bottom:4px}
+.person .preview{font-size:13px;max-width:none}
+.person[data-chat-unread="1"] .preview{color:var(--ink);font-weight:700}
+.gotya-mobile-nav{display:none}
+@media(max-width:700px){
+ .chats-topbar{min-height:54px;padding:7px 12px}
+ main{margin:10px auto;padding:0 9px 76px}
+ .chats-search{margin-top:8px}
+ .gotya-mobile-nav{position:fixed;z-index:1000;inset:auto 0 0;
+  display:flex;justify-content:space-around;align-items:center;gap:2px;
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  min-height:58px;background:var(--card);border-top:1px solid var(--line);
+  box-shadow:0 -5px 20px rgba(45,30,80,.08)}
+ .gotya-mobile-nav a{display:flex;flex:1 1 0;min-width:0;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;color:var(--muted);
+  text-decoration:none;font-size:11px;line-height:1.2}
+ .gotya-mobile-nav svg{width:20px;height:20px;stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+ .gotya-mobile-nav small{font-size:9px;font-weight:600}
+ .gotya-mobile-nav a.chats-nav-active{color:var(--blue)}
+ .gotya-notification-widget{bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+}
+@media(prefers-reduced-motion:reduce){
+ .chats-people{scroll-behavior:auto}
+}
+
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
@@ -194,44 +268,34 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
     <meta name="theme-color" content="#1877f2">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Gotya"><div class="topbar">
-<a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:var(--ink)">.</span></a>
-<nav>
-<a href="{{ url_for('feed') }}">Feed</a>
-<a href="{{ url_for('friends') }}">Friends</a>
-<a class="active" id="messagesNavLink" href="{{ url_for('messages') }}">Messages{% if unread_count %} Â· {{ unread_count }}{% endif %}</a>
-<a href="{{ url_for('profile') }}">Profile</a>
-<form action="{{ url_for('logout') }}" method="post" style="display:inline">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<button type="submit" class="secondary">Log out</button>
-</form>
-</nav>
+    <meta name="apple-mobile-web-app-title" content="Gotya"><div class="chats-topbar">
+  <div class="chats-heading">
+    <h1>Chats</h1>
+    <p>Stay close to your people</p>
+  </div>
+  <div class="chats-top-actions">
+    <button type="button" class="chats-icon-button" aria-label="Camera"
+            title="Camera">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="6" width="18" height="14" rx="3"/>
+        <circle cx="12" cy="13" r="4"/>
+        <path d="m8 6 1.5-2h5L16 6"/>
+      </svg>
+    </button>
+    <a class="chats-icon-button chats-compose"
+       href="{{ url_for('friends') }}" aria-label="New message"
+       title="New message">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/>
+      </svg>
+    </a>
+  </div>
 </div></header>
-
-<div class="gotya-notification-widget" id="gotyaNotificationWidget">
-  <section class="gotya-notification-panel" id="gotyaNotificationPanel" hidden>
-    <div class="gotya-notification-head">
-      <strong>Notifications</strong>
-      <button type="button" class="secondary gotya-notification-enable"
-              id="gotyaNotificationEnable">Enable browser alerts</button>
-    </div>
-    <div id="gotyaNotificationList">
-      <div class="gotya-notification-empty">Loading notificationsâ€¦</div>
-    </div>
-    <div class="gotya-notification-status" id="gotyaNotificationStatus"
-         role="status">Browser alerts are optional.</div>
-  </section>
-  <button type="button" class="gotya-notification-bell"
-          id="gotyaNotificationToggle" aria-label="Open notifications"
-          aria-expanded="false" aria-controls="gotyaNotificationPanel">
-    <span aria-hidden="true">â™§</span>
-    <span class="gotya-notification-count" id="gotyaNotificationCount" hidden>0</span>
-  </button>
-</div>
 
 <main>
 <div class="heading">
-<div><h1>Your messages</h1><p>Private conversations with your friends.</p></div>
+<div><h1 class="chats-hidden-heading">Your messages</h1><p class="chats-hidden-heading">Private conversations with your friends.</p></div>
 <span class="badge" id="inboxUnreadBadge" {% if not unread_count %}hidden{% endif %}>{{ unread_count }} unread</span>
 </div>
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -239,18 +303,64 @@ h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1px;margin:0 0 6px}
 <div class="flash {{ 'error' if category == 'error' else '' }}">{{ message }}</div>
 {% endfor %}
 {% endwith %}
+
+<div class="chats-search">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>
+  </svg>
+  <input id="chatsSearch" type="search"
+         placeholder="Search people or messages"
+         aria-label="Search people or messages">
+</div>
+<div class="chats-people" aria-label="Recent people">
+  <a class="chats-person-shortcut chats-my-profile"
+     href="{{ url_for('profile') }}"
+     aria-label="Your profile">
+    <span class="chats-shortcut-avatar">
+    {% if current_user.profile_picture %}
+      <img src="{{ url_for('profile_picture_file', filename=current_user.profile_picture) }}" alt="">
+    {% else %}{{ current_user.username[0]|upper }}{% endif %}
+    </span>
+    <span>Your profile</span>
+  </a>
+  {% for person,last_message in recent if person.id != current_user.id %}
+  <a class="chats-person-shortcut"
+     href="{{ url_for('conversation', user_id=person.id) }}"
+     aria-label="Chat with {{ person.username }}">
+    <span class="chats-shortcut-avatar">
+    {% if person.profile_picture %}
+      <img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">
+    {% else %}{{ person.username[0]|upper }}{% endif %}
+    </span>
+    <span>{{ person.username }}</span>
+  </a>
+  {% endfor %}
+</div>
+<div class="chats-filters" role="group" aria-label="Filter conversations">
+  <button type="button" class="chats-filter active"
+          data-chat-filter="all" aria-pressed="true">All</button>
+  <button type="button" class="chats-filter"
+          data-chat-filter="unread" aria-pressed="false">Unread</button>
+  <span class="chats-filter-spacer"></span>
+  <span class="badge" id="inboxUnreadBadge"
+        {% if not unread_count %}hidden{% endif %}>
+    {{ unread_count }} unread
+  </span>
+</div>
 <section class="inbox" id="inboxList">
-<div class="inbox-title">Conversations</div>
+<div class="inbox-title chats-old-title">Conversations</div>
 {% if recent %}
 {% for person,last_message in recent %}
-<a class="person" href="{{ url_for('conversation', user_id=person.id) }}">
+<a class="person"
+   data-chat-unread="{{ '1' if last_message and last_message.sender_id != current_user.id and not last_message.read_at else '0' }}"
+   href="{{ url_for('conversation', user_id=person.id) }}">
 <div class="avatar" data-user-id="{{ person.id }}">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div>
 <div class="person-info">
 <div class="name">{{ person.username }}{% if is_verified_account(person) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</div>
 <div class="preview">
 {% if last_message %}
 {% if last_message.is_unsent %}This message was unsent.{% else %}{% if last_message.sender_id == current_user.id %}You: {% endif %}{{ last_message.content or ('Sent an attachment' if last_message.attachment_filename else '') }}{% endif %}
-{% else %}You're friends â€” say hello!{% endif %}
+{% else %}You're friends ? say hello!{% endif %}
 </div>
 </div><span class="arrow">â€º</span>
 </a>
@@ -839,6 +949,56 @@ if ("serviceWorker" in navigator) {
 </script>
 
 <div id="gotyaToastContainer" aria-live="polite" aria-atomic="false"></div>
+<nav class="gotya-mobile-nav" aria-label="Mobile navigation">
+    <a href="{{ url_for('feed') }}" aria-label="Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9"/><path d="M9 21v-7h6v7"/></svg><small>Home</small>
+    </a>
+    <a href="{{ url_for('watch') }}" aria-label="Watch">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg><small>Watch</small>
+    </a>
+    <a href="{{ url_for('profile') }}" aria-label="Create post">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><small>Create</small>
+    </a>
+    <a href="{{ url_for('messages') }}" aria-label="Chats" class="chats-nav-active">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H5l-3 2 1.5-5A8.5 8.5 0 1 1 21 11.5Z"/></svg><small>Chats</small>
+    </a>
+    <a href="{{ url_for('profile') }}" aria-label="Profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><small>Profile</small>
+    </a>
+</nav>
+
+<script>
+(function(){
+  const search = document.getElementById('chatsSearch');
+  const inbox = document.getElementById('inboxList');
+  const filters = Array.from(document.querySelectorAll('[data-chat-filter]'));
+  let filter = 'all';
+  function update(){
+    const q = (search?.value || '').trim().toLocaleLowerCase();
+    inbox?.querySelectorAll('a.person').forEach(row => {
+      const matchesText = row.textContent.toLocaleLowerCase().includes(q);
+      const unread = row.dataset.chatUnread === '1' ||
+                     !!row.querySelector('.preview.unread');
+      const matchesFilter = filter === 'all' || unread;
+      row.hidden = !(matchesText && matchesFilter);
+    });
+  }
+  if (inbox) new MutationObserver(update).observe(inbox, {
+    childList: true, subtree: true, characterData: true
+  });
+  search?.addEventListener('input', update);
+  filters.forEach(button => button.addEventListener('click', () => {
+    filter = button.dataset.chatFilter;
+    filters.forEach(item => {
+      const active = item === button;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    update();
+  }));
+})();
+</script>
+
 </body>
 </html>
 
