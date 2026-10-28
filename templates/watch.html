@@ -1,0 +1,333 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gotya Watch</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg:#F7F5FF;
+  --surface:#FFFFFF;
+  --purple:#7257D9;
+  --purple-dark:#34265D;
+  --lavender:#F0EBFF;
+  --muted:#817991;
+  --line:#E9E3F2;
+  --shadow:0 4px 20px rgba(62,43,110,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--purple-dark);
+  font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer}
+.topbar{position:sticky;top:0;z-index:10;background:#fff;
+  border-bottom:1px solid var(--line);padding:12px 20px}
+.topinner{max-width:1120px;margin:auto;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:9px;font-size:21px;font-weight:850;color:var(--purple)}
+.brandmark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:var(--purple);color:#fff}
+.topright{margin-left:auto;display:flex;align-items:center;gap:10px}
+.roundlink{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--lavender);color:var(--purple);font-size:20px}
+.page{max-width:1120px;margin:22px auto;padding:0 16px 105px}
+.intro{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+h1{font-size:28px;line-height:1.2;margin:0 0 5px;color:var(--purple-dark)}
+.subtitle{color:var(--muted);margin:0}
+.primary{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--purple);color:white;border:0;border-radius:12px;padding:11px 16px;font-weight:750}
+.tabs{display:flex;gap:9px;overflow:auto;margin:0 0 20px;padding:2px 0 5px}
+.tab{white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:9px 17px;background:#fff;color:var(--purple-dark);font-weight:650}
+.tab.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:20px;align-items:start}
+.video-card,.sidecard,.empty{background:var(--surface);border:1px solid var(--line);border-radius:19px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+.posthead{display:flex;align-items:center;gap:10px;padding:15px 16px 12px}
+.avatar{width:42px;height:42px;border-radius:50%;background:#E7DEFF;color:var(--purple);display:grid;place-items:center;overflow:hidden;font-weight:800;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.author{font-weight:750;color:var(--purple-dark)}
+.meta{font-size:12px;color:var(--muted)}
+.audience{margin-left:auto;color:var(--muted);font-size:12px}
+.video-wrap{background:#E9E3F5;display:flex;justify-content:center;align-items:center}
+video{display:block;width:100%;max-height:74vh;aspect-ratio:16/9;object-fit:contain;background:#17151D}
+.caption{padding:12px 16px 16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.postactions{display:flex;align-items:center;gap:8px;padding:0 16px 15px;color:var(--muted);font-size:13px}
+.action{border:0;border-radius:10px;background:#F6F3FF;color:var(--purple-dark);padding:8px 11px}
+.action:hover{background:var(--lavender)}
+.sidecard{padding:17px}
+.sidecard h2{font-size:16px;margin:0 0 12px}
+.trend{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.trend:first-of-type{border-top:0}
+.trendicon{width:38px;height:38px;display:grid;place-items:center;background:var(--lavender);border-radius:12px;color:var(--purple);font-size:19px;flex-shrink:0}
+.trend strong{display:block;font-size:13px}
+.trend small{color:var(--muted)}
+.empty{text-align:center;padding:42px 20px}
+.emptyicon{width:66px;height:66px;margin:0 auto 12px;display:grid;place-items:center;border-radius:22px;background:var(--lavender);color:var(--purple);font-size:30px}
+.empty h2{margin:0 0 7px}
+.empty p{color:var(--muted);margin:0 0 18px}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);padding:8px 5px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);border-top:1px solid var(--line);backdrop-filter:blur(14px)}
+.navitem{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:48px;color:#928AA3;font-size:11px;font-weight:600}
+.navitem.active{color:var(--purple)}
+.navicon{font-size:22px;line-height:1.15}
+.createcircle{width:31px;height:31px;border-radius:50%;background:var(--purple);color:white;display:grid;place-items:center;font-size:24px;line-height:1}
+.createitem{margin-top:-12px}
+.reels-mode .video-card{max-width:570px;margin-left:auto;margin-right:auto}
+.reels-mode video{aspect-ratio:9/14;max-height:74vh;object-fit:contain}
+.reels-mode .video-wrap{background:#E9E3F5}
+.reels-mode .posthead{padding-top:12px}
+[hidden]{display:none!important}
+@media(max-width:800px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .page{margin:16px auto;padding-left:12px;padding-right:12px}
+  h1{font-size:25px}
+  .topbar{padding:10px 13px}
+  .video-card,.sidecard,.empty{border-radius:16px}
+}
+@media(max-width:430px){
+  .subtitle{font-size:13px}
+  .intro{align-items:flex-start}
+  .primary{padding:10px 12px;font-size:13px}
+  .posthead{padding:12px}
+  .caption{padding:10px 12px 13px}
+  .postactions{padding:0 12px 12px}
+}
+
+/* Match the pushed Gotya Feed header and mobile navigation */
+body {
+  --brand: #7555e8;
+  --brand-dark: #6040d0;
+  --page: #f6f3fc;
+  --surface: #fff;
+  --line: #e9e3f2;
+  --text: #302547;
+  --muted: #817991;
+  background: var(--page);
+  color: var(--text);
+}
+.gotya-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  min-height: 62px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #fff;
+  border-bottom: 1px solid #e9e3f2;
+  box-shadow: none;
+}
+.gotya-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #302547;
+  font-size: 19px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.gotya-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: linear-gradient(135deg,#9d89ff,#704be5);
+  color: #fff;
+}
+.gotya-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.gotya-top-actions .gotya-top-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  border-radius: 50%;
+  background: #f2edfc;
+  color: #7555e8;
+}
+.gotya-top-icon svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.gotya-mobile-nav { display: none; }
+.page { padding-bottom: 0; }
+@media (max-width: 700px) {
+  .gotya-topbar { padding: 0 10px; }
+  .gotya-mobile-nav {
+    position: fixed;
+    z-index: 1000;
+    inset: auto 0 0;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    min-height: 58px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -5px 20px rgba(45,30,80,.08);
+  }
+  .gotya-mobile-nav a {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .gotya-mobile-nav svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .gotya-mobile-nav small { font-size: 9px; font-weight: 600; }
+  .gotya-mobile-nav a[aria-label="Watch"] { color: var(--brand); }
+  .page { padding-bottom: 76px; }
+}
+
+</style>
+</head>
+<body>
+<header class="gotya-topbar">
+  <a class="gotya-brand" href="{{ url_for('feed') }}" aria-label="Gotya Home">
+    <span class="gotya-brand-mark">G</span><span>Gotya</span>
+  </a>
+  <div class="gotya-top-actions">
+    <span class="gotya-top-icon" role="img" aria-label="Search" title="Search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+    </span>
+  </div>
+</header>
+
+<main class="page">
+  <section class="intro">
+    <div>
+      <h1>Watch</h1>
+      <p class="subtitle">Videos worth your time.</p>
+    </div>
+    <a class="primary" href="{{ url_for('feed') }}">&#43; Create</a>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="Video categories">
+    <button class="tab active" type="button" data-mode="videos">For You</button>
+    <button class="tab" type="button" data-mode="videos">Following</button>
+    <button class="tab" type="button" data-mode="reels">Reels</button>
+  </div>
+
+  <div class="layout">
+    <section id="videoList" aria-label="Gotya videos">
+      {% for post in posts %}
+      <article class="video-card">
+        <div class="posthead">
+          <a class="avatar" href="{{ url_for('public_profile', user_id=post.author.id) }}">
+            {% if post.author.profile_picture %}
+              <img src="{{ url_for('profile_picture_file', filename=post.author.profile_picture) }}" alt="">
+            {% else %}
+              {{ post.author.username[0]|upper }}
+            {% endif %}
+          </a>
+          <div>
+            <a class="author" href="{{ url_for('public_profile', user_id=post.author.id) }}">{{ post.author.username }}</a>
+            <div class="meta">{{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else '' }}</div>
+          </div>
+          <span class="audience">{{ 'Friends' if post.audience == 'friends' else 'Public' }}</span>
+        </div>
+        <div class="video-wrap">
+          <video controls playsinline preload="metadata" src="{{ url_for('post_media_file', post_id=post.id) }}"></video>
+        </div>
+        {% if post.content %}<div class="caption">{{ post.content }}</div>{% endif %}
+        <div class="postactions">
+          <button class="action" type="button" data-like>&#9825; Like</button>
+          <button class="action" type="button" data-comment>&#9786; Comment</button>
+          <button class="action" type="button" data-share>&#8599; Share</button>
+        </div>
+      </article>
+      {% else %}
+      <section class="empty">
+        <div class="emptyicon">&#9654;</div>
+        <h2>No videos yet</h2>
+        <p>Videos shared on Gotya will appear here. Be the first to share one.</p>
+        <a class="primary" href="{{ url_for('feed') }}">Create a post</a>
+      </section>
+      {% endfor %}
+    </section>
+
+    <aside class="sidebar">
+      <section class="sidecard">
+        <h2>Explore Watch</h2>
+        <div class="trend"><div class="trendicon">&#9654;</div><div><strong>Videos</strong><small>Watch community uploads</small></div></div>
+        <div class="trend"><div class="trendicon">&#9889;</div><div><strong>Reels</strong><small>Vertical short videos</small></div></div>
+        <div class="trend"><div class="trendicon">&#9829;</div><div><strong>From your community</strong><small>Discover Gotya creators</small></div></div>
+      </section>
+      <section class="sidecard">
+        <h2>Share something</h2>
+        <p class="meta" style="font-size:13px;line-height:1.6">Got a moment worth sharing? Create a post from your feed and upload a video.</p>
+        <a class="primary" style="width:100%" href="{{ url_for('feed') }}">Go to Create</a>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<nav class="gotya-mobile-nav" aria-label="Mobile navigation">
+  <a href="{{ url_for('feed') }}" aria-label="Home">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9"/><path d="M9 21v-7h6v7"/></svg><small>Home</small>
+  </a>
+  <a href="{{ url_for('watch') }}" aria-label="Watch" aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg><small>Watch</small>
+  </a>
+  <a href="{{ url_for('feed') }}" aria-label="Create post">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><small>Create</small>
+  </a>
+  <a href="{{ url_for('messages') }}" aria-label="Chats">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H5l-3 2 1.5-5A8.5 8.5 0 1 1 21 11.5Z"/></svg><small>Chats</small>
+  </a>
+  <a href="{{ url_for('profile') }}" aria-label="Profile">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><small>Profile</small>
+  </a>
+</nav>
+
+<script>
+const tabs = document.querySelectorAll('.tab');
+const list = document.getElementById('videoList');
+tabs.forEach(tab => tab.addEventListener('click', () => {
+  tabs.forEach(item => item.classList.toggle('active', item === tab));
+  list.classList.toggle('reels-mode', tab.dataset.mode === 'reels');
+  if (tab.textContent.trim() === 'Following') {
+    // No separate follow-feed endpoint exists yet; retain the privacy-filtered video list.
+  }
+}));
+document.querySelectorAll('[data-like]').forEach(button => button.addEventListener('click', () => {
+  button.textContent = button.textContent.includes('Liked') ? '♡ Like' : '♥ Liked';
+}));
+document.querySelectorAll('[data-comment]').forEach(button => button.addEventListener('click', () => {
+  window.location.href = '{{ url_for("feed") }}';
+}));
+document.querySelectorAll('[data-share]').forEach(button => button.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    button.textContent = '✓ Link copied';
+  } catch (_) {
+    window.prompt('Copy the Watch page link:', window.location.href);
+  }
+}));
+</script>
+</body>
+</html>

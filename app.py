@@ -3529,6 +3529,13 @@ def feed():
     )
 
 
+@app.route("/watch", methods=["GET"])
+@login_required
+def watch():
+    # Watch UI published without video-upload functionality for now.
+    return render_template("watch.html", posts=[])
+
+
 @app.route("/post/<int:post_id>/like", methods=["POST"])
 @login_required
 def toggle_like(post_id):
