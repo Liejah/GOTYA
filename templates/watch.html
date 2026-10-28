@@ -204,6 +204,64 @@ body {
 }
 
 </style>
+<style id="gotya-coming-soon-overlay">
+#gotya-coming-soon-overlay-screen {
+    position: fixed;
+    top: var(--gotya-overlay-top, 0px);
+    bottom: var(--gotya-overlay-bottom, 0px);
+    left: 0;
+    right: 0;
+    z-index: 99999;
+    background: rgba(255, 255, 255, 0.89);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+}
+#gotya-coming-soon-overlay-screen .gotya-coming-soon-message {
+    width: 100%;
+    max-width: 310px;
+    padding: 28px 20px;
+    text-align: center;
+    color: #17191d;
+    background: rgba(255,255,255,.96);
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    box-shadow: 0 10px 32px rgba(0,0,0,.05);
+}
+#gotya-coming-soon-overlay-screen .gotya-clock {
+    margin: 0 auto 15px;
+    width: 54px;
+    height: 54px;
+    border-radius: 17px;
+    background: #edf4ff;
+    color: #1877f2;
+    display: grid;
+    place-items: center;
+    font-size: 29px;
+}
+#gotya-coming-soon-overlay-screen h2 {
+    margin: 0 0 9px;
+    font-size: 25px;
+    letter-spacing: -.5px;
+}
+#gotya-coming-soon-overlay-screen p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.5;
+}
+#gotya-coming-soon-overlay-screen .gotya-stay-tuned {
+    display: inline-block;
+    margin-top: 19px;
+    padding: 8px 13px;
+    border-radius: 20px;
+    background: #f0f2f5;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: .6px;
+}
+</style>
 </head>
 <body>
 <header class="gotya-topbar">
@@ -329,5 +387,43 @@ document.querySelectorAll('[data-share]').forEach(button => button.addEventListe
   }
 }));
 </script>
+<div id="gotya-coming-soon-overlay-screen" role="status" aria-label="Coming Soon">
+  <div class="gotya-coming-soon-message">
+    <div class="gotya-clock" aria-hidden="true">◷</div>
+    <h2>Coming Soon</h2>
+    <p>Gotya Watch is on the way.</p>
+    <span class="gotya-stay-tuned">STAY TUNED</span>
+  </div>
+</div>
+<script id="gotya-coming-soon-position">
+(function () {
+  const overlay = document.getElementById('gotya-coming-soon-overlay-screen');
+  if (!overlay) return;
+
+  function positionOverlay() {
+    const header = document.querySelector('header');
+    const navs = document.querySelectorAll('nav');
+    const bottomNav = navs.length ? navs[navs.length - 1] : null;
+
+    if (header) {
+      overlay.style.setProperty(
+        '--gotya-overlay-top',
+        Math.max(0, header.getBoundingClientRect().bottom) + 'px'
+      );
+    }
+    if (bottomNav) {
+      overlay.style.setProperty(
+        '--gotya-overlay-bottom',
+        Math.max(0, window.innerHeight - bottomNav.getBoundingClientRect().top) + 'px'
+      );
+    }
+  }
+
+  positionOverlay();
+  window.addEventListener('resize', positionOverlay);
+})();
+</script>
 </body>
 </html>
+
+
