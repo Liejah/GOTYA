@@ -245,14 +245,18 @@ COVER_VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_PICTURE_DIR.mkdir(parents=True, exist_ok=True)
 load_dotenv(BASE_DIR / ".env")
 
-# Explicit executable paths; environment variables override local defaults.
+# Explicit executable paths; environment variables override platform defaults.
 FFMPEG_PATH = os.environ.get(
-    "GOTYA_FFMPEG_PATH",
-    r"C:\Tools\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe",
+    "GOTYA_FFMPEG_PATH"
+) or (
+    "/usr/bin/ffmpeg" if os.name != "nt" else
+    r"C:\Tools\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe"
 )
 FFPROBE_PATH = os.environ.get(
-    "GOTYA_FFPROBE_PATH",
-    r"C:\Tools\ffmpeg-9.0.2-essentials_build\bin\ffprobe.exe",
+    "GOTYA_FFPROBE_PATH"
+) or (
+    "/usr/bin/ffprobe" if os.name != "nt" else
+    r"C:\Tools\ffmpeg-9.0.2-essentials_build\bin\ffprobe.exe"
 )
 
 # --------------------------------------------------------
