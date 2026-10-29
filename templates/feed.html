@@ -596,6 +596,81 @@ body.gotya-feed {
     .gotya-feed .gotya-mobile-nav small { font-size: 9px; }
     .gotya-feed { padding-bottom: 76px; }
 }
+
+/* Gotya notifications dropdown */
+.gotya-feed .gotya-notification-wrap { position: relative; }
+.gotya-feed .gotya-top-actions .gotya-notification-button {
+    position: relative; border: 0; cursor: pointer; font: inherit;
+}
+.gotya-feed .gotya-notification-badge {
+    position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px;
+    padding: 0 4px; border: 2px solid #fff; border-radius: 999px;
+    background: #e54861; color: #fff; font-size: 9px; font-weight: 700;
+    line-height: 12px; text-align: center;
+}
+.gotya-feed .gotya-notification-panel {
+    position: fixed; z-index: 1000; top: 64px;
+    right: max(10px, env(safe-area-inset-right));
+    width: min(350px, calc(100vw - 20px));
+    max-width: calc(100vw - 20px);
+    max-height: min(460px, calc(100dvh - 84px));
+    overflow: hidden; border: 1px solid #e9e3f2; border-radius: 16px;
+    background: #fff; color: #302547; box-shadow: 0 12px 38px rgba(39, 24, 75, .18);
+}
+.gotya-feed .gotya-notification-panel[hidden],
+.gotya-feed .gotya-notification-badge[hidden] { display: none !important; }
+.gotya-feed .gotya-notification-heading {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 16px 11px; font-size: 17px;
+}
+.gotya-feed .gotya-notification-heading button {
+    border: 0; background: transparent; color: #756b86; font-size: 24px; cursor: pointer;
+}
+.gotya-feed .gotya-notification-tabs {
+    display: flex; gap: 8px; padding: 0 14px 10px; border-bottom: 1px solid #f0ebf7;
+}
+.gotya-feed .gotya-notification-tabs button {
+    padding: 7px 11px; border: 0; border-radius: 20px; background: #f4f0fb;
+    color: #6f51d8; font-size: 12px; cursor: pointer;
+}
+.gotya-feed .gotya-notification-tabs button.active { background: #7555e8; color: #fff; }
+.gotya-feed .gotya-notification-list { max-height: 300px; overflow-y: auto; padding: 6px 10px; }
+.gotya-feed .gotya-notification-item {
+    display: block; padding: 11px 10px; border-radius: 10px;
+    color: #302547; text-decoration: none; overflow-wrap: anywhere;
+}
+.gotya-feed .gotya-notification-item:hover { background: #f7f4fc; }
+.gotya-feed .gotya-notification-item strong { display: block; font-size: 13px; }
+.gotya-feed .gotya-notification-item span {
+    display: block; margin-top: 3px; color: #786f87; font-size: 12px; line-height: 1.4;
+}
+.gotya-feed .gotya-notification-empty { padding: 14px 10px; color: #786f87; font-size: 13px; }
+.gotya-feed .gotya-notification-footer {
+    display: block; padding: 12px; border-top: 1px solid #f0ebf7;
+    color: #7555e8; text-align: center; text-decoration: none; font-size: 12px; font-weight: 700;
+}
+
+
+
+/* Keep Search first and Notifications immediately after it. */
+.gotya-feed .gotya-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.gotya-feed .gotya-top-actions > .gotya-top-icon {
+    order: 1;
+    flex: 0 0 34px;
+}
+.gotya-feed .gotya-top-actions > .gotya-notification-wrap {
+    order: 2;
+    flex: 0 0 34px;
+}
+.gotya-feed .gotya-notification-wrap .gotya-notification-button {
+    width: 34px;
+    height: 34px;
+}
+
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
@@ -606,9 +681,33 @@ body.gotya-feed {
         <span class="gotya-brand-mark">G</span><span>Gotya</span>
     </a>
     <div class="gotya-top-actions">
+
     <span class="gotya-top-icon" role="img" aria-label="Search" title="Search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
     </span>
+    <div class="gotya-notification-wrap">
+      <button class="gotya-top-icon gotya-notification-button" id="gotyaNotificationButton"
+              type="button" aria-label="Notifications" title="Notifications"
+              aria-expanded="false" aria-controls="gotyaNotificationPanel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+        <span class="gotya-notification-badge" id="gotyaNotificationBadge" hidden></span>
+      </button>
+      <section class="gotya-notification-panel" id="gotyaNotificationPanel" hidden
+               aria-label="Notifications">
+        <div class="gotya-notification-heading">
+          <strong>Notifications</strong>
+          <button type="button" id="gotyaNotificationClose" aria-label="Close notifications">?</button>
+        </div>
+        <div class="gotya-notification-tabs">
+          <button type="button" class="active" data-notification-tab="all">All</button>
+          <button type="button" data-notification-tab="friends">Friend requests <span id="gotyaFriendRequestCount"></span></button>
+        </div>
+        <div id="gotyaNotificationList" class="gotya-notification-list" aria-live="polite">
+          <p class="gotya-notification-empty">Loading notifications?</p>
+        </div>
+        <a class="gotya-notification-footer" href="{{ url_for('friends') }}">View friend requests</a>
+      </section>
+    </div>
   </div>
 </header>
 
@@ -1077,5 +1176,118 @@ document.addEventListener("click", function (event) {
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><small>Profile</small>
     </a>
 </nav>
+
+<script>
+(function () {
+  const button = document.getElementById('gotyaNotificationButton');
+  const panel = document.getElementById('gotyaNotificationPanel');
+  const close = document.getElementById('gotyaNotificationClose');
+  const badge = document.getElementById('gotyaNotificationBadge');
+  const list = document.getElementById('gotyaNotificationList');
+  const requestCount = document.getElementById('gotyaFriendRequestCount');
+  const tabs = Array.from(panel.querySelectorAll('[data-notification-tab]'));
+  if (!button || !panel || !list) return;
+
+  let messages = [];
+  let requests = [];
+  let activeTab = 'all';
+
+  function empty(text) {
+    list.replaceChildren();
+    const p = document.createElement('p');
+    p.className = 'gotya-notification-empty';
+    p.textContent = text;
+    list.appendChild(p);
+  }
+
+  function item(title, detail, href) {
+    const a = document.createElement('a');
+    a.className = 'gotya-notification-item';
+    a.href = href;
+    const strong = document.createElement('strong');
+    strong.textContent = title;
+    const span = document.createElement('span');
+    span.textContent = detail;
+    a.append(strong, span);
+    return a;
+  }
+
+  function render() {
+    list.replaceChildren();
+    const rows = [];
+    if (activeTab === 'all' || activeTab === 'friends') {
+      requests.forEach(r => rows.push({
+        title: r.sender_name || 'Someone',
+        detail: 'Sent you a friend request',
+        href: {{ url_for('friends') | tojson }},
+        type: 'friends'
+      }));
+    }
+    if (activeTab === 'all') {
+      messages.forEach(m => rows.push({
+        title: m.sender_name || 'New message',
+        detail: m.preview || 'Sent you a message',
+        href: {{ url_for('messages') | tojson }},
+        type: 'message'
+      }));
+    }
+    if (!rows.length) {
+      empty(activeTab === 'friends' ? 'No pending friend requests.' : 'You?re all caught up.');
+      return;
+    }
+    rows.slice(0, 30).forEach(r => {
+      list.appendChild(item(r.title, r.detail, r.href));
+    });
+  }
+
+  async function refresh() {
+    try {
+      const response = await fetch({{ url_for('notifications_updates') | tojson }}, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Notification request failed');
+      const data = await response.json();
+      messages = Array.isArray(data.unread_messages) ? data.unread_messages : [];
+      requests = Array.isArray(data.pending_friend_requests) ? data.pending_friend_requests : [];
+      const total = Number(data.unread_count || 0) + requests.length;
+      badge.textContent = total > 99 ? '99+' : String(total);
+      badge.hidden = total < 1;
+      requestCount.textContent = requests.length ? '(' + requests.length + ')' : '';
+      render();
+    } catch (_) {
+      if (!list.children.length) empty('Notifications are temporarily unavailable.');
+    }
+  }
+
+  function setOpen(open) {
+    panel.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+    if (open) refresh();
+  }
+
+  button.addEventListener('click', () => setOpen(panel.hidden));
+  close.addEventListener('click', () => setOpen(false));
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    activeTab = tab.dataset.notificationTab;
+    tabs.forEach(t => t.classList.toggle('active', t === tab));
+    render();
+  }));
+  document.addEventListener('click', event => {
+    if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) {
+      setOpen(false);
+    }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !panel.hidden) {
+      setOpen(false);
+      button.focus();
+    }
+  });
+  refresh();
+  window.setInterval(refresh, 45000);
+})();
+</script>
+
 </body>
 </html>
