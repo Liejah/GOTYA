@@ -356,7 +356,7 @@ main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
    href="{{ url_for('conversation', user_id=person.id) }}">
 <div class="avatar" data-user-id="{{ person.id }}">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div>
 <div class="person-info">
-<div class="name">{{ person.username }}{% if is_verified_account(person) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</div>
+<div class="name">{{ person.username }}{{ gotya_badge_html(person) }}</div>
 <div class="preview">
 {% if last_message %}
 {% if last_message.is_unsent %}This message was unsent.{% else %}{% if last_message.sender_id == current_user.id %}You: {% endif %}{{ last_message.content or ('Sent an attachment' if last_message.attachment_filename else '') }}{% endif %}
@@ -388,26 +388,42 @@ main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
     unreadBadge.hidden = unread === 0;
   }
 
-  function createInboxVerifiedBadge() {
+  function createInboxVerifiedBadge(type = "blue") {
     const badge = document.createElement("span");
     badge.className = "gotya-verified-badge";
-    badge.title = "Verified account";
-    badge.setAttribute("aria-label", "Verified account");
-    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;";
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const names = String(type || "blue").split("+");
+    const palette = { gold: "#E5A51A", blue: "#2589F4", silver: "#AEB8C5" };
+    const title = names.map(n => ({gold:"Gotya Gold",blue:"Verified account",silver:"Gotya Premium"}[n] || n)).join(" + ");
+    badge.title = title;
+    badge.setAttribute("aria-label", title);
+    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;vertical-align:middle;margin-left:4px;flex-shrink:0;";
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
     svg.setAttribute("viewBox", "0 0 16 16");
-    svg.setAttribute("width", "8");
-    svg.setAttribute("height", "8");
+    svg.setAttribute("width", "14");
+    svg.setAttribute("height", "14");
     svg.setAttribute("fill", "none");
     svg.setAttribute("aria-hidden", "true");
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M3.5 8.2 6.4 11 12.5 4.8");
-    path.setAttribute("stroke", "currentColor");
-    path.setAttribute("stroke-width", "2.2");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    svg.appendChild(path);
-    badge.appendChild(svg);
+    const defs = document.createElementNS(ns, "defs");
+    const grad = document.createElementNS(ns, "linearGradient");
+    grad.id = "gotya-badge-" + Math.random().toString(36).slice(2);
+    grad.setAttribute("x1", "0"); grad.setAttribute("y1", "0");
+    grad.setAttribute("x2", "1"); grad.setAttribute("y2", "1");
+    names.forEach((n, i) => {
+      const stop = document.createElementNS(ns, "stop");
+      stop.setAttribute("offset", (i / names.length * 100) + "%");
+      stop.setAttribute("stop-color", palette[n] || palette.blue);
+      grad.appendChild(stop);
+    });
+    defs.appendChild(grad); svg.appendChild(defs);
+    const seal = document.createElementNS(ns, "path");
+    seal.setAttribute("d", "M8 0.4 9.9 2 12.4 1.8 13.1 4.2 15.2 5.5 14.5 8 15.2 10.5 13.1 11.8 12.4 14.2 9.9 14 8 15.6 6.1 14 3.6 14.2 2.9 11.8 0.8 10.5 1.5 8 0.8 5.5 2.9 4.2 3.6 1.8 6.1 2Z");
+    seal.setAttribute("fill", "url(#" + grad.id + ")"); svg.appendChild(seal);
+    const check = document.createElementNS(ns, "path");
+    check.setAttribute("d", "M4.1 8.1 6.7 10.5 11.9 5.4");
+    check.setAttribute("stroke", "#fff"); check.setAttribute("stroke-width", "1.8");
+    check.setAttribute("stroke-linecap", "round"); check.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(check); badge.appendChild(svg);
     return badge;
   }
   function makeConversation(item) {
@@ -436,7 +452,7 @@ main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
     const name = document.createElement("div");
     name.className = "name";
     name.appendChild(document.createTextNode(item.username || "Friend"));
-    if (item.is_verified) name.appendChild(createInboxVerifiedBadge());
+    if (item.is_verified) name.appendChild(createInboxVerifiedBadge(item.badge_type || 'blue'));
 
     const preview = document.createElement("div");
     preview.className = "preview";
@@ -506,7 +522,7 @@ main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
 
         if (name) {
           name.replaceChildren(document.createTextNode(item.username || "Friend"));
-          if (item.is_verified) name.appendChild(createInboxVerifiedBadge());
+          if (item.is_verified) name.appendChild(createInboxVerifiedBadge(item.badge_type || 'blue'));
         }
 
         if (preview) {

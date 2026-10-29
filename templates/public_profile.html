@@ -371,10 +371,7 @@
             <div>
                 <h1>
                     {{ profile_user.username }}
-                    {% if is_verified_account(profile_user) %}
-                    <span title="Verified account" aria-label="Verified account"
-                          class="public-verified"><svg aria-hidden="true" viewBox="0 0 16 16" width="10" height="10" fill="none"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                    {% endif %}
+                    {{ gotya_badge_html(profile_user) }}
                 </h1>
                 {% if not is_locked_for_visitor %}
                     <div class="public-social-counts" aria-label="Friends and followers">
@@ -479,9 +476,7 @@
                 <div class="profile-post-author">
                     <div>
                         {{ post.author.username }}
-                        {% if is_verified_account(post.author) %}
-                        <span class="public-verified" title="Verified account" aria-label="Verified account"><svg aria-hidden="true" viewBox="0 0 16 16" width="9" height="9" fill="none"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-                        {% endif %}
+                        {{ gotya_badge_html(post.author) }}
                     </div>
                     <div class="profile-post-time">
                         <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">{{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}</time>

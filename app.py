@@ -398,12 +398,98 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+from markupsafe import Markup
+from html import escape
+
+# Badge assignments are configuration-only; no database columns or migrations.
 VERIFIED_ACCOUNT_IDS = frozenset({1, 2, 4})
+GOTYA_GOLD_USERNAMES = frozenset({"itsliejah.sz"})
+GOTYA_DEVELOPER_USERNAMES = frozenset()
+GOTYA_AMBASSADOR_USERNAMES = frozenset()
+GOTYA_PREMIUM_USERNAMES = frozenset({"jahjah"})
+
+def gotya_badge_type(user):
+    if user is None:
+        return ""
+    username = (getattr(user, "username", "") or "").casefold()
+    gold = username in (
+        GOTYA_GOLD_USERNAMES
+        | GOTYA_DEVELOPER_USERNAMES
+        | GOTYA_AMBASSADOR_USERNAMES
+    )
+    blue = (
+        getattr(user, "id", None) in VERIFIED_ACCOUNT_IDS
+        or username == "eleynn"
+    )
+    silver = username in GOTYA_PREMIUM_USERNAMES
+    parts = [name for name, active in (
+        ("gold", gold), ("blue", blue), ("silver", silver)
+    ) if active]
+    return "+".join(parts)
 
 def is_verified_account(user):
-    return getattr(user, 'id', None) in VERIFIED_ACCOUNT_IDS
+    return "blue" in gotya_badge_type(user).split("+")
 
-app.jinja_env.globals['is_verified_account'] = is_verified_account
+def gotya_badge_html(user):
+    badge = gotya_badge_type(user)
+    if not badge:
+        return Markup("")
+
+    colors = {
+        "gold": "#E5A51A",
+        "blue": "#2589F4",
+        "silver": "#AEB8C5",
+    }
+    active = badge.split("+")
+    gradient_id = "gotya-badge-" + __import__("uuid").uuid4().hex
+    stops = [
+        f'<stop offset="0%" stop-color="{colors[active[0]]}"/>'
+    ]
+
+    # Blend adjacent badge colors across a small region at each boundary.
+    blend = min(8.0, (100.0 / len(active)) * 0.24)
+    for i in range(len(active) - 1):
+        boundary = (i + 1) * 100.0 / len(active)
+        stops.append(
+            f'<stop offset="{boundary - blend:.2f}%" '
+            f'stop-color="{colors[active[i]]}"/>'
+        )
+        stops.append(
+            f'<stop offset="{boundary + blend:.2f}%" '
+            f'stop-color="{colors[active[i + 1]]}"/>'
+        )
+    stops.append(f'<stop offset="100%" stop-color="{colors[active[-1]]}"/>')
+
+    titles = {
+        "gold": "Gotya owner, developer, or ambassador",
+        "blue": "Verified account",
+        "silver": "Gotya Premium",
+        "gold+blue": "Gotya owner and verified account",
+        "gold+silver": "Gotya owner and Premium",
+        "blue+silver": "Verified account and Gotya Premium",
+        "gold+blue+silver": "Gotya owner, verified account, and Premium",
+    }
+    title = escape(titles.get(badge, "Gotya badge"), quote=True)
+    svg = (
+        f'<span class="gotya-verified-badge" title="{title}" '
+        f'aria-label="{title}" style="display:inline-flex;vertical-align:middle;'
+        f'align-items:center;line-height:0">'
+        '<svg aria-hidden="true" viewBox="0 0 16 16" width="14" height="14" '
+        'fill="none" xmlns="http://www.w3.org/2000/svg">'
+        f'<defs><linearGradient id="{gradient_id}" x1="0" y1="0" '
+        f'x2="1" y2="1">{"".join(stops)}</linearGradient></defs>'
+        '<path d="M8 0.4 9.9 2 12.4 1.8 13.1 4.2 15.2 5.5 14.5 8 '
+        '15.2 10.5 13.1 11.8 12.4 14.2 9.9 14 8 15.6 6.1 14 '
+        '3.6 14.2 2.9 11.8 0.8 10.5 1.5 8 0.8 5.5 2.9 4.2 '
+        f'3.6 1.8 6.1 2Z" fill="url(#{gradient_id})"/>'
+        '<path d="M4.1 8.1 6.7 10.5 11.9 5.4" stroke="#fff" '
+        'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
+        '</svg></span>'
+    )
+    return Markup(svg)
+
+app.jinja_env.globals["is_verified_account"] = is_verified_account
+app.jinja_env.globals["gotya_badge_html"] = gotya_badge_html
 
 class LoginAttempt(db.Model):
     """Hashed login identifier/IP pair used for temporary abuse throttling."""
@@ -2637,6 +2723,7 @@ def conversation_updates(user_id):
                     replied_to.sender.username if replied_to.sender else "Message"
                 ),
                 "sender_verified": bool(replied_to.sender and is_verified_account(replied_to.sender)),
+                "sender_badge_type": gotya_badge_type(replied_to.sender),
                 "preview": reply_preview,
             }
         elif replied_to:
@@ -2659,6 +2746,7 @@ def conversation_updates(user_id):
                     replied_to.sender.username if replied_to.sender else "Message"
                 ),
                 "sender_verified": bool(replied_to.sender and is_verified_account(replied_to.sender)),
+                "sender_badge_type": gotya_badge_type(replied_to.sender),
                 "preview": reply_preview,
             }
 
@@ -2667,6 +2755,7 @@ def conversation_updates(user_id):
             "sender_id": item.sender_id,
             "sender_name": item.sender.username if item.sender else "Message",
             "sender_verified": bool(item.sender and is_verified_account(item.sender)),
+            "sender_badge_type": gotya_badge_type(item.sender),
             "is_unsent": bool(item.is_unsent),
             "content": (
                 "This message was unsent."
@@ -2788,6 +2877,7 @@ def inbox_updates():
             "user_id": person.id,
             "username": person.username,
             "is_verified": is_verified_account(person),
+            "badge_type": gotya_badge_type(person),
             "profile_picture": (
                 url_for(
                     "profile_picture_file",
