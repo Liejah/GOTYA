@@ -3763,6 +3763,7 @@ def feed():
     return render_template(
         "feed.html",
         posts=posts,
+        external_videos=WATCH_EXTERNAL_VIDEOS,
         reaction_counts_visible=reaction_counts_visible,
         circle_friends=circle_friends
     )
@@ -3892,21 +3893,115 @@ WATCH_EXTERNAL_VIDEOS = [
     {"title":"Big Buck Bunny","category":"Comedy","description":"Animated comedy from the Blender Open Movies project.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ?rel=0","watch_url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ","license_note":"Check the film's current license and attribution terms before commercial use."},
     {"title":"Sintel","category":"Drama","description":"An independently produced fantasy short film from Blender Open Movies.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/eRsGyueVLvQ?rel=0","watch_url":"https://www.youtube.com/watch?v=eRsGyueVLvQ","license_note":"Check the film's current license and attribution terms before commercial use."},
     {"title":"Tears of Steel","category":"Entertainment","description":"A science-fiction short film from Blender Open Movies.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/R6MlUcmOul8?rel=0","watch_url":"https://www.youtube.com/watch?v=R6MlUcmOul8","license_note":"Check the film's current license and attribution terms before commercial use."},
+    {"title":"Elephants Dream","category":"Animation","description":"An animated short from the Blender Open Movies project.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/eS5t2Zoxq3Q?rel=0","watch_url":"https://www.youtube.com/watch?v=eS5t2Zoxq3Q","license_note":"Check the film's current license and attribution terms before commercial use."},
+    {"title":"Cosmos Laundromat","category":"Animation","description":"A Blender Open Movies animated short.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/Y-rmzh0PI3c?rel=0","watch_url":"https://www.youtube.com/watch?v=Y-rmzh0PI3c","license_note":"Check the film's current license and attribution terms before commercial use."},
+    {"title":"Spring","category":"Fantasy","description":"A fantasy short film from the Blender Open Movies project.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/WhWc3b3KhnY?rel=0","watch_url":"https://www.youtube.com/watch?v=WhWc3b3KhnY","license_note":"Check the film's current license and attribution terms before commercial use."},
+    {"title":"Sprite Fright","category":"Comedy","description":"A stylized animated short from the Blender Open Movies project.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/i5qOzqD9Rms?rel=0","watch_url":"https://www.youtube.com/watch?v=i5qOzqD9Rms","license_note":"Check the film's current license and attribution terms before commercial use."},
 ]
+
+
+def _watch_video_batch(viewer_id, before_created_at=None, before_id=None, limit=8):
+    batch_size = 40
+    visible_posts = []
+    cursor_post = None
+    scan_created_at = before_created_at
+    scan_id = before_id
+    has_more = False
+
+    while len(visible_posts) < limit:
+        query = Post.query.filter(
+            Post.media_type.like("video/%"),
+            Post.media_filename.isnot(None),
+        )
+        if scan_created_at is not None and scan_id is not None:
+            query = query.filter(db.or_(
+                Post.created_at < scan_created_at,
+                db.and_(
+                    Post.created_at == scan_created_at,
+                    Post.id < scan_id,
+                ),
+            ))
+
+        candidates = query.order_by(
+            Post.created_at.desc(), Post.id.desc()
+        ).limit(batch_size).all()
+
+        if not candidates:
+            break
+
+        reached_limit = False
+        for index, post in enumerate(candidates):
+            cursor_post = post
+            scan_created_at = post.created_at
+            scan_id = post.id
+
+            if _can_view_post(post, viewer_id):
+                visible_posts.append(post)
+
+            if len(visible_posts) >= limit:
+                has_more = (
+                    index < len(candidates) - 1
+                    or len(candidates) == batch_size
+                )
+                reached_limit = True
+                break
+
+        if reached_limit:
+            break
+
+        if len(candidates) < batch_size:
+            has_more = False
+            break
+
+    return visible_posts, cursor_post, has_more
 
 
 @app.route("/watch", methods=["GET"])
 @login_required
 def watch():
-    candidates = Post.query.filter(
-        Post.media_type.like("video/%"),
-        Post.media_filename.isnot(None),
-    ).order_by(Post.created_at.desc(), Post.id.desc()).all()
-    video_posts = [
-        post for post in candidates
-        if _can_view_post(post, current_user.id)
-    ]
-    return render_template("watch.html", posts=video_posts, external_videos=WATCH_EXTERNAL_VIDEOS)
+    video_posts, cursor_post, has_more = _watch_video_batch(current_user.id)
+    return render_template(
+        "watch.html",
+        posts=video_posts,
+        external_videos=WATCH_EXTERNAL_VIDEOS,
+        watch_cursor_created_at=cursor_post.created_at.isoformat() if cursor_post else "",
+        watch_cursor_id=cursor_post.id if cursor_post else "",
+        watch_has_more=has_more,
+    )
+
+
+@app.route("/watch/more", methods=["GET"])
+@login_required
+def watch_more():
+    before_created_at = request.args.get("before_created_at", "").strip()
+    before_id_raw = request.args.get("before_id", "").strip()
+
+    if not before_created_at or not before_id_raw:
+        return jsonify({"error": "A valid video cursor is required."}), 400
+
+    try:
+        cursor_datetime = datetime.fromisoformat(before_created_at)
+        cursor_id = int(before_id_raw)
+        if cursor_id < 1:
+            raise ValueError("Invalid post ID")
+    except (TypeError, ValueError):
+        return jsonify({"error": "The video cursor is invalid."}), 400
+
+    video_posts, cursor_post, has_more = _watch_video_batch(
+        current_user.id,
+        before_created_at=cursor_datetime,
+        before_id=cursor_id,
+    )
+    html = "".join(
+        render_template("watch_post_card.html", post=post)
+        for post in video_posts
+    )
+    return jsonify({
+        "html": html,
+        "has_more": has_more,
+        "before_created_at": cursor_post.created_at.isoformat() if cursor_post else before_created_at,
+        "before_id": cursor_post.id if cursor_post else cursor_id,
+    })
 
 
 @app.route("/post/<int:post_id>/like", methods=["POST"])

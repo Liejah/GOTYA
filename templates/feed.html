@@ -775,6 +775,44 @@ body.gotya-feed {
 
     <div class="latest-posts-label">Latest posts</div>
 
+    {% macro external_video_post(video) %}
+    <article class="card external-video-post" data-feed-card="external-videos-fyp">
+        <div class="post-author-row">
+            <div class="post-avatar" aria-hidden="true">&#9654;</div>
+            <div class="post-author-details">
+                <div class="author">{{ video.source }}</div>
+                <div class="post-header-meta">{{ video.category }} &middot; External video</div>
+            </div>
+        </div>
+
+        <div class="content post-caption">
+            <strong>{{ video.title }}</strong>
+            <p>{{ video.description }}</p>
+        </div>
+
+        <div class="post-media" style="margin:12px 0;overflow:hidden;border-radius:12px;">
+            <iframe
+                src="{{ video.embed_url }}"
+                title="{{ video.title }}"
+                loading="lazy"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen
+                style="display:block;width:100%;aspect-ratio:16/9;border:0;background:#000;"
+            ></iframe>
+        </div>
+
+        <div class="content" style="padding:0 16px 10px;font-size:12px;color:var(--muted,#777);">
+            {{ video.license_note }}
+        </div>
+
+        <div class="post-action-row">
+            <a class="post-action-label" href="{{ video.watch_url }}"
+               target="_blank" rel="noopener noreferrer">Watch source &middot;</a>
+        </div>
+    </article>
+    {% endmacro %}
+
     {% for post in posts %}
     <article id="post-{{ post.id }}" class="card">
         <div class="post-author-row">
@@ -799,7 +837,7 @@ body.gotya-feed {
                     <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">
                         {{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}
                     </time>
-                    Ãƒâ€šÃ‚Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
+                    ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
                 </div>
             </div>
             <div class="post-menu-wrap">
@@ -890,10 +928,22 @@ body.gotya-feed {
             </form>
         </section>
     </article>
+
+    {% if (loop.index % 2) == 0 %}
+        {% set external_index = (loop.index // 2) - 1 %}
+        {% if external_index < external_videos|length %}
+            {{ external_video_post(external_videos[external_index]) }}
+        {% endif %}
+    {% endif %}
+
     {% else %}
-    <section class="card empty">
-        <p>No posts yet. Be the first to share something!</p>
-    </section>
+        {% for video in external_videos %}
+            {{ external_video_post(video) }}
+        {% else %}
+            <section class="card empty">
+                <p>No posts yet. Be the first to share something!</p>
+            </section>
+        {% endfor %}
     {% endfor %}
 </main>
 

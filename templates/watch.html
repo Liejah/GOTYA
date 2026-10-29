@@ -249,7 +249,7 @@ body {
   </div>
 
   <div class="layout">
-    <section id="videoList" aria-label="Gotya videos">
+    <section id="videoList" aria-label="Gotya videos" data-next-created="{{ watch_cursor_created_at }}" data-next-id="{{ watch_cursor_id }}" data-has-more="{{ 'true' if watch_has_more else 'false' }}">
       {% for video in external_videos %}
       <article class="video-card gotya-external-video">
         <div class="posthead">
@@ -283,7 +283,7 @@ body {
       {% endfor %}
 
       {% for post in posts %}
-      <article class="video-card">
+      <article class="video-card" data-watch-post-id="{{ post.id }}">
         <div class="posthead">
           <a class="avatar" href="{{ url_for('public_profile', user_id=post.author.id) }}">
             {% if post.author.profile_picture %}
@@ -318,6 +318,10 @@ body {
       </section>
       {% endif %}
       {% endfor %}
+      <div class="watch-load-sentinel" aria-live="polite">
+        <span id="watchLoadStatus"></span>
+        <button class="action" id="watchLoadMore" type="button" hidden>Load more videos</button>
+      </div>
     </section>
 
     <aside class="sidebar">
@@ -358,19 +362,89 @@ body {
 const tabs = document.querySelectorAll('.tab');
 const list = document.getElementById('videoList');
 const csrfToken = {{ csrf_token()|tojson }};
+const loadStatus = document.getElementById('watchLoadStatus');
+const loadMoreButton = document.getElementById('watchLoadMore');
+const sentinel = document.querySelector('.watch-load-sentinel');
+
+let loadingVideos = false;
+let hasMoreVideos = list.dataset.hasMore === 'true';
 
 tabs.forEach(tab => tab.addEventListener('click', () => {
   tabs.forEach(item => item.classList.toggle('active', item === tab));
   list.classList.toggle('reels-mode', tab.dataset.mode === 'reels');
+  if (tab.dataset.mode === 'reels') setupReelPlayback();
+  else stopReelPlayback();
 }));
 
-document.querySelectorAll('[data-like][data-post-id]').forEach(button => {
-  button.addEventListener('click', async () => {
+async function loadMoreVideos() {
+  if (loadingVideos || !hasMoreVideos) return;
+  const beforeCreatedAt = list.dataset.nextCreated || '';
+  const beforeId = list.dataset.nextId || '';
+  if (!beforeCreatedAt || !beforeId) {
+    hasMoreVideos = false;
+    loadMoreButton.hidden = true;
+    return;
+  }
+
+  loadingVideos = true;
+  loadMoreButton.disabled = true;
+  loadStatus.textContent = 'Loading more videos...';
+
+  try {
+    const params = new URLSearchParams({
+      before_created_at: beforeCreatedAt,
+      before_id: beforeId
+    });
+    const response = await fetch(`{{ url_for('watch_more') }}?${params}`, {
+      credentials: 'same-origin',
+      headers: {'X-Requested-With': 'XMLHttpRequest'}
+    });
+    if (!response.ok) throw new Error('Could not load videos');
+    const result = await response.json();
+
+    if (result.html) {
+      sentinel.insertAdjacentHTML('beforebegin', result.html);
+    }
+    list.dataset.nextCreated = result.before_created_at || beforeCreatedAt;
+    list.dataset.nextId = result.before_id || beforeId;
+    hasMoreVideos = result.has_more === true;
+    list.dataset.hasMore = hasMoreVideos ? 'true' : 'false';
+
+    loadStatus.textContent = hasMoreVideos ? '' : 'You're all caught up.';
+    loadMoreButton.hidden = !hasMoreVideos;
+
+    if (list.classList.contains('reels-mode')) setupReelPlayback();
+  } catch (_) {
+    loadStatus.textContent = 'Could not load videos. Try again.';
+    loadMoreButton.hidden = false;
+  } finally {
+    loadingVideos = false;
+    loadMoreButton.disabled = false;
+  }
+}
+
+loadMoreButton.addEventListener('click', loadMoreVideos);
+
+if ('IntersectionObserver' in window) {
+  const loadObserver = new IntersectionObserver(entries => {
+    if (entries.some(entry => entry.isIntersecting)) loadMoreVideos();
+  }, {rootMargin: '700px 0px'});
+  loadObserver.observe(sentinel);
+} else {
+  loadMoreButton.hidden = !hasMoreVideos;
+}
+
+list.addEventListener('click', async event => {
+  const button = event.target.closest('button');
+  if (!button || !list.contains(button)) return;
+
+  if (button.matches('[data-like][data-post-id]')) {
     if (button.dataset.busy === '1') return;
     button.dataset.busy = '1';
     button.disabled = true;
     const oldText = button.textContent;
     button.textContent = 'Saving...';
+
     try {
       const body = new URLSearchParams({csrf_token: csrfToken});
       const response = await fetch(`/post/${encodeURIComponent(button.dataset.postId)}/like`, {
@@ -385,30 +459,88 @@ document.querySelectorAll('[data-like][data-post-id]').forEach(button => {
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || 'Like request failed');
-      button.textContent = result.liked ? '? Liked' : '? Like';
-      button.dataset.busy = '0';
-      button.disabled = false;
+      button.textContent = result.liked ? '\u2713 Liked' : '\u2661 Like';
     } catch (_) {
       button.textContent = oldText;
-      button.disabled = false;
-      button.dataset.busy = '0';
       window.alert('Could not save your like. Please try again.');
+    } finally {
+      button.dataset.busy = '0';
+      button.disabled = false;
     }
-  });
+    return;
+  }
+
+  if (button.matches('[data-comment]')) {
+    window.location.href = '{{ url_for("feed") }}';
+    return;
+  }
+
+  if (button.matches('[data-share]')) {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      button.textContent = '\u2713 Link copied';
+    } catch (_) {
+      window.prompt('Copy the Watch page link:', window.location.href);
+    }
+  }
 });
 
-document.querySelectorAll('[data-comment]').forEach(button => button.addEventListener('click', () => {
-  window.location.href = '{{ url_for("feed") }}';
-}));
-
-document.querySelectorAll('[data-share]').forEach(button => button.addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(window.location.href);
-    button.textContent = '\u2713 Link copied';
-  } catch (_) {
-    window.prompt('Copy the Watch page link:', window.location.href);
+let reelObserver = null;
+function stopReelPlayback() {
+  if (reelObserver) {
+    reelObserver.disconnect();
+    reelObserver = null;
   }
-}));
+  list.querySelectorAll('video').forEach(video => video.pause());
+}
+
+function setupReelPlayback() {
+  if (!list.classList.contains('reels-mode')) return;
+  if (reelObserver) reelObserver.disconnect();
+
+  if (!('IntersectionObserver' in window)) return;
+  reelObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const video = entry.target;
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.65) {
+        video.muted = true;
+        const playAttempt = video.play();
+        if (playAttempt && playAttempt.catch) playAttempt.catch(() => {});
+      } else {
+        video.pause();
+      }
+    });
+  }, {threshold: [0, 0.65, 1]});
+
+  list.querySelectorAll('.video-card video').forEach(video => {
+    if (video.dataset.reelObserved === '1') {
+      video.dataset.reelObserved = '0';
+    }
+    video.dataset.reelObserved = '1';
+    reelObserver.observe(video);
+
+    if (video.dataset.reelAdvanceBound !== '1') {
+      video.dataset.reelAdvanceBound = '1';
+      video.addEventListener('ended', async () => {
+        if (!list.classList.contains('reels-mode')) return;
+        const cards = Array.from(list.querySelectorAll('.video-card'));
+        const currentCard = video.closest('.video-card');
+        const index = cards.indexOf(currentCard);
+        const nextCard = cards[index + 1];
+
+        if (nextCard) {
+          nextCard.scrollIntoView({behavior: 'smooth', block: 'start'});
+        } else if (hasMoreVideos) {
+          await loadMoreVideos();
+          const updatedCards = Array.from(list.querySelectorAll('.video-card'));
+          if (updatedCards[index + 1]) {
+            updatedCards[index + 1].scrollIntoView({behavior: 'smooth', block: 'start'});
+          }
+        }
+      });
+    }
+  });
+}
 </script>
 
 

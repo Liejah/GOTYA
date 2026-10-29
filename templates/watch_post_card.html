@@ -1,0 +1,25 @@
+﻿<article class="video-card" data-watch-post-id="{{ post.id }}">
+  <div class="posthead">
+    <a class="avatar" href="{{ url_for('public_profile', user_id=post.author.id) }}">
+      {% if post.author.profile_picture %}
+        <img src="{{ url_for('profile_picture_file', filename=post.author.profile_picture) }}" alt="">
+      {% else %}
+        {{ post.author.username[0]|upper }}
+      {% endif %}
+    </a>
+    <div>
+      <a class="author" href="{{ url_for('public_profile', user_id=post.author.id) }}">{{ post.author.username }}</a>
+      <div class="meta">{{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else '' }}</div>
+    </div>
+    <span class="audience">{{ 'Friends' if post.audience == 'friends' else 'Public' }}</span>
+  </div>
+  <div class="video-wrap">
+    <video controls playsinline preload="metadata" src="{{ url_for('post_media_file', post_id=post.id) }}"></video>
+  </div>
+  {% if post.content %}<div class="caption">{{ post.content }}</div>{% endif %}
+  <div class="postactions">
+    <button class="action" type="button" data-like data-post-id="{{ post.id }}">&#9825; Like</button>
+    <button class="action" type="button" data-comment>&#9786; Comment</button>
+    <button class="action" type="button" data-share>&#8599; Share</button>
+  </div>
+</article>
