@@ -3912,11 +3912,16 @@ def watch():
 @app.route("/post/<int:post_id>/like", methods=["POST"])
 @login_required
 def toggle_like(post_id):
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     post = db.session.get(Post, post_id)
     if post is None:
+        if is_ajax:
+            return jsonify({"error": "That post could not be found."}), 404
         flash("That post could not be found.", "error")
         return redirect(url_for("feed"))
     if not _can_view_post(post, current_user.id):
+        if is_ajax:
+            return jsonify({"error": "That post is not available to you."}), 403
         flash("That post is not available to you.", "error")
         return redirect(url_for("feed"))
 
@@ -3927,12 +3932,16 @@ def toggle_like(post_id):
 
     if existing:
         db.session.delete(existing)
+        liked = False
         flash("Like removed.", "success")
     else:
         db.session.add(PostLike(user_id=current_user.id, post_id=post.id))
+        liked = True
         flash("You liked this post.", "success")
 
     db.session.commit()
+    if is_ajax:
+        return jsonify({"ok": True, "liked": liked}), 200
     return redirect(url_for("feed", _anchor=f"post-{post_id}"))
 
 

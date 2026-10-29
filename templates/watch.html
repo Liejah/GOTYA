@@ -203,6 +203,21 @@ body {
   .page { padding-bottom: 76px; }
 }
 
+
+/* GOTYA_REELS_RELEASE_PATCH */
+#videoList.reels-mode{display:flex;flex-direction:column;align-items:center;gap:18px}
+#videoList.reels-mode .video-card{position:relative;width:min(100%,570px);margin:0 auto;overflow:hidden;border-radius:18px;background:#111;color:#fff;border:0}
+#videoList.reels-mode .posthead{position:absolute;z-index:2;top:10px;left:12px;right:12px;padding:8px;border-radius:12px;background:linear-gradient(180deg,rgba(0,0,0,.65),transparent)}
+#videoList.reels-mode .posthead a,#videoList.reels-mode .posthead .author,#videoList.reels-mode .posthead .meta{color:#fff}
+#videoList.reels-mode .audience{background:rgba(0,0,0,.45);color:#fff}
+#videoList.reels-mode .video-wrap{position:relative;aspect-ratio:9/16;max-height:calc(100dvh - 180px);background:#090909;display:flex;align-items:center;justify-content:center}
+#videoList.reels-mode video,#videoList.reels-mode iframe{display:block;width:100%;height:100%;max-height:calc(100dvh - 180px);aspect-ratio:9/16;object-fit:contain;border:0}
+#videoList.reels-mode .caption{position:absolute;z-index:2;bottom:58px;left:14px;right:86px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.55));padding:26px 8px 10px;overflow-wrap:anywhere}
+#videoList.reels-mode .caption .meta{color:#eee}
+#videoList.reels-mode .postactions{position:absolute;z-index:3;right:8px;bottom:72px;display:flex;flex-direction:column;align-items:center;gap:12px;background:transparent;border:0;padding:4px}
+#videoList.reels-mode .postactions .action{min-width:56px;max-width:76px;border:0;border-radius:14px;background:rgba(20,20,20,.62);color:#fff;padding:10px 7px;text-align:center;white-space:normal}
+@media(max-width:640px){ #videoList.reels-mode{gap:10px}#videoList.reels-mode .video-card{width:100%;border-radius:0}#videoList.reels-mode .video-wrap,#videoList.reels-mode video,#videoList.reels-mode iframe{max-height:calc(100dvh - 145px)}#videoList.reels-mode .postactions{right:6px;bottom:64px}}
+
 </style>
 
 </head>
@@ -288,7 +303,7 @@ body {
         </div>
         {% if post.content %}<div class="caption">{{ post.content }}</div>{% endif %}
         <div class="postactions">
-          <button class="action" type="button" data-like>&#9825; Like</button>
+          <button class="action" type="button" data-like data-post-id="{{ post.id }}">&#9825; Like</button>
           <button class="action" type="button" data-comment>&#9786; Comment</button>
           <button class="action" type="button" data-share>&#8599; Share</button>
         </div>
@@ -342,23 +357,54 @@ body {
 <script>
 const tabs = document.querySelectorAll('.tab');
 const list = document.getElementById('videoList');
+const csrfToken = {{ csrf_token()|tojson }};
+
 tabs.forEach(tab => tab.addEventListener('click', () => {
   tabs.forEach(item => item.classList.toggle('active', item === tab));
   list.classList.toggle('reels-mode', tab.dataset.mode === 'reels');
-  if (tab.textContent.trim() === 'Following') {
-    // No separate follow-feed endpoint exists yet; retain the privacy-filtered video list.
-  }
 }));
-document.querySelectorAll('[data-like]').forEach(button => button.addEventListener('click', () => {
-  button.textContent = button.textContent.includes('Liked') ? '♡ Like' : '♥ Liked';
-}));
+
+document.querySelectorAll('[data-like][data-post-id]').forEach(button => {
+  button.addEventListener('click', async () => {
+    if (button.dataset.busy === '1') return;
+    button.dataset.busy = '1';
+    button.disabled = true;
+    const oldText = button.textContent;
+    button.textContent = 'Saving...';
+    try {
+      const body = new URLSearchParams({csrf_token: csrfToken});
+      const response = await fetch(`/post/${encodeURIComponent(button.dataset.postId)}/like`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: body.toString()
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Like request failed');
+      button.textContent = result.liked ? '? Liked' : '? Like';
+      button.dataset.busy = '0';
+      button.disabled = false;
+    } catch (_) {
+      button.textContent = oldText;
+      button.disabled = false;
+      button.dataset.busy = '0';
+      window.alert('Could not save your like. Please try again.');
+    }
+  });
+});
+
 document.querySelectorAll('[data-comment]').forEach(button => button.addEventListener('click', () => {
   window.location.href = '{{ url_for("feed") }}';
 }));
+
 document.querySelectorAll('[data-share]').forEach(button => button.addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText(window.location.href);
-    button.textContent = '✓ Link copied';
+    button.textContent = '\u2713 Link copied';
   } catch (_) {
     window.prompt('Copy the Watch page link:', window.location.href);
   }
