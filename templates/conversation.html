@@ -11,888 +11,477 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chat with {{ person.username }} | Gotya</title>
 <style>
-:root{--blue:#1877f2;--blue-dark:#0e5fc5;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0;--chat-bg:#f4f7fc;--bubble-bg:#e5eaf2;--input-bg:#f0f2f5;--hover:#f1f5fb;--soft-blue:#eaf2ff;--soft-blue-text:#174f9a;--control-bg:#eef1f6;--select-border:#d9dfeb;--call-card-bg:#fff;--call-card-text:#202124;--call-action-bg:#e9edf2}
-body[data-theme="dark"]{--location-icon-bg:#263f35;--location-icon-text:#a5e5c5;--voice-icon-bg:#3b2c4d;--voice-icon-text:#d9b8ff;--error-bg:#48282c;--error-text:#ffbfc5;--bg:#242526;--card:#18191a;--ink:#e4e6eb;--muted:#b0b3b8;--line:#3e4042;--chat-bg:#202124;--bubble-bg:#3a3b3c;--input-bg:#303236;--hover:#303236;--soft-blue:#263951;--soft-blue-text:#d5e7ff;--control-bg:#3a3b3c;--select-border:#55585c;--call-card-bg:#18191a;--call-card-text:#e4e6eb;--call-action-bg:#3a3b3c}
-body[data-theme="light"]{--location-icon-bg:#e5f7ed;--location-icon-text:#168653;--voice-icon-bg:#f3e8ff;--voice-icon-text:#8b5cf6;--error-bg:#fff0f1;--error-text:#a5293c;--bg:#f0f2f5;--card:#fff;--ink:#172033;--muted:#687386;--line:#e5e9f0;--chat-bg:#f4f7fc;--bubble-bg:#e5eaf2;--input-bg:#f0f2f5;--hover:#f1f5fb;--soft-blue:#eaf2ff;--soft-blue-text:#174f9a;--control-bg:#eef1f6;--select-border:#d9dfeb;--call-card-bg:#fff;--call-card-text:#202124;--call-action-bg:#e9edf2}
-@media(prefers-color-scheme:dark){body[data-theme="system"]{--location-icon-bg:#263f35;--location-icon-text:#a5e5c5;--voice-icon-bg:#3b2c4d;--voice-icon-text:#d9b8ff;--error-bg:#48282c;--error-text:#ffbfc5;--bg:#242526;--card:#18191a;--ink:#e4e6eb;--muted:#b0b3b8;--line:#3e4042;--chat-bg:#202124;--bubble-bg:#3a3b3c;--input-bg:#303236;--hover:#303236;--soft-blue:#263951;--soft-blue-text:#d5e7ff;--control-bg:#3a3b3c;--select-border:#55585c;--call-card-bg:#18191a;--call-card-text:#e4e6eb;--call-action-bg:#3a3b3c}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif}
-header{background:var(--card);border-bottom:1px solid var(--line)}
-.topbar{max-width:1000px;margin:auto;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
-.brand{font-size:25px;font-weight:850;letter-spacing:-1px;color:var(--blue);text-decoration:none}
-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-nav a{padding:10px 13px;border-radius:10px;text-decoration:none;color:var(--ink);font-weight:700;font-size:14px}
-nav a:hover{background:var(--soft-blue);color:var(--blue)}
-button{border:0;border-radius:10px;padding:11px 15px;background:var(--blue);color:white;font-weight:750;cursor:pointer}
-button:hover{background:var(--blue-dark)}
-button.secondary{background:var(--soft-blue);color:var(--blue)}
-main{max-width:850px;margin:25px auto;padding:0 15px 35px}
-.chat{height:min(76vh,760px);min-height:440px;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 25px #17203309}
-.chat-header{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--card)}
-.back{font-size:24px;text-decoration:none;color:var(--blue);padding-right:3px}
-.avatar{height:45px;width:45px;border-radius:50%;background:linear-gradient(135deg,#1877f2,#78b5ff);display:flex;align-items:center;justify-content:center;color:white;font-size:19px;font-weight:800;overflow:hidden;flex-shrink:0}
-.avatar img{width:100%;height:100%;object-fit:cover}
-.person-info{min-width:0}
-.name{font-weight:850;overflow-wrap:anywhere}
-.status{font-size:12px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:5px;min-height:15px}
-.status.is-active{color:#1877f2;font-weight:750}
-.presence-dot{display:none;width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#1877f2}
-.status.is-active .presence-dot{display:inline-block}
-.messages{flex:1;overflow-y:auto;padding:22px 18px;display:flex;flex-direction:column;gap:13px;background:linear-gradient(#f8faff,#f4f7fc)}
-.day-note{text-align:center;color:var(--muted);font-size:12px;margin:3px 0 10px}
-.time-separator{width:100%;box-sizing:border-box;text-align:center;align-self:center;color:var(--muted);font-size:11px;line-height:1.4;padding:9px 0 5px;margin:0}
-.message-row{display:flex;flex-direction:column;width:fit-content;max-width:78%;align-self:flex-start;align-items:flex-start;min-width:0}.message-row.mine{align-self:flex-end;align-items:flex-end}
-.message-row.mine{align-self:flex-end;align-items:flex-end}
-.bubble{display:block;width:fit-content;max-width:100%;box-sizing:border-box;padding:8px 12px;border:0;border-radius:18px 18px 18px 5px;background:var(--bubble-bg);color:var(--ink);font-size:14px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap}
-.mine .bubble{background:var(--blue);color:white;border-radius:18px 18px 5px 18px}
-.timestamp{font-size:11px;color:var(--muted);margin:5px 5px 0}
-.empty{text-align:center;color:var(--muted);margin:auto;padding:25px;line-height:1.6}
-.empty strong{display:block;color:var(--ink);font-size:18px;margin-bottom:7px}
-.composer{display:flex;gap:10px;align-items:flex-end;padding:14px;border-top:1px solid var(--line);background:var(--card)}
-textarea{flex:1;resize:none;min-height:44px;max-height:130px;border:1px solid var(--select-border, #d9dfeb);border-radius:22px;padding:12px 16px;font:inherit;font-size:15px;outline:none}
-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #1877f21a}
-.send{height:44px;border-radius:22px;padding:0 20px}
-.attachment-picker{display:flex;flex-direction:column;gap:4px;max-width:145px;font-size:12px;color:var(--muted)}
-.attachment-picker label{display:inline-block;cursor:pointer;font-weight:700;color:var(--blue);padding:8px 4px}
-.attachment-picker input{width:145px;max-width:100%;font-size:11px}
-#attachmentName{overflow-wrap:anywhere;max-width:145px}
-.bubble.image-only-bubble{padding:0;background:transparent!important;color:inherit;border-radius:0;overflow:visible}.bubble.image-only-bubble .message-image{display:block;max-width:min(280px,100%);max-height:360px;object-fit:cover;border-radius:18px;margin:0}.bubble.image-only-bubble .attachment-link{padding:0 3px}.message-image{display:block;max-width:min(260px,100%);max-height:300px;object-fit:contain;border-radius:18px;margin-top:8px}
-.attachment-link{margin-top:8px;overflow-wrap:anywhere}
-.attachment-link a{color:var(--blue);font-weight:600}
-.attachment-link small{display:block;opacity:.75}
-.voice-message-player{display:block;width:min(280px,100%);max-width:100%;margin:8px 0;border-radius:12px}
 
-/* Keep audio-only messages wide enough to show native playback controls. */
-.message-row:has(.voice-message-player){
-  width:min(304px,82%);
-  max-width:82%;
-  min-width:0;
+:root {
+  --blue:#1877f2; --blue-dark:#0866ff; --bg:#fff; --card:#fff;
+  --ink:#17191c; --muted:#687386; --line:#e7e9ed;
+  --chat-bg:#fff; --bubble-bg:#e9e9eb; --input-bg:#f0f2f5;
+  --hover:#f1f3f5; --soft-blue:#e7f3ff; --soft-blue-text:#0866ff;
+  --control-bg:#f0f2f5; --select-border:#d9dfe8;
+  --call-card-bg:#fff; --call-card-text:#202124; --call-action-bg:#e9edf2;
 }
-.message-row:has(.voice-message-player) > .bubble{
-  width:100% !important;
-  min-width:0;
+body[data-theme="dark"] {
+  --bg:#101114; --card:#18191d; --ink:#f4f5f7; --muted:#aeb4bf;
+  --line:#303239; --chat-bg:#101114; --bubble-bg:#303238;
+  --input-bg:#292b31; --hover:#303238; --soft-blue:#263951;
+  --soft-blue-text:#d5e7ff; --control-bg:#303238; --select-border:#484b53;
+  --call-card-bg:#18191d; --call-card-text:#f4f5f7; --call-action-bg:#303238;
 }
-.message-row .voice-message-player{
-  display:block;
-  width:100%;
-  min-width:240px;
-  max-width:100%;
-  box-sizing:border-box;
+* { box-sizing:border-box; }
+html, body { width:100%; height:100%; min-height:100%; margin:0; }
+body {
+  background:var(--bg); color:var(--ink);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  overflow:hidden;
 }
-
-
-
-/* Compact Messenger-style alignment */
-.message-row > .bubble{align-self:flex-start}
-.message-row.mine > .bubble{align-self:flex-end}
-.message-row .image-only-bubble{width:auto;max-width:100%;padding:0!important;border:0!important;box-shadow:none!important}
-.bubble.image-only-bubble .message-image{display:block;width:auto;max-width:100%;max-height:340px;object-fit:contain;border-radius:16px;margin:0}
-.bubble.image-only-bubble>a{display:block;max-width:100%;line-height:0}
-.bubble.image-only-bubble .attachment-link{display:none}
-.message-row .bubble:not(.image-only-bubble) .message-image{max-width:100%;height:auto;border-radius:14px}
-.timestamp{margin-top:3px;font-size:10px}
-@media(max-width:600px){
-.message-row{max-width:82%;width:fit-content}
-.bubble{padding:7px 10px;font-size:14px;line-height:1.4}
-.bubble.image-only-bubble .message-image{max-width:100%;max-height:300px;border-radius:15px}
-}
-
-/* Final compact Messenger-style spacing */
-.messages{gap:8px}
-.message-row{max-width:78%}
-.bubble{padding:5px 9px;font-size:14px;line-height:1.35;border-radius:15px 15px 15px 4px}
-.mine .bubble{border-radius:15px 15px 4px 15px}
-.message-row .image-only-bubble{padding:0!important}
-.bubble.image-only-bubble .attachment-link{display:none!important}
-.timestamp{margin:2px 4px 0;font-size:10px}
-@media(max-width:600px){
-.messages{gap:7px}
-.message-row{max-width:82%}
-.bubble{padding:5px 8px;font-size:14px;line-height:1.35}
-}
-
-/* Messenger-like text bubbles: content-sized, minimal padding */
-.message-row{width:fit-content;max-width:78%;min-width:0}
-.message-row .bubble:not(.image-only-bubble){
-  display:inline-block;
-  width:fit-content;
-  max-width:100%;
-  padding:6px 10px;
-  margin:0;
-  border:0;
-  box-shadow:none;
-  font-size:14px;
-  line-height:1.3;
-  overflow-wrap:anywhere;
-  white-space:pre-wrap;
-}
-.message-row.mine .bubble:not(.image-only-bubble){
-  border-radius:18px 18px 4px 18px;
-}
-.message-row:not(.mine) .bubble:not(.image-only-bubble){
-  border-radius:18px 18px 18px 4px;
-}
-.message-text{margin:0;padding:0}
-@media(max-width:600px){
-  .message-row{max-width:82%}
-  .message-row .bubble:not(.image-only-bubble){
-    padding:5px 9px;
-    font-size:14px;
-    line-height:1.3;
-  }
-}
-
-/* Prevent template whitespace from making text bubbles bulky */
-.message-row .bubble:not(.image-only-bubble){
-  white-space:normal!important;
-  padding:4px 8px!important;
-  line-height:1.3!important;
-  width:fit-content;
-  min-width:0;
-}
-.message-row .bubble .message-text{
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-  margin:0;
-  padding:0;
-}
-.message-row .bubble:not(.image-only-bubble) .attachment-link{
-  white-space:normal;
-}
-
-/* Tight photo spacing like Messenger */
-.messages{gap:6px!important}
-.message-row{margin:0!important;padding:0!important;gap:0!important}
-.message-row .bubble.image-only-bubble{margin:0!important;padding:0!important;line-height:0!important}
-.message-row .bubble.image-only-bubble>a{display:block!important;margin:0!important;padding:0!important;line-height:0!important}
-.message-row .bubble.image-only-bubble .message-image{display:block!important;margin:0!important;padding:0!important;border-radius:16px;max-height:320px}
-.message-row .timestamp{margin:2px 4px 0!important;line-height:1.2}
-
-/* Messenger-inspired composer, including Android sizing */
-.composer{display:flex;align-items:flex-end;gap:6px;padding:6px 9px;box-sizing:border-box}
-.composer-icon{width:36px;height:40px;flex:0 0 36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--blue);border-radius:50%;-webkit-tap-highlight-color:transparent}
-.composer-icon:active{background:var(--soft-blue)}
-.composer-icon svg,.send svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.visually-hidden-file{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
-.composer-input-wrap{flex:1;min-width:0;background:var(--input-bg);border-radius:22px;padding:1px 10px;display:flex;flex-direction:column;justify-content:center}
-.composer textarea{display:block;width:100%;min-width:0;height:24px;min-height:24px;max-height:64px;box-sizing:border-box;resize:none;border:0!important;box-shadow:none!important;background:transparent;padding:2px 1px;font:inherit;font-size:16px;line-height:20px;outline:none;overflow-y:hidden}
-.composer textarea::placeholder{color:#68778b}
-.selected-files{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
-.send{width:40px;height:40px;flex:0 0 40px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center}
-.send svg{width:22px;height:22px;fill:currentColor;stroke:currentColor}
-@media(max-width:600px){
- .composer{gap:3px;padding:5px 5px;padding-bottom:max(5px,env(safe-area-inset-bottom))}
- .composer-icon{width:32px;flex-basis:32px;height:40px}
- .composer-icon svg{width:23px;height:23px}
- .composer-input-wrap{padding:1px 8px}
- .composer textarea{font-size:16px;height:24px;min-height:24px;max-height:64px;padding:2px 1px}
- .send{width:38px;height:38px;flex-basis:38px}
-}
-
-.flash{padding:11px 14px;border-radius:10px;margin-bottom:12px;background:var(--soft-blue);color:var(--soft-blue-text)}
-.flash.error{background:var(--error-bg, #fff0f1);color:var(--error-text, #a5293c)}
-@media(max-width:600px){.topbar{align-items:flex-start;flex-direction:column;padding:12px 15px}nav{width:100%}nav a{padding:9px 10px}main{margin:12px auto;padding:0 8px 12px}.chat{height:calc(100dvh - 155px);min-height:350px;border-radius:15px}.chat-header{padding:11px 12px}.messages{padding:17px 11px}.message-row{max-width:88%}.composer{padding:10px;gap:7px}.send{padding:0 15px}}
-
-/* Final photo-to-message spacing fix */
-.messages{row-gap:3px!important;column-gap:0!important}
-.messages>.message-row{margin-block:0!important;padding-block:0!important;gap:0!important}
-.messages>.message-row:has(.image-only-bubble){margin-block:0!important;padding-block:0!important}
-.messages>.message-row:has(.image-only-bubble) .timestamp{margin-top:1px!important;margin-bottom:0!important;padding:0!important;line-height:1!important}
-.messages>.message-row:has(.image-only-bubble) .image-only-bubble{display:block!important;margin:0!important;padding:0!important;line-height:0!important}
-.messages>.message-row:has(.image-only-bubble) .image-only-bubble>a{display:block!important;margin:0!important;padding:0!important;line-height:0!important}
-.messages>.message-row:has(.image-only-bubble) .message-image{display:block!important;margin:0!important;padding:0!important;vertical-align:top!important}
-
-/* Slim typing pill only; keep gallery and send buttons large */
-.composer .composer-input-wrap {
-    min-height: 22px !important;
-    padding: 0 10px !important;
-    border-radius: 18px !important;
-}
-.composer .composer-input-wrap textarea {
-    height: 22px;
-    min-height: 22px !important;
-    max-height: 58px !important;
-    padding: 0 !important;
-    line-height: 18px !important;
-    font-size: 16px !important;
-    box-sizing: border-box !important;
-}
-@media (max-width: 600px) {
-    .composer .composer-input-wrap {
-        padding-left: 9px !important;
-        padding-right: 9px !important;
-    }
-}
-
-
-/* Messenger-like typing box: comfortable first line, up to three lines */
-.composer .composer-input-wrap {
-    padding: 3px 10px !important;
-    border-radius: 20px !important;
-}
-.composer .composer-input-wrap textarea {
-    height: 26px;
-    min-height: 26px !important;
-    max-height: 54px !important;
-    padding: 4px 1px !important;
-    line-height: 18px !important;
-    font-size: 16px !important;
-    box-sizing: border-box !important;
-    overflow-y: hidden;
-}
-@media (max-width: 600px) {
-    .composer .composer-input-wrap {
-        padding: 3px 9px !important;
-    }
-}
-
-
-/* Android-friendly message composer */
-.composer {
-    display: flex;
-    align-items: flex-end;
-    gap: 6px;
-    padding: 8px 8px;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
-    box-sizing: border-box;
-}
-
-.composer .composer-input-wrap {
-    flex: 1;
-    min-width: 0;
-    padding: 4px 10px !important;
-    border-radius: 20px !important;
-    background: var(--input-bg, #f0f2f5);
-}
-
-.composer .composer-input-wrap textarea {
-    display: block;
-    width: 100%;
-    min-width: 0;
-    height: 26px;
-    min-height: 26px !important;
-    max-height: 54px !important;
-    padding: 4px 1px !important;
-    margin: 0;
-    border: 0 !important;
-    outline: none;
-    resize: none;
-    box-shadow: none !important;
-    background: transparent;
-    font-size: 16px !important;
-    line-height: 18px !important;
-    box-sizing: border-box !important;
-    overflow-x: hidden;
-    overflow-y: hidden;
-    -webkit-appearance: none;
-}
-
-.composer .composer-icon {
-    width: 40px;
-    height: 42px;
-    flex: 0 0 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: manipulation;
-}
-
-.composer .composer-icon svg {
-    width: 25px;
-    height: 25px;
-}
-
-.composer .send {
-    width: 42px;
-    height: 42px;
-    flex: 0 0 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: manipulation;
-}
-
-.composer .send svg {
-    width: 25px;
-    height: 25px;
-}
-
-.composer .selected-files {
-    font-size: 12px;
-    overflow-wrap: anywhere;
-}
-
-@media (max-width: 600px) {
-    .composer {
-        gap: 4px;
-        padding-left: 5px;
-        padding-right: 5px;
-    }
-
-    .composer .composer-input-wrap {
-        padding-left: 9px !important;
-        padding-right: 9px !important;
-    }
-}
-
-
-/* Final Android textarea sizing */
-.composer .composer-input-wrap textarea {
-    min-height: 26px !important;
-    max-height: 58px !important;
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
-    line-height: 18px !important;
-    box-sizing: border-box !important;
-    overflow-x: hidden;
-}
-
-
-/* Reliable auto-growing message field */
-.composer .composer-input-wrap textarea#messageInput {
-    display: block !important;
-    width: 100% !important;
-    height: 26px;
-    min-height: 26px !important;
-    max-height: none !important;
-    padding: 3px 1px !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
-    line-height: 20px !important;
-    font-size: 16px !important;
-    resize: none !important;
-    overflow-x: hidden !important;
-    overflow-y: hidden;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
-
-
-/* Final isolated Messenger-style message composer sizing */
-.composer .composer-input-wrap textarea#messageInput {
-    display: block !important;
-    width: 100% !important;
-    height: 26px;
-    min-height: 26px !important;
-    max-height: 66px !important;
-    padding: 3px 1px !important;
-    margin: 0 !important;
-    box-sizing: border-box !important;
-    font-size: 16px !important;
-    line-height: 20px !important;
-    resize: none !important;
-    overflow-x: hidden !important;
-    overflow-y: hidden;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
-
-
-/* Live location sharing */
-.location-panel{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--chat-bg)}
-.location-heading{font-weight:800;font-size:14px;margin-bottom:8px}
-.location-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.location-actions label{font-size:12px;color:var(--muted)}
-.location-actions select{padding:9px;border:1px solid var(--select-border);border-radius:9px;background:var(--card);color:var(--ink)}
-.location-actions button{padding:9px 12px;font-size:12px}
-.location-actions button[hidden],#incomingLocation[hidden]{display:none}
-#locationShareStatus,#incomingLocation{font-size:12px;color:var(--muted);margin-top:8px;overflow-wrap:anywhere}
-#incomingLocation a{color:var(--blue);font-weight:750}
-@media(max-width:600px){.location-panel{padding:10px}.location-actions{gap:6px}.location-actions select{max-width:100%}}
-
-
-/* Messenger-style upward composer menu */
-.plus-menu-wrap{position:relative;display:flex;align-items:center;flex-shrink:0}
-.plus-button{width:44px;height:44px;border:0;border-radius:50%;background:var(--soft-blue);color:#1877f2;font-size:30px;font-weight:400;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
-.plus-button:hover{background:var(--hover)}
-.plus-menu{position:absolute;z-index:50;left:0;bottom:calc(100% + 12px);width:230px;max-width:calc(100vw - 40px);padding:8px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 28px #17203324;display:flex;flex-direction:column;gap:4px}
-.plus-menu[hidden],#locationOptions[hidden],#attachmentSubmenu[hidden],#voiceRecorder[hidden]{display:none!important}
-.plus-menu-item{display:flex;align-items:center;gap:12px;width:100%;padding:11px 10px;border:0;border-radius:10px;background:transparent;color:var(--ink);font:inherit;font-size:14px;text-align:left;cursor:pointer}
-.plus-menu-item:hover{background:var(--hover)}
-.menu-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:700;flex-shrink:0}
-.location-menu-icon{background:var(--location-icon-bg, #e5f7ed);color:var(--location-icon-text, #168653)}
-.file-menu-icon{background:var(--soft-blue);color:#1877f2}
-.voice-menu-icon{background:var(--voice-icon-bg, #f3e8ff);color:var(--voice-icon-text, #8b5cf6)}
-.location-options{gap:9px}
-.location-options strong{font-size:15px;padding:5px 4px}
-.location-options label{font-size:12px;color:var(--muted)}
-.location-options select{width:100%;padding:10px;border:1px solid var(--select-border);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
-.menu-primary,.menu-secondary{width:100%;padding:10px 12px;border:0;border-radius:10px;font-weight:700;cursor:pointer}
-.menu-primary{background:#1877f2;color:white}
-.menu-secondary{background:var(--control-bg);color:var(--ink)}
-.menu-primary:disabled{opacity:.6;cursor:wait}
-#locationShareStatus,#incomingLocation{font-size:12px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
-#incomingLocation a{color:#1877f2;font-weight:700}
-.voice-recorder{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px;font-size:12px}
-.voice-recorder button{border:0;border-radius:9px;padding:7px 10px;background:var(--control-bg);color:var(--ink);cursor:pointer}
-@media(max-width:600px){
- .composer{gap:7px;padding:10px}
- .plus-menu{width:220px}
- .plus-button{width:40px;height:40px}
-}
-
-
-/* Android chat layout fix */
-html, body {
-    width: 100%;
-    max-width: 100%;
-}
-
+body > header { display:none!important; }
 main {
-    width: 100%;
-    min-width: 0;
+  width:100%; max-width:none; height:100dvh; min-height:0;
+  margin:0; padding:0; display:flex;
 }
-
 .chat {
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
+  display:flex; flex:1; flex-direction:column; min-width:0;
+  width:100%; height:100%; min-height:0; overflow:hidden;
+  border:0; border-radius:0; background:var(--card); box-shadow:none;
 }
-
-.chat-header, .messages, .composer {
-    width: 100%;
-    min-width: 0;
+.chat-header {
+  position:relative;
+  z-index:5; flex:0 0 auto; display:flex; align-items:center;
+  gap:12px; min-height:62px; padding:8px 15px;
+  background:var(--card); border-bottom:1px solid var(--line);
 }
-
-.messages {
-    flex: 1 1 0;
-    overscroll-behavior-y: contain;
+.back {
+  display:flex; align-items:center; justify-content:center;
+  flex:0 0 30px; width:30px; padding:0;
+  color:var(--blue); text-decoration:none; font-size:30px; line-height:1;
 }
-
-@media (max-width: 600px) {
-    main {
-        width: 100%;
-        max-width: 850px;
-        margin: 8px auto;
-        padding: 0 8px 8px;
-    }
-
-    .chat {
-        height: calc(100vh - 150px);
-        height: calc(100dvh - 150px);
-        min-height: 0;
-        max-height: 850px;
-        border-radius: 15px;
-    }
-
-    .chat-header {
-        flex: 0 0 auto;
-    }
-
-    .messages {
-        flex: 1 1 0;
-        min-height: 0;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .composer {
-        flex: 0 0 auto;
-        min-width: 0;
-    }
+.avatar {
+  flex:0 0 42px; width:42px; height:42px; border-radius:50%;
+  overflow:hidden; display:flex; align-items:center; justify-content:center;
+  background:#d9e8ff; color:#1765c1; font-size:17px; font-weight:750;
 }
-
-/* GOTYA VIDEO CALL */
-.gotya-call-btn {
-    border: 0;
-    border-radius: 999px;
-    padding: 9px 14px;
-    margin-left: auto;
-    background: #1877f2;
-    color: #fff;
-    font-weight: 700;
-    cursor: pointer;
+.avatar img { width:100%; height:100%; object-fit:cover; }
+.person-info { flex:1; min-width:0; }
+.name { overflow-wrap:anywhere; font-size:16px; font-weight:750; line-height:1.25; }
+.status {
+  display:flex; align-items:center; gap:5px; min-height:16px;
+  margin-top:3px; color:var(--muted); font-size:12px;
 }
+.status.is-active { color:#16803c; }
+.presence-dot { display:none; width:7px; height:7px; border-radius:50%; background:#20bf63; }
+.status.is-active .presence-dot { display:inline-block; }
+.chat-header button, .icon-control {
+  display:flex; align-items:center; justify-content:center;
+  width:40px; height:40px; flex:0 0 40px; padding:0;
+  border:0; border-radius:50%; background:transparent;
+  color:var(--blue); cursor:pointer;
+}
+.chat-header button:hover, .icon-control:hover { background:var(--hover); }
 
+/* Gotya chat header menu */
+.chat-more-wrap { position:relative; flex:0 0 40px; }
+.chat-header .chat-more-button { font-size:24px; font-weight:800; letter-spacing:1px; }
+.chat-more-menu {
+  position:absolute; z-index:20; top:calc(100% + 8px); right:0;
+  width:210px; padding:6px; border:1px solid var(--line);
+  border-radius:14px; background:var(--card);
+  box-shadow:0 10px 32px #00000020;
+}
+.chat-more-menu[hidden] { display:none!important; }
+.chat-more-menu a, .chat-more-menu button {
+  display:flex; align-items:center; width:100%; min-height:42px;
+  padding:10px 12px; border:0; border-radius:9px;
+  background:transparent; color:var(--ink); text-align:left;
+  text-decoration:none; font:inherit; font-size:14px; cursor:pointer;
+}
+.chat-more-menu a:hover, .chat-more-menu button:hover { background:var(--hover); }
+
+/* Responsive video-call overlay */
 .gotya-call-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    background: #080b12;
+  display:none; position:fixed; inset:0; z-index:1000;
+  align-items:center; justify-content:center; padding:18px;
+  background:rgba(8,12,20,.68);
 }
-
-.gotya-call-overlay.open {
-    display: flex;
-}
-
+.gotya-call-overlay.open { display:flex; }
 .gotya-call-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    max-height: 100dvh;
-    overflow: hidden;
-    padding: 18px;
-    border-radius: 0;
-    background: #080b12;
-    color: #fff;
+  display:flex; flex-direction:column; gap:12px;
+  width:min(680px,100%); max-height:92dvh; overflow:auto;
+  padding:20px; border:1px solid var(--line); border-radius:22px;
+  background:var(--call-card-bg); color:var(--call-card-text);
+  box-shadow:0 20px 70px #0005;
 }
-
-#gotyaCallTitle {
-    margin: 0;
-    text-align: center;
-    font-size: 21px;
-    font-weight: 700;
-}
-
-#gotyaCallStatus {
-    min-height: 20px;
-    margin: 8px 0;
-    color: #cbd5e1;
-    text-align: center;
-    white-space: pre-wrap;
-    font-size: 14px;
-}
-
+.gotya-call-card h2 { margin:0; font-size:21px; }
+.gotya-call-card p { margin:0; color:var(--muted); }
 .gotya-call-videos {
-    position: relative;
-    flex: 1 1 auto;
-    min-height: 0;
-    margin: 8px 0 16px;
-    overflow: hidden;
-    border-radius: 20px;
-    background: #171b25;
+  display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  min-height:180px; overflow:hidden; border-radius:16px;
+  background:#101114;
 }
-
 .gotya-call-videos video {
-    display: block;
-    background: #171b25;
-    object-fit: cover;
+  display:block; width:100%; height:clamp(180px,38vh,360px);
+  object-fit:cover; background:#101114;
 }
-
-#gotyaRemoteVideo {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    max-height: none;
-    border-radius: 20px;
-    transform: none;
-}
-
-#gotyaLocalVideo {
-    position: absolute;
-    z-index: 2;
-    top: 16px;
-    right: 16px;
-    width: clamp(100px, 27%, 155px);
-    height: clamp(145px, 23vh, 205px);
-    min-height: 0;
-    max-height: none;
-    border: 2px solid rgba(255, 255, 255, .9);
-    border-radius: 16px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, .35);
-    transform: scaleX(-1);
-}
-
-.gotya-call-actions {
-    display: flex;
-    flex: 0 0 auto;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    margin-top: 12px;
-}
-
+.gotya-call-actions { justify-content:center; flex-wrap:wrap; gap:10px; }
 .gotya-call-actions button {
-    min-height: 46px;
-    border: 0;
-    border-radius: 999px;
-    padding: 12px 18px;
-    background: #252b38;
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform .15s ease, background .15s ease;
+  min-height:42px; padding:10px 15px; border:0; border-radius:22px;
+  background:var(--call-action-bg); color:var(--call-card-text);
+}
+.gotya-call-actions button.accept { background:#16803c; color:white; }
+.gotya-call-actions button.danger { background:#d92d3a; color:white; }
+.gotya-call-actions button#gotyaEndCall { background:#d92d3a; color:white; }
+.gotya-call-actions button:disabled { opacity:.5; cursor:not-allowed; }
+.chat-header button svg, .icon-control svg {
+  width:23px; height:23px; fill:none; stroke:currentColor;
+  stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+}
+.messages {
+  flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain;
+  display:flex; flex-direction:column; gap:5px!important;
+  padding:16px 12px 12px; background:var(--chat-bg);
+}
+.time-separator, .day-note, .timestamp { display:none!important; }
+.message-row {
+  display:flex; flex-direction:column; align-items:flex-start;
+  align-self:flex-start; width:fit-content; max-width:min(78%,520px);
+  min-width:0; margin:0!important; padding:0!important; gap:2px!important;
+}
+.message-row.mine { align-self:flex-end; align-items:flex-end; }
+.message-sender-label {
+  margin:0 8px 2px; color:var(--muted); font-size:11px; line-height:1.2;
+}
+.bubble {
+  display:block; width:fit-content; max-width:100%; min-width:0;
+  padding:8px 12px!important; margin:0; border:0; box-shadow:none;
+  border-radius:18px 18px 18px 5px;
+  background:var(--bubble-bg); color:var(--ink);
+  font-size:15px; line-height:1.32; overflow-wrap:anywhere;
+  white-space:normal!important;
+}
+.message-row.mine .bubble {
+  border-radius:18px 18px 5px 18px; background:var(--blue); color:#fff;
+}
+.message-text { margin:0; padding:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.reply-quote {
+  display:flex; flex-direction:column; gap:3px; margin-bottom:6px;
+  padding:6px 9px; border-left:3px solid var(--blue);
+  border-radius:5px; background:#0000000c; font-size:12px;
+}
+.mine .reply-quote { border-left-color:#fff; background:#ffffff20; }
+.reply-quote-sender { font-weight:750; }
+.reply-quote-text { overflow-wrap:anywhere; }
+.message-image {
+  display:block; max-width:100%; max-height:360px; height:auto;
+  object-fit:contain; border-radius:14px; margin-top:5px;
+}
+.bubble.image-only-bubble {
+  width:auto; max-width:100%; padding:0!important; margin:0!important;
+  border:0; background:transparent!important; line-height:0;
+}
+.bubble.image-only-bubble>a { display:block; max-width:100%; line-height:0; }
+.bubble.image-only-bubble .message-image {
+  display:block; width:auto; max-width:100%; max-height:340px;
+  margin:0; border-radius:15px;
+}
+.bubble.image-only-bubble .attachment-link { display:none!important; }
+.attachment-link { margin-top:7px; overflow-wrap:anywhere; }
+.attachment-link a { color:var(--blue); font-weight:650; }
+.mine .attachment-link a { color:#fff; }
+.attachment-link small { display:block; opacity:.75; }
+.voice-message-player { display:block; width:min(280px,100%); max-width:100%; margin:5px 0; }
+.message-row:has(.voice-message-player) { width:min(304px,82%); max-width:82%; }
+.message-row:has(.voice-message-player) > .bubble { width:100%; }
+.message-row .voice-message-player { width:100%; min-width:0; }
+.reply-message-btn, .hide-message-btn, .unsend-message-btn {
+  margin:3px 5px; padding:4px 7px; border:0; border-radius:7px;
+  background:transparent; color:var(--muted); font-size:11px; cursor:pointer;
+}
+.reply-message-btn:hover, .hide-message-btn:hover, .unsend-message-btn:hover {
+  background:var(--hover);
+}
+.message-reactions { max-width:100%; }
+.reaction-summary { display:flex; flex-wrap:wrap; gap:4px; margin-top:3px; }
+.reaction-chip, .reaction-button {
+  display:inline-flex; align-items:center; justify-content:center; gap:4px;
+  min-width:28px; min-height:27px; padding:3px 7px;
+  border:1px solid var(--line); border-radius:16px;
+  background:var(--card); color:var(--ink); font-size:13px;
+}
+.reaction-picker { display:flex; flex-wrap:wrap; gap:4px; }
+.delivery-receipt {
+  display:block; min-height:12px; margin:1px 5px 0;
+  color:var(--muted); font-size:11px; line-height:12px; letter-spacing:-1px;
+}
+.message-row.mine .delivery-receipt { text-align:right; }
+.message-row.is-unsent .delivery-receipt,
+.message-row.is-unsent .reply-message-btn { display:none!important; }
+.message-row.is-unsent .bubble { color:var(--muted); font-style:italic; }
+.empty { margin:auto; padding:25px; color:var(--muted); text-align:center; line-height:1.6; }
+.empty strong { display:block; margin-bottom:7px; color:var(--ink); font-size:18px; }
+.composer {
+  z-index:5; flex:0 0 auto; display:flex; align-items:center;
+  gap:4px; padding:7px 8px;
+  padding-bottom:max(7px,env(safe-area-inset-bottom));
+  background:var(--card); border-top:1px solid var(--line);
+}
+.composer-icon {
+  display:flex; flex:0 0 34px; align-items:center; justify-content:center;
+  width:34px; height:40px; padding:0; border:0; border-radius:50%;
+  background:transparent; color:var(--blue); cursor:pointer;
+  touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+}
+.composer-icon:hover, .composer-icon:active { background:var(--soft-blue); }
+.composer-icon svg, .send svg {
+  width:23px; height:23px; fill:none; stroke:currentColor;
+  stroke-width:2; stroke-linecap:round; stroke-linejoin:round;
+}
+.plus-menu-wrap { position:relative; display:flex; align-items:center; flex:0 0 34px; }
+.composer .plus-button {
+  width:34px; height:40px; flex:0 0 34px; padding:0;
+  border-radius:50%; background:transparent; color:var(--blue);
+  font-size:29px; font-weight:400; line-height:1;
+}
+.composer-input-wrap {
+  flex:1 1 auto; min-width:0; display:flex; flex-direction:column;
+  justify-content:center; padding:4px 11px!important;
+  border-radius:22px!important; background:var(--input-bg);
+}
+.composer .composer-input-wrap textarea#messageInput {
+  display:block!important; width:100%!important; min-width:0;
+  height:26px; min-height:26px!important; max-height:66px!important;
+  margin:0!important; padding:3px 1px!important; border:0!important;
+  border-radius:0; outline:none; box-shadow:none!important;
+  background:transparent; color:var(--ink); font:inherit;
+  font-size:16px!important; line-height:20px!important;
+  resize:none!important; overflow-x:hidden!important; overflow-y:auto;
+  white-space:pre-wrap; overflow-wrap:anywhere;
+}
+.composer textarea::placeholder { color:var(--muted); }
+.selected-files { max-width:180px; color:var(--muted); font-size:11px; overflow-wrap:anywhere; }
+.send {
+  display:flex; flex:0 0 38px; align-items:center; justify-content:center;
+  width:38px; height:40px; padding:0; border:0; border-radius:50%;
+  background:transparent; color:var(--blue); cursor:pointer;
+}
+.send:hover { background:var(--soft-blue); }
+.send svg { width:24px; height:24px; fill:currentColor; stroke:currentColor; }
+.visually-hidden-file {
+  position:absolute!important; width:1px!important; height:1px!important;
+  padding:0!important; margin:-1px!important; overflow:hidden!important;
+  clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important;
+}
+.reply-preview {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:6px 2px; font-size:12px; color:var(--muted);
+}
+.reply-preview-copy { display:flex; flex-direction:column; min-width:0; }
+.reply-preview-copy span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.reply-preview button { padding:4px 7px; background:transparent; color:var(--blue); }
+.plus-menu {
+  position:absolute; z-index:50; left:0; bottom:calc(100% + 10px);
+  display:flex; flex-direction:column; gap:4px; width:230px;
+  max-width:calc(100vw - 30px); padding:8px; border:1px solid var(--line);
+  border-radius:16px; background:var(--card); box-shadow:0 8px 28px #0002;
+}
+.plus-menu[hidden], #locationOptions[hidden], #attachmentSubmenu[hidden],
+#voiceRecorder[hidden], #incomingLocation[hidden] { display:none!important; }
+.plus-menu-item {
+  display:flex; align-items:center; gap:12px; width:100%; padding:10px;
+  border:0; border-radius:10px; background:transparent; color:var(--ink);
+  text-align:left; font:inherit; font-size:14px; cursor:pointer;
+}
+.plus-menu-item:hover { background:var(--hover); }
+.menu-icon {
+  display:flex; flex:0 0 34px; align-items:center; justify-content:center;
+  width:34px; height:34px; border-radius:50%; font-size:20px; font-weight:700;
+}
+.file-menu-icon { background:var(--soft-blue); color:var(--blue); }
+.location-menu-icon { background:#e5f7ed; color:#168653; }
+.voice-menu-icon { background:#f3e8ff; color:#8b5cf6; }
+.location-panel { padding:12px; border-bottom:1px solid var(--line); background:var(--chat-bg); }
+.location-heading { margin-bottom:8px; font-size:14px; font-weight:800; }
+.location-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.location-actions label, .location-actions select, .location-options label { font-size:12px; }
+.location-actions select, .location-options select {
+  max-width:100%; padding:9px; border:1px solid var(--select-border);
+  border-radius:9px; background:var(--card); color:var(--ink);
+}
+.location-actions button, .menu-primary, .menu-secondary {
+  padding:9px 12px; border:0; border-radius:10px; cursor:pointer;
+}
+.menu-primary { background:var(--blue); color:#fff; }
+.menu-secondary { background:var(--control-bg); color:var(--ink); }
+.location-options { display:flex; flex-direction:column; gap:9px; }
+.location-options strong { padding:5px 4px; font-size:15px; }
+#locationShareStatus, #incomingLocation { margin-top:8px; color:var(--muted); font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+#incomingLocation a { color:var(--blue); font-weight:700; }
+.voice-recorder { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:6px; font-size:12px; }
+.voice-recorder button { padding:7px 10px; border-radius:9px; background:var(--control-bg); color:var(--ink); }
+.flash { margin-bottom:12px; padding:11px 14px; border-radius:10px; background:var(--soft-blue); color:var(--soft-blue-text); }
+.flash.error { background:#fff0f1; color:#a5293c; }
+.gotya-call-panel, .call-panel, .modal, .menu-popover {
+  max-width:100%; border-radius:16px;
+}
+.gotya-call-panel { background:var(--call-card-bg); color:var(--call-card-text); }
+.gotya-call-actions { display:flex; align-items:center; gap:8px; }
+button { cursor:pointer; }
+button:focus-visible, a:focus-visible, textarea:focus-visible {
+  outline:2px solid var(--blue); outline-offset:2px;
+}
+@media(max-width:600px) {
+  .chat-header { gap:9px; min-height:59px; padding:7px 9px; }
+  .back { flex-basis:26px; width:26px; font-size:28px; }
+  .avatar { flex-basis:39px; width:39px; height:39px; }
+  .chat-header button, .icon-control { flex-basis:36px; width:36px; height:36px; }
+  .chat-header button svg, .icon-control svg { width:22px; height:22px; }
+  .messages { padding:13px 9px 10px; gap:5px!important; }
+  .message-row { max-width:84%; }
+  .bubble { padding:7px 11px!important; font-size:15px; }
+  .message-image { max-height:300px; }
+  .composer { gap:2px; padding:5px 4px; padding-bottom:max(5px,env(safe-area-inset-bottom)); }
+  .composer-icon { flex-basis:30px; width:30px; height:38px; }
+  .plus-menu-wrap { flex-basis:30px; }
+  .composer .plus-button { flex-basis:30px; width:30px; height:38px; }
+  .composer-icon svg { width:21px; height:21px; }
+  .composer-input-wrap { padding:3px 8px!important; }
+  .send { flex-basis:34px; width:34px; height:38px; }
+  .send svg { width:22px; height:22px; }
 }
 
-.gotya-call-actions button:active {
-    transform: scale(.96);
+
+/* GOTYA_LONG_PRESS_MENU_MODERN_STYLE */
+/* Keep message actions hidden until the existing gesture menu opens. */
+.message-row .message-reactions,
+.message-row .reaction-picker,
+.message-row .hide-message-btn,
+.message-row .unsend-message-btn {
+  display: none !important;
 }
 
-.gotya-call-actions .danger {
-    min-width: 105px;
-    background: #e53945;
-    color: #fff;
+/* Modern floating action menu for the selected message. */
+.message-gesture-menu {
+  position: absolute;
+  z-index: 100;
+  width: min(290px, calc(100vw - 36px));
+  max-width: calc(100vw - 36px);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--ink, #202124);
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 18px;
+  box-shadow: 0 12px 38px rgba(0,0,0,.20);
+  -webkit-user-select: none;
+  user-select: none;
+  animation: gotyaMenuIn .14s ease-out;
 }
-
-.gotya-call-actions .accept {
-    background: #168747;
-    color: #fff;
+.message-gesture-menu .gesture-reaction-summary,
+.message-gesture-menu .gesture-reaction-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-around;
+  gap: 5px;
+  padding: 3px 0 9px;
+  border-bottom: 1px solid var(--line, #e5e7eb);
 }
-
-.gotya-call-actions button[hidden],
-.gotya-call-actions[hidden] {
-    display: none !important;
+.message-gesture-menu .gesture-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 23px;
+  cursor: pointer;
+  transition: transform .12s ease, background .12s ease;
 }
-
-@media (max-width: 560px) {
-    .gotya-call-card {
-        padding: 12px;
-        padding-top: max(12px, env(safe-area-inset-top));
-        padding-bottom: max(12px, env(safe-area-inset-bottom));
-    }
-
-    .gotya-call-videos,
-    #gotyaRemoteVideo {
-        border-radius: 16px;
-    }
-
-    #gotyaLocalVideo {
-        top: 12px;
-        right: 12px;
-        width: 108px;
-        height: 155px;
-        border-radius: 13px;
-    }
-
-    .gotya-call-actions {
-        gap: 8px;
-    }
-
-    .gotya-call-actions button {
-        min-height: 44px;
-        padding: 11px 14px;
-        font-size: 13px;
-    }
+.message-gesture-menu .gesture-emoji:hover {
+  background: var(--hover, #f1f3f5);
+  transform: scale(1.12);
 }
-
-.gotya-call-actions button.icon-control {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 52px; min-width: 52px; height: 52px; min-height: 52px;
-    padding: 0; border-radius: 50%; flex: 0 0 52px;
-}
-.gotya-call-actions button.icon-control svg {
-    display: block; width: 23px; height: 23px;
-}
-.gotya-call-actions button.icon-control.danger {
-    min-width: 52px; background: #e53945;
-}
-.gotya-call-actions button.icon-control.close-control {
-    width: 42px; min-width: 42px; height: 42px; min-height: 42px;
-    flex-basis: 42px; background: #252b38;
-}
-.message-row .bubble.call-summary-bubble {
-    display: inline-block; max-width: 100%; padding: 10px 13px;
-    border: 1px solid var(--border-color, rgba(127,127,127,.35));
-    border-radius: 14px; background: transparent; box-shadow: none;
-}
-.message-row .bubble.call-summary-bubble .message-text {
-    white-space: pre-line; font-size: 13px; line-height: 1.6;
-}
-.message-row .bubble.call-summary-bubble .message-text::first-line {
-    font-weight: 700;
-}
-
-/* END GOTYA VIDEO CALL */
-
-
-/* Message reply UI */
-/* Hide the visible Reply button; swipe-to-reply remains enabled. */
-.reply-message-btn { display: none !important; }
-
-
-.reply-message-btn {
-  display: block;
-  margin: 3px 8px 5px;
-  padding: 3px 8px;
+.message-gesture-menu .gesture-reply,
+.message-gesture-menu .gesture-delete,
+.message-gesture-menu .gesture-unsend {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: var(--muted, #68778b);
+  color: var(--ink, #202124);
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
+  text-align: left;
   cursor: pointer;
 }
-.reply-message-btn:hover { text-decoration: underline; }
-.message-delete-actions{display:none!important}
-.message-delete-actions button{border:0;background:transparent;color:var(--muted);padding:3px 0;font:inherit;cursor:pointer}
-.message-delete-actions button:hover{text-decoration:underline}
-.message-delete-actions .unsend-message-btn{color:var(--error-text,#a5293c)}
-.message-delete-actions button:disabled{opacity:.55;cursor:wait}
+.message-gesture-menu .gesture-reply:hover,
+.message-gesture-menu .gesture-delete:hover {
+  background: var(--hover, #f1f3f5);
+}
+.message-gesture-menu .gesture-unsend {
+  color: #dc2626;
+}
+.message-gesture-menu .gesture-unsend:hover {
+  background: rgba(220,38,38,.09);
+}
+@keyframes gotyaMenuIn {
+  from { opacity: 0; transform: translateY(4px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .message-gesture-menu { animation: none; }
+}
 
-/* Android message gestures */
-.message-reactions .reaction-picker{display:none!important}
-.message-row{position:relative}
-.message-gesture-menu{
-  position:absolute;z-index:50;top:0;max-width:calc(100vw - 32px);
-  display:flex;flex-wrap:wrap;gap:6px;padding:8px;
-  border:1px solid var(--border,#ddd);border-radius:12px;
-  background:var(--card-bg,#fff);color:var(--ink,#222);
-  box-shadow:0 5px 20px rgba(0,0,0,.18)
+
+/* GOTYA_PREVENT_MESSAGE_TEXT_SELECTION */
+/* Long-press opens message actions, not native text-selection highlighting. */
+.messages .message-row .bubble,
+.messages .message-row .bubble *,
+.messages .message-row .message-content,
+.messages .message-row .message-content * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none;
 }
-.message-row.mine .message-gesture-menu{right:0}
-.message-row:not(.mine) .message-gesture-menu{left:0}
-/* Keep reaction emojis in a single horizontal row */
-.message-gesture-menu .gesture-reaction-summary,
-.message-gesture-menu .gesture-reaction-picker{
-  display:flex;
-  flex-direction:row;
-  flex-wrap:nowrap;
-  align-items:center;
-  justify-content:flex-start;
-  gap:5px;
-  width:100%;
-  overflow-x:auto;
-  white-space:nowrap;
+
+/* Keep message actions easy to tap without blocking chat scrolling. */
+.message-gesture-menu,
+.message-gesture-menu * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
-.message-gesture-menu .gesture-reaction-picker .gesture-emoji,
-.message-gesture-menu .gesture-reaction-summary .reaction-chip{
-  flex:0 0 auto;
-}
-.message-gesture-menu .gesture-emoji{
-  padding:5px 7px;
-  font-size:20px;
-  line-height:1.2;
-}
-/* Quick reaction customization: visible remove mark and drag feedback */
+
+
+/* GOTYA_HIDE_EMOJI_REMOVE_X_AND_REPLY_LABEL */
+/* Remove the small X overlay from reaction emojis. */
 .message-gesture-menu .gesture-emoji-remove {
-  display: none;
-  margin-left: 3px;
-  font-size: 12px;
-  line-height: 1;
+  display: none !important;
 }
-.message-gesture-menu.customizing .gesture-emoji-remove {
-  display: inline;
-}
-.message-gesture-menu .gesture-emoji-dragging {
-  opacity: .55;
-  outline: 2px solid var(--border, #b97878);
-}
-.message-gesture-menu .reaction-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:4px;
-}
-.message-gesture-menu button{
-  border:0;border-radius:8px;padding:8px 10px;
-  background:var(--bubble-bg,#f2f2f2);color:inherit;
-  font:inherit;font-size:12px;cursor:pointer
-}
-.message-gesture-menu .gesture-add-emoji{
-  flex:0 0 34px;
-  width:34px;
-  height:34px;
-  padding:0;
-  border:1px solid var(--border,#ddd);
-  border-radius:50%;
-  background:var(--card-bg,#fff);
-  color:var(--ink,#222);
-  font-size:22px;
-  line-height:1;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-}
-.message-gesture-menu .gesture-add-emoji:hover{
-  background:var(--bubble-bg,#f2f2f2);
-  border-color:var(--rose,#8f5a5a);
-}
-.message-gesture-menu .gesture-emoji-input{
-  box-sizing:border-box;
-  width:100%;
-  min-width:0;
-  padding:10px 12px;
-  border:1px solid var(--border,#ddd);
-  border-radius:12px;
-  background:var(--card-bg,#fff);
-  color:var(--ink,#222);
-  font:inherit;
-  font-size:16px;
-  outline:none;
-}
-.message-gesture-menu .gesture-emoji-input:focus{
-  border-color:var(--rose,#8f5a5a);
-  box-shadow:0 0 0 3px rgba(143,90,90,.14);
-}
-.message-gesture-menu .gesture-emoji-input[hidden]{
-  display:none!important;
-}
-.message-gesture-menu .gesture-unsend{color:var(--error-text,#a5293c)}
-.message-row.gesture-reply-feedback .bubble{
-  outline:2px solid var(--rose,#8f5a5a);outline-offset:2px
-}
-@media(hover:none) and (pointer:coarse){
-  .message-row .bubble{-webkit-touch-callout:none}
+/* Hide the redundant reply label; keep the sender and quoted message. */
+#replyPreviewSender {
+  display: none !important;
 }
 
-.message-row.is-unsent .message-reactions,
-.message-row.is-unsent .reply-message-btn,
-.message-row.is-unsent .delivery-receipt{display:none!important}
-.message-row.is-unsent .bubble{font-style:italic;color:var(--muted)}
 
-.reply-quote {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 7px;
-  padding: 7px 10px;
-  border-left: 3px solid var(--rose, #8f5a5a);
-  border-radius: 5px;
-  background: rgba(127, 127, 127, .09);
-  cursor: pointer;
-  overflow-wrap: anywhere;
-}
-.reply-quote-sender { font-size: 12px; font-weight: 700; }
-.message-sender-label{display:flex;align-items:center;max-width:100%;margin:0 0 2px 7px;font-size:11px;font-weight:600;line-height:1.2;color:var(--muted);overflow-wrap:anywhere;}
-.reply-quote-text { font-size: 12px; opacity: .85; }
-.reply-preview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 7px 2px;
-  border-bottom: 1px solid rgba(127, 127, 127, .2);
-}
-.reply-preview[hidden] { display: none !important; }
-.reply-preview-copy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-.reply-preview-copy span { opacity: .8; }
-#cancelReply {
-  flex: 0 0 auto;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
+/* GOTYA_REPLY_PREVIEW_HIDDEN_UNTIL_REPLY */
+/* The reply bar and its Cancel button must stay hidden until Reply is selected. */
+#replyPreview[hidden] {
+  display: none !important;
 }
 
 </style>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
 </head>
 <body data-theme="{{ gotya_theme|default("system") }}">
-<header>
-    <link rel="manifest" href="/static/manifest.json">
-    <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
-    <meta name="theme-color" content="#1877f2">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Gotya"><div class="topbar">
-<a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:var(--ink)">.</span></a>
-<nav>
-<a href="{{ url_for('feed') }}">Feed</a>
-<a href="{{ url_for('friends') }}">Friends</a>
-<a href="{{ url_for('messages') }}">Messages</a>
-<a href="{{ url_for('profile') }}">Profile</a>
-</nav>
-</div></header>
+
 <main>
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% for category,message in messages %}
@@ -905,9 +494,44 @@ main {
 <a class="chat-profile-avatar-link" style="color:inherit;text-decoration:none;" href="{{ url_for('public_profile', user_id=person.id) }}"><div class="avatar">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div></a>
 <div class="person-info"><div class="name"><a class="chat-profile-name-link" style="color:inherit;text-decoration:none;" href="{{ url_for('public_profile', user_id=person.id) }}">{{ person.username }}{% if is_verified_account(person) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</a></div><div class="status" id="personPresence" aria-live="polite"><span class="presence-dot" aria-hidden="true"></span><span id="presenceLabel">Checking status...</span></div></div>
 
-<button type="button" class="gotya-call-btn" id="gotyaStartVideoCall">
-    Video call
+<button type="button" class="gotya-call-btn" id="gotyaStartVideoCall"
+        aria-label="Start video call" title="Video call">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <rect x="3" y="6" width="13" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="m16 10 5-3v10l-5-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
 </button>
+
+<button type="button" class="gotya-voice-call-btn"
+        id="gotyaStartVoiceCall" aria-label="Voice call"
+        title="Voice call">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2
+      19.79 19.79 0 0 1-8.63-3.07
+      19.5 19.5 0 0 1-6-6
+      19.79 19.79 0 0 1-3.07-8.67
+      A2 2 0 0 1 4.11 2h3
+      a2 2 0 0 1 2 1.72
+      c.12.96.36 1.9.7 2.79
+      a2 2 0 0 1-.45 2.11L8.09 9.91
+      a16 16 0 0 0 6 6l1.27-1.27
+      a2 2 0 0 1 2.11-.45
+      c.89.34 1.83.58 2.79.7
+      A2 2 0 0 1 22 16.92z"
+      fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+</button>
+
+<div class="chat-more-wrap">
+  <button type="button" class="chat-more-button" id="chatMoreButton"
+          aria-label="More conversation options" aria-haspopup="true"
+          aria-expanded="false" title="More options">&#8942;</button>
+  <div class="chat-more-menu" id="chatMoreMenu" role="menu" hidden>
+    <a role="menuitem" href="{{ url_for('public_profile', user_id=person.id) }}">View profile</a>
+    <button type="button" id="closeChatMoreMenu" role="menuitem">Close menu</button>
+  </div>
+</div>
 
 </div>
 
@@ -1006,7 +630,7 @@ main {
   </div>
 </div>{% endif %}
 {% if item.sender_id == current_user.id and not item.is_unsent %}
-<div class="delivery-receipt" data-receipt-id="{{ item.id }}">{% if item.read_at %}Seen at {{ item.read_at.strftime('%I:%M %p') }}{% elif item.delivered_at %}Delivered{% else %}Sent{% endif %}</div>
+<div class="delivery-receipt" data-receipt-id="{{ item.id }}" title="{% if item.read_at %}Seen{% elif item.delivered_at %}Delivered{% else %}Sent{% endif %}" aria-label="{% if item.read_at %}Seen{% elif item.delivered_at %}Delivered{% else %}Sent{% endif %}">{% if item.read_at or item.delivered_at %}??{% else %}?{% endif %}</div>
 {% endif %}
 <div class="message-delete-actions">
 <button type="button" class="hide-message-btn" data-message-id="{{ item.id }}">Delete for me</button>
@@ -1044,7 +668,7 @@ main {
       <span class="menu-icon file-menu-icon" aria-hidden="true">&#128206;</span>
       <span>Attach photos or files</span>
     </button>
-    <button type="button" class="plus-menu-item" id="startVoiceRecording">
+    <button hidden type="button" class="plus-menu-item" id="startVoiceRecording">
       <span class="menu-icon voice-menu-icon" aria-hidden="true">&#127908;</span>
       <span>Voice message</span>
     </button>
@@ -1071,6 +695,13 @@ main {
   </div>
 </div>
 
+<button type="button" class="composer-icon composer-tool-button" id="directPhotoButton" aria-label="Choose photos" title="Photos">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="9" r="1.5" fill="currentColor" stroke="none"/><path d="m4 17 5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
+<button type="button" class="composer-icon composer-tool-button" id="directCameraButton" aria-label="Take a photo" title="Camera">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+</button>
+<input class="visually-hidden-file" id="cameraInput" type="file" accept="image/*" capture="environment">
 <input class="visually-hidden-file" id="photoInput" type="file" name="photos" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
 <input class="visually-hidden-file" id="attachmentInput" type="file" name="attachment" accept=".pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip">
 <input class="visually-hidden-file" id="voiceInput" type="file" name="attachment" accept="audio/webm,audio/ogg,audio/mp4,audio/mpeg,.webm,.ogg,.m4a,.mp3">
@@ -1092,6 +723,7 @@ main {
 </div>
 </div>
 
+<button type="button" class="composer-icon composer-tool-button" id="composerEmojiButton" aria-label="Voice message" title="Voice message"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v4m-4 0h8"/></svg></button>
 <button class="send" type="submit" aria-label="Send message" title="Send message">
 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>
 </button>
@@ -1103,6 +735,44 @@ const input = document.getElementById("messageInput");
 const photoInput = document.getElementById("photoInput");
 const fileInput = document.getElementById("attachmentInput");
 const attachmentName = document.getElementById("attachmentName");
+
+const cameraInput = document.getElementById("cameraInput");
+const directPhotoButton = document.getElementById("directPhotoButton");
+const directCameraButton = document.getElementById("directCameraButton");
+const composerEmojiButton = document.getElementById("composerEmojiButton");
+
+directPhotoButton?.addEventListener("click", () => photoInput?.click());
+
+directCameraButton?.addEventListener("click", () => cameraInput?.click());
+
+cameraInput?.addEventListener("change", () => {
+  if (!cameraInput.files || !cameraInput.files.length || !photoInput) return;
+  try {
+    const transfer = new DataTransfer();
+    Array.from(photoInput.files).forEach(file => transfer.items.add(file));
+    Array.from(cameraInput.files).forEach(file => transfer.items.add(file));
+    if (transfer.files.length > 30) {
+      alert("Please select up to 30 photos at a time.");
+      cameraInput.value = "";
+      return;
+    }
+    photoInput.files = transfer.files;
+    cameraInput.value = "";
+    photoInput.dispatchEvent(new Event("change", { bubbles: true }));
+  } catch (error) {
+    alert("This browser could not add the camera photo. Please use Photos instead.");
+  }
+});
+
+composerEmojiButton?.addEventListener("click", () => {
+  if (!input) return;
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? start;
+  input.setRangeText("??", start, end, "end");
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.focus();
+});
+
 
 function scrollToLatest() {
   if (!list) return;
@@ -1664,56 +1334,31 @@ if (input) {
   }
 }
 
-/* Final voice-player layout override */
+/* Responsive voice-player layout */
 .messages > .message-row:has(audio.voice-message-player) {
-  width: min(304px, 82%) !important;
-  max-width: 82% !important;
-  min-width: 240px !important;
-  flex: 0 0 auto !important;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: min(304px, 82%);
+  min-width: 0;
+  max-width: 82%;
+  flex: 0 1 auto;
 }
 .messages > .message-row:has(audio.voice-message-player) > .bubble {
-  display: block !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-.messages > .message-row:has(audio.voice-message-player) audio.voice-message-player {
-  display: block !important;
-  width: 100% !important;
-  min-width: 240px !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-
-/* Verified voice-player sizing fix */
-.messages > .message-row:has(audio.voice-message-player) {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: stretch !important;
-  width: min(304px, 82%) !important;
-  min-width: 240px !important;
-  max-width: 82% !important;
-  flex: 0 0 auto !important;
-}
-.messages > .message-row:has(audio.voice-message-player) > .bubble {
-  display: block !important;
-  align-self: stretch !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
+  display: block;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .messages audio.voice-message-player {
-  display: block !important;
-  width: 280px !important;
-  min-width: 240px !important;
-  max-width: 100% !important;
-  flex: 0 0 auto !important;
-  box-sizing: border-box !important;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
-
 </style>
 <script id="GOTYA_REALTIME_CHAT_SCRIPT">
 (() => {
@@ -1735,14 +1380,14 @@ if (input) {
   function clearReply() {
     if (replyInput) replyInput.value = "";
     if (replyPreview) replyPreview.hidden = true;
-    if (replyPreviewSender) replyPreviewSender.textContent = "Replying to";
+    if (replyPreviewSender) replyPreviewSender.textContent = "";
     if (replyPreviewText) replyPreviewText.textContent = "";
   }
 
   function selectReply(id, sender, preview) {
     if (!replyInput || !replyPreview) return;
     replyInput.value = String(id);
-    replyPreviewSender.textContent = "Replying to " + (sender || "Message");
+    replyPreviewSender.textContent = sender || "Message";
     replyPreviewText.textContent = preview || "Message";
     replyPreview.hidden = false;
     if (messageInput) messageInput.focus();
@@ -2650,9 +2295,13 @@ if (input) {
       if (message.read_at) {
         receipt.textContent = "Seen at " + message.read_at.split(" Ãƒâ€šÃ‚Â· ").pop();
       } else if (message.delivered_at) {
-        receipt.textContent = "Delivered";
+        receipt.textContent = "??";
+        receipt.title = "Delivered";
+        receipt.setAttribute("aria-label", "Delivered");
       } else {
-        receipt.textContent = "Sent";
+        receipt.textContent = "?";
+        receipt.title = "Sent";
+        receipt.setAttribute("aria-label", "Sent");
       }
     }
   }
@@ -2963,6 +2612,33 @@ if ("serviceWorker" in navigator) {
 }
 </script>
 
+
+<script id="GOTYA_CHAT_HEADER_MENU_JS">
+(() => {
+  const button = document.getElementById("chatMoreButton");
+  const menu = document.getElementById("chatMoreMenu");
+  const close = document.getElementById("closeChatMoreMenu");
+  if (!button || !menu || !close) return;
+
+  function setMenu(open) {
+    menu.hidden = !open;
+    button.setAttribute("aria-expanded", String(open));
+  }
+  button.addEventListener("click", event => {
+    event.stopPropagation();
+    setMenu(menu.hidden);
+  });
+  close.addEventListener("click", () => {
+    setMenu(false);
+    button.focus();
+  });
+  menu.addEventListener("click", event => event.stopPropagation());
+  document.addEventListener("click", () => setMenu(false));
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") setMenu(false);
+  });
+})();
+</script>
 
 <!-- GOTYA_VIDEO_CALL_JS_BEGIN -->
 <script>
@@ -4569,5 +4245,19 @@ if ("serviceWorker" in navigator) {
 <script id="GOTYA_PHOTO_TOOLBAR_THREE_DOT_MENU_V1">/* Replaced by the main photo viewer toolbar. */</script>
 
 <script id="GOTYA_PHOTO_TOOLBAR_CLEANUP_MODERN_ICONS_V1">/* Replaced by the main photo viewer toolbar. */</script>
+
+<script id="GOTYA_VOICE_BUTTON_MOVE_V2">
+(() => {
+  const button = document.getElementById("composerEmojiButton");
+  const voice = document.getElementById("startVoiceRecording");
+  if (!button || !voice) return;
+  button.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    voice.click();
+  }, true);
+})();
+</script>
+
 </body>
 </html>

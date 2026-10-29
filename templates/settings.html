@@ -387,6 +387,35 @@
         </div>
     </section>
 
+    <section class="card" id="profile-locking">
+        <h2>Profile locking</h2>
+        <p class="description">
+            When enabled, other people can see your profile picture, cover photo,
+            and username, but not your bio, friend count, profile tabs, or posts.
+            You can still view your own full profile.
+        </p>
+        <form method="POST" action="{{ url_for('settings') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_profile_lock">
+            <div class="setting-row">
+                <div>
+                    <strong>Lock my profile</strong>
+                    <small>Turn this on to limit what other people see.</small>
+                </div>
+                <label>
+                    <input
+                        type="checkbox"
+                        name="profile_locked"
+                        value="on"
+                        {% if profile_locked %}checked{% endif %}
+                    >
+                    Profile locked
+                </label>
+            </div>
+            <button class="primary" type="submit">Save profile locking</button>
+        </form>
+    </section>
+
     <section class="card" id="reaction-preferences">
         <h2>Reaction preferences</h2>
         <p class="description">Choose whether reaction counts should be visible. This saves your preference; it does not delete reaction data.</p>
@@ -713,8 +742,8 @@ body.gotya-settings-enhanced .settings-layout {
             items: [{
                 id: "profile-locking",
                 label: "Profile locking",
-                description: "Learn about profile visibility controls.",
-                message: "Profile locking is not implemented yet. Your current profile visibility has not been changed."
+                description: "Choose what other people can see on your profile.",
+                sections: ["profile-locking"]
             }]
         },
         {

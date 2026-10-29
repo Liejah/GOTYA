@@ -245,10 +245,98 @@
             .profile-post-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
 
-    </style>
+
+/* GOTYA_PUBLIC_PROFILE_MODERN_HEADER */
+.public-cover {
+    height: clamp(250px, 34vw, 360px);
+    margin-bottom: 0;
+    overflow: hidden;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #7655e8, #b8a5ff, #eee8ff);
+}
+.public-cover .identity {
+    inset: auto 0 0;
+    left: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    gap: 18px;
+    max-width: none;
+    padding: 72px 24px 22px;
+    color: #fff;
+    background: linear-gradient(transparent, rgba(16, 12, 27, .86));
+}
+.public-cover .identity-text {
+    display: flex;
+    align-items: flex-end;
+    gap: 18px;
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 0;
+}
+.public-cover .avatar {
+    width: 112px;
+    height: 112px;
+    flex: 0 0 112px;
+    border: 5px solid #fff;
+}
+.public-cover .identity-text h1,
+.public-cover .identity-text p,
+.public-cover .identity-text .muted {
+    color: #fff;
+}
+.public-social-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 8px;
+    color: #fff;
+    font-size: 13px;
+}
+.public-social-counts span { display: inline-flex; gap: 4px; align-items: baseline; }
+.public-social-counts strong { font-size: 15px; }
+.public-social-counts small { font-size: 12px; }
+@media (max-width: 600px) {
+    .public-cover {
+        height: 190px;
+        margin-bottom: 0;
+        border-radius: 14px;
+    }
+    .public-cover-image,
+    .public-cover-video { border-radius: 14px; }
+    .public-cover .identity {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-width: none;
+        flex-direction: row;
+        align-items: flex-end;
+        text-align: left;
+        gap: 11px;
+        padding: 42px 12px 12px;
+    }
+    .public-cover .identity-text {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 11px;
+        padding: 0;
+    }
+    .public-cover .avatar {
+        width: 70px;
+        height: 70px;
+        flex-basis: 70px;
+    }
+    .public-cover .identity-text h1 { font-size: 20px; }
+    .public-social-counts { gap: 8px; font-size: 11px; }
+    .public-social-counts strong { font-size: 13px; }
+    .public-social-counts small { font-size: 11px; }
+}
+
+</style>
 </head>
 <body>
 <div class="page">
+    {% set is_locked_for_visitor = profile_locked and not is_profile_owner %}
     <nav class="nav" aria-label="Main navigation">
         <a href="{{ url_for('feed') }}">Feed</a>
         <a href="{{ url_for('friends') }}">Friends</a>
@@ -257,7 +345,7 @@
     </nav>
 
     <section class="public-cover" aria-label="Profile cover photo">
-        {% if profile_user.cover_video %}
+        {% if profile_user.cover_video and not is_locked_for_visitor %}
             <video class="public-cover-video"
                    src="{{ url_for('cover_video_file', filename=profile_user.cover_video) }}"
                    aria-label="{{ profile_user.username }}'s cover video"
@@ -288,18 +376,26 @@
                           class="public-verified"><svg aria-hidden="true" viewBox="0 0 16 16" width="10" height="10" fill="none"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
                     {% endif %}
                 </h1>
-                <div class="muted">{{ friend_count }} friends</div>
-                {% if profile_user.bio %}
-                    <p>{{ profile_user.bio }}</p>
+                {% if not is_locked_for_visitor %}
+                    <div class="public-social-counts" aria-label="Friends and followers">
+                    <span><strong>{{ friend_count }}</strong> <small>Friends</small></span>
+                    <span><strong>{{ followers_count }}</strong> <small>Followers</small></span>
+                    <span><strong>{{ following_count }}</strong> <small>Following</small></span>
+                </div>
+                    {% if profile_user.bio %}
+                        <p>{{ profile_user.bio }}</p>
+                    {% endif %}
                 {% endif %}
             </div>
             </div>
         </div>
     </section>
 
+    {% if not is_locked_for_visitor %}
     <section class="top profile-action-card">
         {% if profile_user.id != current_user.id %}
         <div class="actions">
+            <a class="button" href="{{ url_for('conversation', user_id=profile_user.id) }}">Message</a>
             {% if friendship and friendship.status == "accepted" %}
                 <button class="secondary" type="button" onclick="document.getElementById('unfriendDialog').showModal()">Friends</button>
                 <dialog id="unfriendDialog" aria-labelledby="unfriendTitle">
@@ -414,6 +510,7 @@
         </section>
     {% endfor %}
     </section>
+    {% endif %}
     {% endif %}
 </div>
 <script>

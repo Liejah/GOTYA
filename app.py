@@ -240,8 +240,10 @@ BASE_DIR = Path(__file__).resolve().parent
 PROFILE_PICTURE_DIR = BASE_DIR / "uploads" / "profile_pictures"
 COVER_PHOTO_DIR = BASE_DIR / "uploads" / "cover_photos"
 COVER_VIDEO_DIR = BASE_DIR / "uploads" / "cover_videos"
+POST_MEDIA_DIR = BASE_DIR / "uploads" / "post_media"
 COVER_PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 COVER_VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+POST_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_PICTURE_DIR.mkdir(parents=True, exist_ok=True)
 load_dotenv(BASE_DIR / ".env")
 
@@ -597,6 +599,24 @@ class UserPreference(db.Model):
 
 
 
+class ProfileLock(db.Model):
+    """Optional profile-visibility lock, stored separately from account data."""
+    __tablename__ = "profile_lock"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    is_locked = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
+    user = db.relationship("User")
+
+
 @app.context_processor
 def inject_gotya_theme():
     """Expose the signed-in user's saved appearance preference to templates."""
@@ -622,6 +642,8 @@ def inject_gotya_theme():
 class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String(2000), nullable=False)
+    media_filename = db.Column(db.String(255), nullable=True)
+    media_type = db.Column(db.String(120), nullable=True)
     audience = db.Column(
         db.String(20), nullable=False,
         default="public", server_default="public"
@@ -1037,6 +1059,8 @@ def migrate_existing_database_schema():
             },
             "post": {
                 "audience": "VARCHAR(20) NOT NULL DEFAULT 'public'",
+                "media_filename": "VARCHAR(255)",
+                "media_type": "VARCHAR(120)",
             },
             "message": {
                 "is_unsent": "BOOLEAN NOT NULL DEFAULT FALSE",
@@ -1089,6 +1113,7 @@ def migrate_existing_database_schema():
 # Ensure the separate preference table exists before additive migrations.
 with app.app_context():
     UserPreference.__table__.create(bind=db.engine, checkfirst=True)
+    ProfileLock.__table__.create(bind=db.engine, checkfirst=True)
     LoginAttempt.__table__.create(bind=db.engine, checkfirst=True)
     Follow.__table__.create(bind=db.engine, checkfirst=True)
 
@@ -1449,6 +1474,9 @@ def profile():
         ),
     ).count()
 
+    followers_count = Follow.query.filter_by(followed_id=current_user.id).count()
+    following_count = Follow.query.filter_by(follower_id=current_user.id).count()
+
     likes_received = (
         PostLike.query.join(Post, PostLike.post_id == Post.id)
         .filter(Post.user_id == current_user.id)
@@ -1495,6 +1523,8 @@ def profile():
         user=current_user,
         post_count=post_count,
         friend_count=friend_count,
+        followers_count=followers_count,
+        following_count=following_count,
         likes_received=likes_received,
         reaction_counts_visible=reaction_counts_visible,
         profile_tab=profile_tab,
@@ -1512,6 +1542,12 @@ def public_profile(user_id):
     if profile_user is None:
         flash("That profile could not be found.", "error")
         return redirect(url_for("friends"))
+
+    is_profile_owner = profile_user.id == current_user.id
+    lock_record = ProfileLock.query.filter_by(
+        user_id=profile_user.id
+    ).first()
+    profile_locked = bool(lock_record and lock_record.is_locked)
 
     friendship = Friendship.query.filter(
         db.or_(
@@ -1534,9 +1570,13 @@ def public_profile(user_id):
         if profile_user.id != current_user.id else False
     )
 
-    all_profile_posts = Post.query.filter_by(
-        user_id=profile_user.id
-    ).order_by(Post.created_at.desc(), Post.id.desc()).all()
+    all_profile_posts = (
+        []
+        if profile_locked and not is_profile_owner
+        else Post.query.filter_by(user_id=profile_user.id)
+        .order_by(Post.created_at.desc(), Post.id.desc())
+        .all()
+    )
 
     visible_profile_posts = [
         post for post in all_profile_posts
@@ -1551,13 +1591,20 @@ def public_profile(user_id):
         ),
     ).count()
 
+    followers_count = Follow.query.filter_by(followed_id=profile_user.id).count()
+    following_count = Follow.query.filter_by(follower_id=profile_user.id).count()
+
     return render_template(
         "public_profile.html",
         profile_user=profile_user,
         profile_posts=visible_profile_posts,
+        profile_locked=profile_locked,
+        is_profile_owner=is_profile_owner,
         friendship=friendship,
         is_following=is_following,
         friend_count=friend_count,
+        followers_count=followers_count,
+        following_count=following_count,
     )
 
 
@@ -1759,6 +1806,20 @@ def cover_video_file(filename):
     # Only serve generated UUID MP4 names; reject paths and user-supplied names.
     if not re.fullmatch(r"[0-9a-f]{32}\.mp4", filename):
         abort(404)
+
+    video_owner = User.query.filter_by(cover_video=filename).first()
+
+    # Only serve a video that is currently assigned to an account.
+    # This also prevents direct access to orphaned or unassigned video files.
+    if video_owner is None:
+        abort(404)
+
+    if video_owner.id != current_user.id:
+        lock_record = ProfileLock.query.filter_by(
+            user_id=video_owner.id
+        ).first()
+        if lock_record is not None and lock_record.is_locked:
+            abort(404)
 
     try:
         file_bytes = download_from_supabase("cover_videos/" + filename)
@@ -2550,6 +2611,7 @@ def conversation_updates(user_id):
             reply_preview = "This message was unsent."
             reply_data = {
                 "id": replied_to.id,
+                "sender_id": replied_to.sender_id,
                 "sender_name": (
                     replied_to.sender.username if replied_to.sender else "Message"
                 ),
@@ -2571,6 +2633,7 @@ def conversation_updates(user_id):
                 reply_preview = reply_preview[:137] + "..."
             reply_data = {
                 "id": replied_to.id,
+                "sender_id": replied_to.sender_id,
                 "sender_name": (
                     replied_to.sender.username if replied_to.sender else "Message"
                 ),
@@ -3286,6 +3349,34 @@ def settings():
     if request.method == "POST":
         action = request.form.get("action", "").strip()
 
+        if action == "save_profile_lock":
+            value = request.form.get("profile_locked", "off").strip().lower()
+            if value not in {"on", "off"}:
+                flash("Please choose a valid profile-lock setting.", "error")
+                return redirect(url_for("settings", _anchor="profile-locking"))
+
+            ProfileLock.__table__.create(bind=db.engine, checkfirst=True)
+            lock_record = ProfileLock.query.filter_by(
+                user_id=current_user.id
+            ).first()
+
+            if lock_record is None:
+                lock_record = ProfileLock(
+                    user_id=current_user.id,
+                    is_locked=(value == "on"),
+                )
+                db.session.add(lock_record)
+            else:
+                lock_record.is_locked = (value == "on")
+
+            db.session.commit()
+            flash(
+                "Profile locking enabled." if value == "on"
+                else "Profile locking disabled.",
+                "success",
+            )
+            return redirect(url_for("settings", _anchor="profile-locking"))
+
         if action == "save_online_status":
             value = request.form.get("show_online_status", "off").strip().lower()
             if value not in {"on", "off"}:
@@ -3441,6 +3532,10 @@ def settings():
     font_scale = preference.font_scale if preference else "normal"
     reduce_motion = preference.reduce_motion if preference else False
     high_contrast = preference.high_contrast if preference else False
+    lock_record = ProfileLock.query.filter_by(
+        user_id=current_user.id
+    ).first()
+    profile_locked = bool(lock_record and lock_record.is_locked)
 
     if font_scale not in {"normal", "large", "extra-large"}:
         font_scale = "normal"
@@ -3456,7 +3551,8 @@ def settings():
         reaction_counts_visible=reaction_counts_visible,
         font_scale=font_scale,
         reduce_motion=reduce_motion,
-        high_contrast=high_contrast
+        high_contrast=high_contrast,
+        profile_locked=profile_locked,
     )
 
 def _can_view_post(post, viewer_id):
@@ -3515,6 +3611,37 @@ def feed():
         if _can_view_post(post, current_user.id)
     ]
 
+    accepted_friendships = Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            Friendship.requester_id == current_user.id,
+            Friendship.recipient_id == current_user.id
+        )
+    ).order_by(Friendship.created_at.desc()).all()
+
+    circle_friend_ids = []
+    for friendship in accepted_friendships:
+        other_id = (
+            friendship.recipient_id
+            if friendship.requester_id == current_user.id
+            else friendship.requester_id
+        )
+        if other_id not in circle_friend_ids:
+            circle_friend_ids.append(other_id)
+        if len(circle_friend_ids) >= 8:
+            break
+
+    circle_users = (
+        User.query.filter(User.id.in_(circle_friend_ids)).all()
+        if circle_friend_ids else []
+    )
+    circle_by_id = {friend.id: friend for friend in circle_users}
+    circle_friends = [
+        circle_by_id[friend_id]
+        for friend_id in circle_friend_ids
+        if friend_id in circle_by_id
+    ]
+
     preference = UserPreference.query.filter_by(
         user_id=current_user.id
     ).first()
@@ -3525,15 +3652,142 @@ def feed():
     return render_template(
         "feed.html",
         posts=posts,
-        reaction_counts_visible=reaction_counts_visible
+        reaction_counts_visible=reaction_counts_visible,
+        circle_friends=circle_friends
     )
+
+
+@app.route("/posts/media", methods=["POST"])
+@login_required
+def create_media_post():
+    content = (request.form.get("content") or "").strip()
+    audience = (request.form.get("audience") or "public").strip().lower()
+    upload = request.files.get("media")
+
+    if audience not in {"public", "friends"}:
+        flash("Please choose a valid post audience.", "error")
+        return redirect(url_for("feed"))
+    if len(content) > 2000:
+        flash("Captions cannot exceed 2000 characters.", "error")
+        return redirect(url_for("feed"))
+    if upload is None or not upload.filename:
+        flash("Choose a photo or video to upload.", "error")
+        return redirect(url_for("feed"))
+
+    extension = Path(secure_filename(upload.filename)).suffix.lower()
+    image_types = {
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".png": "image/png", ".webp": "image/webp",
+        ".gif": "image/gif",
+    }
+    video_types = {
+        ".mp4": "video/mp4", ".webm": "video/webm",
+        ".mov": "video/quicktime", ".m4v": "video/mp4",
+    }
+    media_type = image_types.get(extension) or video_types.get(extension)
+    if not media_type:
+        flash("Supported formats: JPG, PNG, WEBP, GIF, MP4, WEBM, MOV and M4V.", "error")
+        return redirect(url_for("feed"))
+
+    filename = uuid.uuid4().hex + extension
+    destination = POST_MEDIA_DIR / filename
+    storage_path = "post_media/" + filename
+    file_bytes = upload.read()
+    if not file_bytes:
+        flash("The selected file is empty.", "error")
+        return redirect(url_for("feed"))
+
+    # Verify image contents rather than trusting the filename alone.
+    if media_type.startswith("image/"):
+        try:
+            with Image.open(BytesIO(file_bytes)) as image:
+                image.verify()
+        except (UnidentifiedImageError, OSError, ValueError):
+            flash("That photo could not be opened as a valid image.", "error")
+            return redirect(url_for("feed"))
+
+    stored_locally = False
+    try:
+        destination.write_bytes(file_bytes)
+        stored_locally = True
+
+        if supabase_storage is not None:
+            try:
+                upload_to_supabase(storage_path, file_bytes, media_type)
+            except Exception:
+                app.logger.exception("Post media upload to Supabase failed")
+                raise RuntimeError(
+                    "Media storage is temporarily unavailable. Please try again."
+                )
+
+        post = Post(
+            content=content,
+            author=current_user,
+            audience=audience,
+            media_filename=filename,
+            media_type=media_type,
+        )
+        db.session.add(post)
+        db.session.commit()
+        flash("Your media post was published!", "success")
+        return redirect(url_for("watch" if media_type.startswith("video/") else "feed"))
+
+    except Exception:
+        db.session.rollback()
+        if stored_locally:
+            destination.unlink(missing_ok=True)
+        app.logger.exception("Media post creation failed")
+        flash("The media post could not be saved. Please try again.", "error")
+        return redirect(url_for("feed"))
+
+
+@app.route("/post-media/<int:post_id>", methods=["GET"])
+@login_required
+def post_media_file(post_id):
+    post = db.session.get(Post, post_id)
+    if post is None or not post.media_filename or not post.media_type:
+        abort(404)
+    if not _can_view_post(post, current_user.id):
+        abort(404)
+
+    filename = post.media_filename
+    if not re.fullmatch(r"[0-9a-f]{32}\.[a-z0-9]+", filename):
+        abort(404)
+
+    try:
+        file_bytes = download_from_supabase("post_media/" + filename)
+        response = send_file(
+            BytesIO(file_bytes),
+            mimetype=post.media_type,
+            download_name=filename,
+            conditional=True,
+        )
+    except Exception:
+        # Fall back to the local copy when available.
+        response = send_from_directory(
+            POST_MEDIA_DIR,
+            filename,
+            mimetype=post.media_type,
+            conditional=True,
+        )
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.route("/watch", methods=["GET"])
 @login_required
 def watch():
-    # Watch UI published without video-upload functionality for now.
-    return render_template("watch.html", posts=[])
+    candidates = Post.query.filter(
+        Post.media_type.like("video/%"),
+        Post.media_filename.isnot(None),
+    ).order_by(Post.created_at.desc(), Post.id.desc()).all()
+    video_posts = [
+        post for post in candidates
+        if _can_view_post(post, current_user.id)
+    ]
+    return render_template("watch.html", posts=video_posts)
 
 
 @app.route("/post/<int:post_id>/like", methods=["POST"])

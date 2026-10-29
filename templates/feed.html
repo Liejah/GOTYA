@@ -606,10 +606,10 @@ body.gotya-feed {
         <span class="gotya-brand-mark">G</span><span>Gotya</span>
     </a>
     <div class="gotya-top-actions">
-        <span class="gotya-top-icon" role="img" aria-label="Search" title="Search">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-        </span>
-    </div>
+    <span class="gotya-top-icon" role="img" aria-label="Search" title="Search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+    </span>
+  </div>
 </header>
 
 <div class="gotya-feed-layout">
@@ -658,6 +658,22 @@ body.gotya-feed {
         {% endif %}
     </section>
 
+    <section class="card media-composer" style="padding:16px;margin:16px 0;">
+        <h3 style="margin:0 0 10px;">Create a post</h3>
+        <form method="POST" action="{{ url_for('create_media_post') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <textarea name="content" maxlength="2000" placeholder="Write a caption (optional)" aria-label="Post caption" style="width:100%;min-height:72px;margin-bottom:10px;"></textarea>
+            <label for="post-media-file">Photo or video</label>
+            <input id="post-media-file" type="file" name="media" accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v" required style="display:block;max-width:100%;margin:10px 0;">
+            <label for="post-media-audience">Audience</label>
+            <select id="post-media-audience" name="audience" style="display:block;margin:8px 0 12px;padding:9px;">
+                <option value="public">Public</option>
+                <option value="friends">Friends</option>
+            </select>
+            <button type="submit" style="padding:10px 16px;border:0;border-radius:10px;cursor:pointer;">Publish media</button>
+        </form>
+    </section>
+
     <div class="latest-posts-label">Latest posts</div>
 
     {% for post in posts %}
@@ -688,7 +704,7 @@ body.gotya-feed {
                     <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">
                         {{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}
                     </time>
-                    Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
+                    Ãƒâ€šÃ‚Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
                 </div>
             </div>
             <div class="post-menu-wrap">
@@ -710,6 +726,15 @@ body.gotya-feed {
             <span class="comment-count">{{ post.comments|length }} comments</span>
         </div>
 
+        {% if post.media_filename and post.media_type %}
+        <div class="post-media" style="margin:12px 0;overflow:hidden;border-radius:12px;">
+            {% if post.media_type.startswith('video/') %}
+            <video controls playsinline preload="metadata" style="display:block;width:100%;max-height:75vh;background:#000;" src="{{ url_for('post_media_file', post_id=post.id) }}"></video>
+            {% elif post.media_type.startswith('image/') %}
+            <img loading="lazy" src="{{ url_for('post_media_file', post_id=post.id) }}" alt="Photo shared by {{ post.author.username }}" style="display:block;width:100%;height:auto;max-height:75vh;object-fit:contain;">
+            {% endif %}
+        </div>
+        {% endif %}
         <div class="post-action-row">
             <form class="post-like-action" method="POST" action="{{ url_for('toggle_like', post_id=post.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
