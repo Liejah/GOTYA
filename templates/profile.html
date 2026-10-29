@@ -443,7 +443,14 @@ body.gotya-feed {
     background: linear-gradient(135deg,#9d89ff,#704be5);
     color: #fff;
 }
-.gotya-feed .gotya-top-actions { gap: 7px; }
+.gotya-feed .gotya-top-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    flex-shrink: 0;
+}
 .gotya-feed .gotya-top-actions .gotya-top-icon {
     display: grid;
     place-items: center;
@@ -860,6 +867,22 @@ body.gotya-feed {
     <span class="gotya-top-icon" role="img" aria-label="Search" title="Search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
     </span>
+    <span class="gotya-top-icon" role="img" aria-label="Settings" title="Settings">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true">
+    <line x1="4" y1="21" x2="4" y2="14"/>
+    <line x1="4" y1="10" x2="4" y2="3"/>
+    <line x1="12" y1="21" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12" y2="3"/>
+    <line x1="20" y1="21" x2="20" y2="16"/>
+    <line x1="20" y1="12" x2="20" y2="3"/>
+    <line x1="2" y1="14" x2="6" y2="14"/>
+    <line x1="10" y1="8" x2="14" y2="8"/>
+    <line x1="18" y1="16" x2="22" y2="16"/>
+    </svg>
+    </span>
   </div>
 </header>
 
@@ -896,7 +919,7 @@ body.gotya-feed {
                     <a class="edit-profile-button"
                        href="{{ url_for('edit_profile') }}"
                        aria-label="Edit profile">
-                        <span aria-hidden="true">&#9998;</span> Edit profile
+                        <span aria-hidden="true">&#9998;</span>Edit profile
                     </a>
 
                     <h1>{{ user.username }}{{ gotya_badge_html(user) }}</h1>
