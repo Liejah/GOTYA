@@ -3887,6 +3887,14 @@ def post_media_file(post_id):
     return response
 
 
+# GOTYA_WATCH_EXTERNAL_CATALOG
+WATCH_EXTERNAL_VIDEOS = [
+    {"title":"Big Buck Bunny","category":"Comedy","description":"Animated comedy from the Blender Open Movies project.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ?rel=0","watch_url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ","license_note":"Check the film's current license and attribution terms before commercial use."},
+    {"title":"Sintel","category":"Drama","description":"An independently produced fantasy short film from Blender Open Movies.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/eRsGyueVLvQ?rel=0","watch_url":"https://www.youtube.com/watch?v=eRsGyueVLvQ","license_note":"Check the film's current license and attribution terms before commercial use."},
+    {"title":"Tears of Steel","category":"Entertainment","description":"A science-fiction short film from Blender Open Movies.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/R6MlUcmOul8?rel=0","watch_url":"https://www.youtube.com/watch?v=R6MlUcmOul8","license_note":"Check the film's current license and attribution terms before commercial use."},
+]
+
+
 @app.route("/watch", methods=["GET"])
 @login_required
 def watch():
@@ -3898,7 +3906,7 @@ def watch():
         post for post in candidates
         if _can_view_post(post, current_user.id)
     ]
-    return render_template("watch.html", posts=video_posts)
+    return render_template("watch.html", posts=video_posts, external_videos=WATCH_EXTERNAL_VIDEOS)
 
 
 @app.route("/post/<int:post_id>/like", methods=["POST"])

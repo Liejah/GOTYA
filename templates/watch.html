@@ -292,6 +292,38 @@ body {
 
   <div class="layout">
     <section id="videoList" aria-label="Gotya videos">
+      {% for video in external_videos %}
+      <article class="video-card gotya-external-video">
+        <div class="posthead">
+          <div class="avatar" aria-hidden="true">&#9654;</div>
+          <div>
+            <div class="author">{{ video.source }}</div>
+            <div class="meta">{{ video.category }} | Curated video</div>
+          </div>
+          <span class="audience">External</span>
+        </div>
+        <div class="video-wrap" style="aspect-ratio:16/9;">
+          <iframe
+            src="{{ video.embed_url }}"
+            title="{{ video.title }}"
+            loading="lazy"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            style="display:block;width:100%;aspect-ratio:16/9;border:0;background:#17151D;"
+          ></iframe>
+        </div>
+        <div class="caption">
+          <strong>{{ video.title }}</strong>
+          <div>{{ video.description }}</div>
+          <div class="meta" style="margin-top:8px;">{{ video.license_note }}</div>
+        </div>
+        <div class="postactions">
+          <a class="action" href="{{ video.watch_url }}" target="_blank" rel="noopener noreferrer">Open source</a>
+        </div>
+      </article>
+      {% endfor %}
+
       {% for post in posts %}
       <article class="video-card">
         <div class="posthead">
@@ -319,12 +351,14 @@ body {
         </div>
       </article>
       {% else %}
+      {% if not external_videos %}
       <section class="empty">
         <div class="emptyicon">&#9654;</div>
         <h2>No videos yet</h2>
         <p>Videos shared on Gotya will appear here. Be the first to share one.</p>
         <a class="primary" href="{{ url_for('feed') }}">Create a post</a>
       </section>
+      {% endif %}
       {% endfor %}
     </section>
 
