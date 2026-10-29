@@ -867,7 +867,7 @@ body.gotya-feed {
     <span class="gotya-top-icon" role="img" aria-label="Search" title="Search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
     </span>
-    <span class="gotya-top-icon" role="img" aria-label="Settings" title="Settings">
+    <a class="gotya-top-icon" href="{{ url_for('settings') }}" aria-label="Settings" title="Settings" style="text-decoration:none">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
     viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -882,7 +882,7 @@ body.gotya-feed {
     <line x1="10" y1="8" x2="14" y2="8"/>
     <line x1="18" y1="16" x2="22" y2="16"/>
     </svg>
-    </span>
+    </a>
   </div>
 </header>
 
