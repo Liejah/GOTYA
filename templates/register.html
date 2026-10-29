@@ -513,53 +513,30 @@
                 </small>
             </div>
 
-            <div class="registration-method" role="group"
-                 aria-label="Registration method">
+            <div class="registration-method" role="group" aria-label="Registration method">
                 <label>
-                    <input type="radio" name="registration_method"
-                           value="email" checked>
+                    <input type="radio" name="registration_method" value="email" checked>
                     Email
                 </label>
                 <label>
-                    <input type="radio" name="registration_method"
-                           value="phone">
+                    <input type="radio" name="registration_method" value="phone">
                     Phone
                 </label>
             </div>
 
             <div class="field" id="emailField">
                 <label for="email">Email address</label>
-                <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    autocomplete="email"
-                    maxlength="254"
-                    required
-                >
-                <small class="hint">
-                    Use an email address you can access.
-                </small>
+                <input id="email" name="email" type="email"
+                       placeholder="you@example.com" autocomplete="email"
+                       maxlength="254" required>
             </div>
 
             <div class="field" id="phoneField" hidden>
                 <label for="phoneNumber">Phone number</label>
-                <input
-                    id="phoneNumber"
-                    type="tel"
-                    inputmode="tel"
-                    autocomplete="tel"
-                    placeholder="+63 9XX XXX XXXX"
-                    maxlength="20"
-                    disabled
-                >
-                <button class="phone-code-button" id="openOtp"
-                        type="button">Enter verification code</button>
-                <small class="hint">
-                    Preview only. SMS delivery and verification are not
-                    configured yet.
-                </small>
+                <input id="phoneNumber" name="phone_number" type="tel"
+                       inputmode="tel" autocomplete="tel"
+                       placeholder="+63 9XX XXX XXXX" maxlength="20" disabled>
+                <small class="hint">No verification code required.</small>
             </div>
 
             <div class="field">
@@ -614,30 +591,6 @@
             </button>
         </form>
 
-        <dialog class="otp-dialog" id="otpDialog"
-                aria-labelledby="otpTitle">
-            <h2 id="otpTitle">Phone verification</h2>
-            <p class="otp-status" id="otpStatus" aria-live="polite">
-                SMS is not configured. No code has been sent or verified.
-            </p>
-            <div class="otp-boxes" aria-label="Four-digit code">
-                <input class="otp-box" inputmode="numeric" maxlength="1"
-                       aria-label="Digit 1" autocomplete="one-time-code">
-                <input class="otp-box" inputmode="numeric" maxlength="1"
-                       aria-label="Digit 2">
-                <input class="otp-box" inputmode="numeric" maxlength="1"
-                       aria-label="Digit 3">
-                <input class="otp-box" inputmode="numeric" maxlength="1"
-                       aria-label="Digit 4">
-            </div>
-            <p class="otp-status">
-                This is a visual preview only. It cannot verify a real code.
-            </p>
-            <button class="phone-code-button" id="closeOtp"
-                    type="button">Close</button>
-            <button class="phone-code-button" id="resendOtp"
-                    type="button">Send code / Resend</button>
-        </dialog>
 
         <div class="divider">ALREADY A MEMBER?</div>
 
@@ -671,21 +624,14 @@
         });
 
         const form = document.querySelector("form");
-        const methodInputs = document.querySelectorAll(
-            'input[name="registration_method"]'
-        );
+        const methodInputs = [...document.querySelectorAll('input[name="registration_method"]')];
         const emailField = document.getElementById("emailField");
         const emailInput = document.getElementById("email");
         const phoneField = document.getElementById("phoneField");
         const phoneNumber = document.getElementById("phoneNumber");
-        const otpDialog = document.getElementById("otpDialog");
-        const otpStatus = document.getElementById("otpStatus");
-        const otpBoxes = [...document.querySelectorAll(".otp-box")];
 
         function updateRegistrationMethod() {
-            const phoneMode = [...methodInputs].some(
-                input => input.checked && input.value === "phone"
-            );
+            const phoneMode = methodInputs.some(input => input.checked && input.value === "phone");
             emailField.hidden = phoneMode;
             emailInput.disabled = phoneMode;
             emailInput.required = !phoneMode;
@@ -694,90 +640,13 @@
             phoneNumber.required = phoneMode;
         }
 
-        methodInputs.forEach(input => {
-            input.addEventListener("change", updateRegistrationMethod);
-        });
-
-        document.getElementById("openOtp").addEventListener("click", () => {
-            if (!phoneNumber.value.trim()) {
-                phoneNumber.reportValidity();
-                phoneNumber.focus();
-                return;
-            }
-            otpStatus.textContent =
-                "SMS is not configured. No code has been sent or verified.";
-            otpBoxes.forEach(box => box.value = "");
-            otpDialog.showModal();
-            otpBoxes[0].focus();
-        });
-
-        document.getElementById("closeOtp").addEventListener("click", () => {
-            otpDialog.close();
-        });
-
-        document.getElementById("resendOtp").addEventListener("click", () => {
-            otpStatus.textContent =
-                "Cannot send a code yet: Gotya has no SMS provider configured.";
-        });
-
-        otpBoxes.forEach((box, index) => {
-            box.addEventListener("input", () => {
-                box.value = box.value.replace(/\D/g, "").slice(-1);
-                if (box.value && index < otpBoxes.length - 1) {
-                    otpBoxes[index + 1].focus();
-                }
-                if (otpBoxes.every(item => item.value.length === 1)) {
-                    otpStatus.textContent =
-                        "Not verified: real server-side OTP verification is not configured.";
-                }
-            });
-
-            box.addEventListener("keydown", event => {
-                if (event.key === "Backspace" && !box.value && index > 0) {
-                    otpBoxes[index - 1].focus();
-                } else if (event.key === "ArrowLeft" && index > 0) {
-                    otpBoxes[index - 1].focus();
-                } else if (event.key === "ArrowRight" &&
-                           index < otpBoxes.length - 1) {
-                    otpBoxes[index + 1].focus();
-                }
-            });
-
-            box.addEventListener("paste", event => {
-                const digits = event.clipboardData
-                    .getData("text").replace(/\D/g, "").slice(0, 4);
-                if (!digits) return;
-                event.preventDefault();
-                digits.split("").forEach((digit, i) => {
-                    otpBoxes[i].value = digit;
-                });
-                otpBoxes[Math.min(digits.length, 3)].focus();
-                if (digits.length === 4) {
-                    otpStatus.textContent =
-                        "Not verified: real server-side OTP verification is not configured.";
-                }
-            });
-        });
-
+        methodInputs.forEach(input => input.addEventListener("change", updateRegistrationMethod));
         updateRegistrationMethod();
 
         const password = document.getElementById("password");
         const confirmation = document.getElementById("confirm_password");
 
         form.addEventListener("submit", event => {
-            const phoneMode = [...methodInputs].some(
-                input => input.checked && input.value === "phone"
-            );
-            if (phoneMode) {
-                event.preventDefault();
-                alert(
-                    "Phone registration is not enabled yet. " +
-                    "No SMS code can be sent or verified. " +
-                    "Please choose email registration for now."
-                );
-                return;
-            }
-
             if (password.value !== confirmation.value) {
                 event.preventDefault();
                 confirmation.setCustomValidity("Passwords do not match.");

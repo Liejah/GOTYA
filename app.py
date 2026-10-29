@@ -377,6 +377,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(30), unique=True, nullable=False, index=True)
     email = db.Column(db.String(254), unique=True, nullable=False, index=True)
+    phone_number = db.Column(db.String(20), unique=True, nullable=True, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     profile_picture = db.Column(db.String(255), nullable=True)
     bio = db.Column(db.String(500), nullable=True)
@@ -1049,6 +1050,7 @@ def migrate_existing_database_schema():
                 "cover_photo": "VARCHAR(255)",
                 "cover_video": "VARCHAR(255)",
                 "session_version": "INTEGER NOT NULL DEFAULT 1",
+                "phone_number": "VARCHAR(20)",
             },
             "user_preference": {
                 "show_online_status": "BOOLEAN NOT NULL DEFAULT TRUE",
@@ -1109,6 +1111,13 @@ def migrate_existing_database_schema():
 
                 print(f"Database migration: added {table}.{column}")
 
+        # Enforce phone uniqueness on existing databases as well as new ones.
+        with db.engine.begin() as connection:
+            connection.execute(db.text(
+                'CREATE UNIQUE INDEX IF NOT EXISTS "ix_user_phone_number" '
+                'ON "user" ("phone_number")'
+            ))
+
 
 # Ensure the separate preference table exists before additive migrations.
 with app.app_context():
@@ -1133,6 +1142,16 @@ def health():
     return {"status": "ok", "app": "ConnectHub"}
 
 
+
+def normalize_phone_number(value):
+    """Normalize a phone number to a plus-prefixed digit string."""
+    raw = (value or "").strip()
+    digits = re.sub(r"\D", "", raw)
+    if not 7 <= len(digits) <= 15:
+        return None
+    return "+" + digits
+
+
 @app.route("/register", methods=["GET", "POST"])
 @limiter.limit("5 per hour", methods=["POST"])
 def register():
@@ -1141,57 +1160,57 @@ def register():
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
+        method = request.form.get("registration_method", "email")
         email = request.form.get("email", "").strip().lower()
+        phone_number = normalize_phone_number(request.form.get("phone_number", ""))
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
+
+        if method == "phone":
+            if not phone_number:
+                flash("Enter a valid phone number, including its country code.", "error")
+                return render_template("register.html")
+            # The existing schema requires email. Use a reserved, non-deliverable
+            # address for phone-only accounts; never treat it as a real email.
+            email = "phone-" + phone_number.lstrip("+") + "@phone.gotya.invalid"
+        elif method != "email":
+            flash("Choose email or phone registration.", "error")
+            return render_template("register.html")
+        elif len(email) > 254 or "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+            flash("Enter a valid email address.", "error")
+            return render_template("register.html")
 
         if not (3 <= len(username) <= 30):
             flash("Username must be between 3 and 30 characters.", "error")
         elif any(not (c.isalnum() or c == "_") for c in username):
             flash("Username can contain only letters, numbers, and underscores.", "error")
-        elif len(email) > 254 or "@" not in email or "." not in email.rsplit("@", 1)[-1]:
-            flash("Enter a valid email address.", "error")
         elif len(password) < 12:
             flash("Password must be at least 12 characters long.", "error")
         elif password != confirm_password:
             flash("Passwords do not match.", "error")
-        elif User.query.filter(
-            db.func.lower(User.username) == username.lower()
-        ).first():
+        elif User.query.filter(db.func.lower(User.username) == username.lower()).first():
             flash("That username is already taken. Please choose another.", "error")
-        elif User.query.filter(
-            db.func.lower(User.email) == email.lower()
-        ).first():
-            flash("That email address is already registered.", "error")
+        elif User.query.filter(db.func.lower(User.email) == email).first():
+            flash("That email address or registration identity is already registered.", "error")
+        elif phone_number and User.query.filter_by(phone_number=phone_number).first():
+            flash("That phone number is already registered.", "error")
         else:
-            user = User(username=username, email=email)
+            user = User(
+                username=username,
+                email=email,
+                phone_number=phone_number if method == "phone" else None,
+            )
             user.set_password(password)
             db.session.add(user)
-
             try:
                 db.session.commit()
                 session.permanent = True
                 login_user(user)
-                flash("Your ConnectHub account has been created!", "success")
+                flash("Your Gotya account has been created!", "success")
                 return redirect(url_for("messages"))
             except IntegrityError:
                 db.session.rollback()
-                existing_username = User.query.filter(
-                    db.func.lower(User.username) == username.lower()
-                ).first()
-                existing_email = User.query.filter(
-                    db.func.lower(User.email) == email.lower()
-                ).first()
-
-                if existing_username:
-                    flash("That username is already taken. Please choose another.", "error")
-                elif existing_email:
-                    flash("That email address is already registered.", "error")
-                else:
-                    flash(
-                        "We couldn't complete registration because of a database conflict. Please try again.",
-                        "error",
-                    )
+                flash("That username, email, or phone number is already registered.", "error")
 
     return render_template("register.html")
 
@@ -1275,10 +1294,12 @@ def login():
             )
             return render_template("login.html"), 429
 
+        phone_identity = normalize_phone_number(identity)
         user = User.query.filter(
             db.or_(
                 User.username.ilike(identity),
                 User.email == identity.lower(),
+                User.phone_number == phone_identity if phone_identity else False,
             )
         ).first()
 
