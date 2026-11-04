@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7555e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Install Gotya and connect with your world.">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/gotya-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+  <title>Download Gotya</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:#f6f3fc;color:#302547;
+      font-family:Arial,sans-serif;display:flex;align-items:center;
+      justify-content:center;padding:24px}
+    main{width:100%;max-width:440px;text-align:center}
+    .card{background:rgba(255,255,255,.88);border:1px solid #e9e2fa;
+      border-radius:28px;padding:32px 24px;box-shadow:0 16px 50px #6040d018}
+    .logo{width:82px;height:82px;object-fit:contain;margin-bottom:12px}
+    h1{font-size:34px;margin:4px 0;color:#6040d0}
+    .subtitle{color:#716982;line-height:1.6;margin:10px 0 26px}
+    button{width:100%;border:0;border-radius:15px;padding:16px;
+      background:#7555e8;color:white;font-size:16px;font-weight:700;
+      cursor:pointer}
+    button:disabled{opacity:.65;cursor:default}
+    .instructions{margin-top:22px;text-align:left;background:#f5f1ff;
+      border-radius:16px;padding:16px;line-height:1.7;font-size:14px}
+    .instructions h2{font-size:16px;margin:0 0 8px}
+    .note{font-size:12px;color:#81788f;margin-top:18px;line-height:1.5}
+    #status{font-size:13px;color:#6040d0;margin-top:12px;min-height:18px}
+  </style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <img class="logo" src="/static/gotya-icon.svg" alt="Gotya logo">
+    <h1>Gotya</h1>
+    <p class="subtitle">Your social world, wherever you go.<br>Install Gotya on your phone.</p>
+    <button id="install" type="button">Install Gotya</button>
+    <div id="status" role="status" aria-live="polite"></div>
+    <div class="instructions" id="help">
+      <h2>Install on your phone</h2>
+      <p><strong>Android:</strong> Open this page in Chrome. Tap Install Gotya, or open the browser menu and choose Install app / Add to Home screen.</p>
+      <p><strong>iPhone:</strong> Open this page in Safari. Tap Share, then Add to Home Screen, then Add.</p>
+    </div>
+    <p class="note">An internet connection is required for live features. Previously cached content and supported offline features depend on your device and app version.</p>
+  </section>
+</main>
+<script>
+let installPrompt = null;
+const installButton = document.getElementById("install");
+const status = document.getElementById("status");
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  installPrompt = event;
+});
+
+installButton.addEventListener("click", async () => {
+  if (!installPrompt) {
+    status.textContent = "Use your browser menu to install Gotya. On iPhone, use Safari > Share > Add to Home Screen.";
+    return;
+  }
+  installPrompt.prompt();
+  const result = await installPrompt.userChoice;
+  status.textContent = result.outcome === "accepted"
+    ? "Gotya installation started."
+    : "Installation was not completed. You can try again from your browser menu.";
+  installPrompt = null;
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/static/sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
