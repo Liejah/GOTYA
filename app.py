@@ -1223,6 +1223,11 @@ def home():
     return redirect(url_for("login"))
 
 
+@app.route("/download")
+def download():
+    return render_template("download.html")
+
+
 @app.route("/health")
 def health():
     return {"status": "ok", "app": "ConnectHub"}
