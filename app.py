@@ -305,6 +305,15 @@ app.config["MAX_CONTENT_LENGTH"] = 450 * 1024 * 1024
 @app.after_request
 def add_upload_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # Identify the account authenticated by Flask, not a URL parameter.
+    try:
+        response.headers["X-Gotya-Account"] = (
+            str(current_user.get_id()) if current_user.is_authenticated else "anonymous"
+        )
+    except Exception:
+        response.headers["X-Gotya-Account"] = "anonymous"
+
     return response
 
 

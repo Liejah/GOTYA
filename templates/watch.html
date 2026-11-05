@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -220,6 +220,7 @@ body {
 
 </style>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/connection-status.css') }}?v=1">
 </head>
 <body>
 <header class="gotya-topbar">
@@ -233,6 +234,7 @@ body {
   </div>
 </header>
 
+<div class="gotya-connection-banner" data-gotya-connection-banner role="status" aria-live="polite" hidden></div>
 <main class="page">
   <section class="intro">
     <div>
@@ -412,7 +414,9 @@ document.querySelectorAll('[data-share]').forEach(button => button.addEventListe
 </script>
 
 
+<script src="{{ url_for('static', filename='js/connection-status.js') }}?v=1"></script>
 </body>
 </html>
+
 
 

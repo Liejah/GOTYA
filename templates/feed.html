@@ -674,6 +674,7 @@ body.gotya-feed {
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/connection-status.css') }}?v=1">
 </head>
 <body class="gotya-feed" data-theme="{{ gotya_theme|default("system") }}">
 <header class="gotya-topbar">
@@ -711,6 +712,7 @@ body.gotya-feed {
   </div>
 </header>
 
+<div class="gotya-connection-banner" data-gotya-connection-banner role="status" aria-live="polite" hidden></div>
 <div class="gotya-feed-layout">
     <main>
 
@@ -799,7 +801,7 @@ body.gotya-feed {
                     <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">
                         {{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}
                     </time>
-                    Ãƒâ€šÃ‚Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
+                    ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
                 </div>
             </div>
             <div class="post-menu-wrap">
@@ -1289,5 +1291,7 @@ document.addEventListener("click", function (event) {
 })();
 </script>
 
+<script src="{{ url_for('static', filename='js/connection-status.js') }}?v=1"></script>
 </body>
 </html>
+

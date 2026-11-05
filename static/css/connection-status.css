@@ -1,0 +1,19 @@
+﻿.gotya-connection-banner {
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  padding:7px 12px;
+  text-align:center;
+  font-size:12px;
+  line-height:1.4;
+  font-weight:600;
+}
+.gotya-connection-banner[hidden] { display:none !important; }
+.gotya-connection-banner[data-status="connecting"] {
+  background:#fff3d6;
+  color:#946200;
+}
+.gotya-connection-banner[data-status="offline"] {
+  background:#fde8e8;
+  color:#b42318;
+}
