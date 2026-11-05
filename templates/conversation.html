@@ -2374,6 +2374,166 @@ if (input) {
   }
 
   let sendingMessage = false;
+  let retryingOfflineMessages = false;
+
+  // Private, account-scoped storage for text messages waiting for a connection.
+  function openOfflineMessageDB() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) {
+        reject(new Error("Offline storage is unavailable."));
+        return;
+      }
+
+      const request = indexedDB.open("gotya-offline-messages-v1", 1);
+
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("messages")) {
+          const store = db.createObjectStore("messages", {
+            keyPath: "clientMessageId"
+          });
+          store.createIndex(
+            "accountRecipient",
+            ["accountId", "recipientId"],
+            { unique: false }
+          );
+        }
+      };
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async function saveOfflineMessage(record) {
+    const db = await openOfflineMessageDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("messages", "readwrite");
+      tx.objectStore("messages").put(record);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+      tx.onabort = () => { db.close(); reject(tx.error); };
+    });
+  }
+
+  async function getOfflineMessages() {
+    const db = await openOfflineMessageDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("messages", "readonly");
+      const request = tx.objectStore("messages")
+        .index("accountRecipient")
+        .getAll([String(currentUserId), String(recipientId)]);
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+      tx.oncomplete = () => db.close();
+      tx.onerror = () => { db.close(); reject(tx.error); };
+    });
+  }
+
+  async function deleteOfflineMessage(clientMessageId) {
+    const db = await openOfflineMessageDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("messages", "readwrite");
+      tx.objectStore("messages").delete(clientMessageId);
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(tx.error); };
+      tx.onabort = () => { db.close(); reject(tx.error); };
+    });
+  }
+
+  function findOfflineRow(clientMessageId) {
+    return Array.from(
+      list.querySelectorAll(".message-row[data-offline-client-id]")
+    ).find(row => row.dataset.offlineClientId === clientMessageId);
+  }
+
+  function showOfflineRow(record) {
+    if (findOfflineRow(record.clientMessageId)) return;
+
+    const row = makeElement("div", "message-row mine");
+    row.dataset.offlineClientId = record.clientMessageId;
+    row.dataset.messageId = "pending-" + record.clientMessageId;
+    row.dataset.messagePreview = record.content;
+    row.dataset.createdAt = record.createdAt;
+
+    const bubble = makeElement("div", "bubble");
+    bubble.appendChild(makeElement("div", "message-text", record.content));
+    row.appendChild(bubble);
+    row.appendChild(
+      makeElement("div", "delivery-receipt", "Pending ? will send when online")
+    );
+
+    list.appendChild(row);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  async function restoreOfflineMessages() {
+    try {
+      const records = await getOfflineMessages();
+      records.forEach(showOfflineRow);
+    } catch (error) {
+      console.warn("Gotya could not restore offline messages:", error);
+    }
+  }
+
+  async function sendQueuedMessages() {
+    if (!navigator.onLine || sendingMessage || retryingOfflineMessages) return;
+
+    retryingOfflineMessages = true;
+    let sentAny = false;
+
+    try {
+      const records = await getOfflineMessages();
+
+      for (const record of records) {
+        if (
+          !navigator.onLine ||
+          record.accountId !== String(currentUserId) ||
+          record.recipientId !== String(recipientId)
+        ) break;
+
+        const retryData = new FormData();
+        retryData.set(
+          "csrf_token",
+          document.querySelector('input[name="csrf_token"]')?.value || ""
+        );
+        retryData.set("content", record.content);
+        retryData.set("client_message_id", record.clientMessageId);
+
+        try {
+          const response = await fetch(composer.action, {
+            method: "POST",
+            body: retryData,
+            credentials: "same-origin",
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              "Accept": "application/json"
+            }
+          });
+
+          const contentType = response.headers.get("content-type") || "";
+          if (!response.ok || !contentType.includes("application/json")) break;
+
+          const result = await response.json();
+          if (!result.success) break;
+
+          await deleteOfflineMessage(record.clientMessageId);
+          const row = findOfflineRow(record.clientMessageId);
+          if (row) row.remove();
+          sentAny = true;
+        } catch (_) {
+          // Keep the queued message for the next connection attempt.
+          break;
+        }
+      }
+
+      if (sentAny) await pollUpdates();
+    } catch (error) {
+      console.warn("Gotya offline queue retry failed:", error);
+    } finally {
+      retryingOfflineMessages = false;
+    }
+  }
 
   composer.addEventListener("submit", async event => {
     event.preventDefault();
@@ -2396,6 +2556,15 @@ if (input) {
     }
 
     const formData = new FormData(composer);
+    const offlineClientMessageId =
+      text && !hasAttachment && window.crypto?.randomUUID
+        ? window.crypto.randomUUID()
+        : "";
+
+    if (offlineClientMessageId) {
+      formData.set("client_message_id", offlineClientMessageId);
+    }
+
     const voiceFileInput = document.getElementById("voiceInput");
     const voiceFile = voiceFileInput?.files?.[0];
     const documentFile = fileInput?.files?.[0];
@@ -2413,6 +2582,9 @@ if (input) {
 
     if (text && !hasAttachment) {
       pendingRow = makeElement("div", "message-row mine");
+      if (offlineClientMessageId) {
+        pendingRow.dataset.offlineClientId = offlineClientMessageId;
+      }
       pendingRow.dataset.messageId = "pending-" + Date.now();
       pendingRow.dataset.messagePreview = text;
       pendingRow.dataset.createdAt = new Date().toISOString();
@@ -2480,6 +2652,31 @@ if (input) {
       clearReply();
       await pollUpdates();
     } catch (error) {
+      const isNetworkFailure =
+        !navigator.onLine || error instanceof TypeError;
+
+      if (offlineClientMessageId && isNetworkFailure) {
+        try {
+          await saveOfflineMessage({
+            clientMessageId: offlineClientMessageId,
+            accountId: String(currentUserId),
+            recipientId: String(recipientId),
+            content: text,
+            createdAt: new Date().toISOString()
+          });
+
+          if (pendingRow) {
+            const receipt = pendingRow.querySelector(".delivery-receipt");
+            if (receipt) {
+              receipt.textContent = "Pending ? will send when online";
+            }
+          }
+          return;
+        } catch (storageError) {
+          console.warn("Gotya could not save the offline message:", storageError);
+        }
+      }
+
       if (pendingRow) pendingRow.remove();
 
       if (messageInput) {
@@ -2488,7 +2685,6 @@ if (input) {
         } else if (text) {
           messageInput.value = originalText + "\n" + messageInput.value;
         }
-
       }
 
       console.warn("Gotya message send failed:", error);
@@ -2498,6 +2694,10 @@ if (input) {
       if (sendButton) sendButton.disabled = false;
     }
   });
+  restoreOfflineMessages();
+  window.addEventListener("online", sendQueuedMessages);
+  if (navigator.onLine) sendQueuedMessages();
+
   pollUpdates();
   const pollTimer = setInterval(pollUpdates, 2000);
 

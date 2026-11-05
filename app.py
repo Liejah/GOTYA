@@ -905,6 +905,29 @@ class Message(db.Model):
 
 
 
+class OfflineMessageReceipt(db.Model):
+    """Deduplicates text messages retried by an offline client."""
+    __tablename__ = "offline_message_receipt"
+
+    id = db.Column(db.Integer, primary_key=True)
+    client_message_id = db.Column(db.String(36), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    message_id = db.Column(
+        db.Integer, db.ForeignKey("message.id"), nullable=False, unique=True
+    )
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=db.func.current_timestamp()
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "sender_id", "client_message_id",
+            name="uq_offline_receipt_sender_client"
+        ),
+    )
+
+
 class UserQuickReaction(db.Model):
     """Stores each user's personalized quick-reaction emojis."""
     __tablename__ = "user_quick_reaction"
@@ -1220,6 +1243,7 @@ with app.app_context():
     ProfileLock.__table__.create(bind=db.engine, checkfirst=True)
     LoginAttempt.__table__.create(bind=db.engine, checkfirst=True)
     Follow.__table__.create(bind=db.engine, checkfirst=True)
+    OfflineMessageReceipt.__table__.create(bind=db.engine, checkfirst=True)
 
 # Run after all SQLAlchemy models have been declared.
 migrate_existing_database_schema()
@@ -2307,6 +2331,32 @@ def conversation(user_id):
         single_upload = request.files.get("attachment")
         has_single_upload = bool(single_upload and single_upload.filename)
 
+        # Offline retries are accepted only for authenticated AJAX text messages.
+        client_message_id = request.form.get("client_message_id", "").strip()
+        if client_message_id:
+            if request.headers.get("X-Requested-With") != "XMLHttpRequest":
+                abort(400)
+            try:
+                parsed_client_id = str(uuid.UUID(client_message_id))
+            except (ValueError, TypeError, AttributeError):
+                abort(400)
+            if parsed_client_id != client_message_id.lower():
+                abort(400)
+
+            existing_receipt = OfflineMessageReceipt.query.filter_by(
+                sender_id=current_user.id,
+                client_message_id=parsed_client_id
+            ).first()
+
+            if existing_receipt:
+                if existing_receipt.recipient_id != person.id:
+                    abort(409)
+                return jsonify({
+                    "success": True,
+                    "duplicate": True,
+                    "message_id": existing_receipt.message_id
+                }), 200
+
         allowed_extensions = {
             "jpg", "jpeg", "png", "gif", "webp",
             "pdf", "txt", "csv", "doc", "docx",
@@ -2318,6 +2368,9 @@ def conversation(user_id):
         uploads = photo_uploads[:]
         if has_single_upload:
             uploads.append(single_upload)
+
+        if client_message_id and uploads:
+            abort(400)
 
         if reply_to_raw and reply_to_message is None:
             flash("That reply target is unavailable. Please choose a message in this conversation.", "error")
@@ -2378,12 +2431,22 @@ def conversation(user_id):
 
                 try:
                     if not prepared:
-                        db.session.add(Message(
+                        new_message = Message(
                             sender_id=current_user.id,
                             recipient_id=person.id,
                             content=content,
                             reply_to_id=reply_to_message.id if reply_to_message else None
-                        ))
+                        )
+                        db.session.add(new_message)
+
+                        if client_message_id:
+                            db.session.flush()
+                            db.session.add(OfflineMessageReceipt(
+                                client_message_id=client_message_id,
+                                sender_id=current_user.id,
+                                recipient_id=person.id,
+                                message_id=new_message.id
+                            ))
                     else:
                         for index, (upload, original_name, extension, file_size) in enumerate(prepared):
                             stored_name = uuid.uuid4().hex + "." + extension
@@ -2415,7 +2478,27 @@ def conversation(user_id):
                                 )
                             ))
 
-                    db.session.commit()
+                    try:
+                        db.session.commit()
+                    except IntegrityError:
+                        db.session.rollback()
+                        # A concurrent retry may have committed the same client ID.
+                        if client_message_id:
+                            existing_receipt = OfflineMessageReceipt.query.filter_by(
+                                sender_id=current_user.id,
+                                client_message_id=client_message_id
+                            ).first()
+                            if (
+                                existing_receipt
+                                and existing_receipt.recipient_id == person.id
+                            ):
+                                return jsonify({
+                                    "success": True,
+                                    "duplicate": True,
+                                    "message_id": existing_receipt.message_id
+                                }), 200
+                        raise
+
                     try:
                         message_preview = content.strip() if content.strip() else "Sent you an attachment."
                         if len(message_preview) > 160:
