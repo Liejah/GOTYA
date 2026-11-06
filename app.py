@@ -4606,6 +4606,26 @@ def push_unsubscribe_api():
     db.session.commit()
     return jsonify({"ok": True})
 
+@app.route("/.well-known/assetlinks.json", methods=["GET"])
+def android_asset_links():
+    response = jsonify([
+        {
+            "relation": [
+                "delegate_permission/common.handle_all_urls"
+            ],
+            "target": {
+                "namespace": "android_app",
+                "package_name": "com.gotya.app",
+                "sha256_cert_fingerprints": [
+                    "87:2D:2E:B8:52:8B:24:47:01:70:0B:DE:36:7E:AC:40:F4:7A:D5:5F:04:8E:4F:4C:83:16:3A:0F:94:55:9B:62"
+                ]
+            }
+        }
+    ])
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
 @app.route("/sw.js")
 def gotya_service_worker():
     response = send_from_directory(
