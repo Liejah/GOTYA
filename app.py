@@ -305,6 +305,13 @@ app.config["MAX_CONTENT_LENGTH"] = 450 * 1024 * 1024
 @app.after_request
 def add_upload_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = (
+        "camera=(self), microphone=(self), geolocation=(self), "
+        "autoplay=(self), payment=(), usb=()"
+    )
+    response.headers["Strict-Transport-Security"] = "max-age=31536000"
     return response
 
 
