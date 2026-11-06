@@ -36,7 +36,8 @@ body {
 }
 body > header { display:none!important; }
 main {
-  width:100%; max-width:none; height:100dvh; min-height:0;
+  width:100%; max-width:none;
+  height:var(--chat-viewport-height, 100dvh); min-height:0;
   margin:0; padding:0; display:flex;
 }
 .chat {
@@ -1362,6 +1363,24 @@ if (input) {
 </style>
 <script id="GOTYA_REALTIME_CHAT_SCRIPT">
 (() => {
+// Keep the chat layout within the visible area when Android's keyboard opens.
+(() => {
+  const updateChatViewportHeight = () => {
+    const viewport = window.visualViewport;
+    if (viewport && viewport.height > 0) {
+      document.documentElement.style.setProperty(
+        "--chat-viewport-height",
+        `${viewport.height}px`
+      );
+    }
+  };
+
+  updateChatViewportHeight();
+  window.addEventListener("resize", updateChatViewportHeight);
+  window.visualViewport?.addEventListener("resize", updateChatViewportHeight);
+  window.visualViewport?.addEventListener("scroll", updateChatViewportHeight);
+})();
+
   const list = document.getElementById("messageList");
   const composer = document.querySelector("form.composer");
   const messageInput = document.getElementById("messageInput");
