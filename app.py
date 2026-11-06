@@ -314,6 +314,13 @@ def add_upload_security_headers(response):
     except Exception:
         response.headers["X-Gotya-Account"] = "anonymous"
 
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = (
+        "camera=(self), microphone=(self), geolocation=(self), "
+        "autoplay=(self), payment=(), usb=()"
+    )
+    response.headers["Strict-Transport-Security"] = "max-age=31536000"
     return response
 
 
