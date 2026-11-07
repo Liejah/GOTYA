@@ -759,21 +759,70 @@ body.gotya-feed {
         {% endif %}
     </section>
 
-    <section class="card media-composer" style="padding:16px;margin:16px 0;">
-        <h3 style="margin:0 0 10px;">Create a post</h3>
-        <form method="POST" action="{{ url_for('create_media_post') }}" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <textarea name="content" maxlength="2000" placeholder="Write a caption (optional)" aria-label="Post caption" style="width:100%;min-height:72px;margin-bottom:10px;"></textarea>
-            <label for="post-media-file">Photo or video</label>
-            <input id="post-media-file" type="file" name="media" accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v" required style="display:block;max-width:100%;margin:10px 0;">
-            <label for="post-media-audience">Audience</label>
-            <select id="post-media-audience" name="audience" style="display:block;margin:8px 0 12px;padding:9px;">
+    <dialog id="gotyaCreateComposer" style="width:min(100%,620px);max-width:100%;max-height:90dvh;margin:auto 0 0;border:1px solid var(--line,#ddd);border-bottom:0;border-radius:24px 24px 0 0;padding:20px;background:var(--surface,#fff);color:var(--text,#302547);box-shadow:0 -12px 45px rgba(20,10,50,.2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <strong style="font-size:18px;">Create</strong>
+            <button type="button" id="closeGotyaComposer" aria-label="Close composer" style="border:0;background:transparent;font-size:25px;padding:4px 10px;cursor:pointer;">&times;</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <strong>{{ current_user.username }}</strong>
+            <span style="color:var(--muted,#777);font-size:13px;">Create something to share</span>
+        </div>
+            <label for="gotyaCreateAudience">Who can see this?</label>
+            <select id="gotyaCreateAudience" name="audience" form="gotyaCreateForm" style="display:block;width:100%;padding:11px;margin:7px 0 15px;border:1px solid var(--line,#ddd);border-radius:12px;background:var(--surface,#fff);color:inherit;">
                 <option value="public">Public</option>
                 <option value="friends">Friends</option>
             </select>
-            <button type="submit" style="padding:10px 16px;border:0;border-radius:10px;cursor:pointer;">Publish media</button>
+        <form method="POST" action="{{ url_for('create_media_post') }}" enctype="multipart/form-data" id="gotyaCreateForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="content_type" id="gotyaContentType" value="post">
+            <label for="gotyaPublishType">Publishing as</label>
+            <select id="gotyaPublishType" style="display:block;width:100%;padding:11px;margin:7px 0 12px;border:1px solid var(--line,#ddd);border-radius:12px;background:var(--surface,#fff);color:inherit;">
+                <option value="post">Post</option>
+                <option value="reel">Reel</option>
+            </select>
+            <textarea name="content" maxlength="2000" placeholder="What's on your mind?" aria-label="Post caption" style="box-sizing:border-box;width:100%;min-height:100px;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px;background:var(--surface,#fff);color:inherit;resize:vertical;"></textarea>
+            <label for="gotyaCreateMedia" style="display:block;margin-top:12px;">Photo or video</label>
+            <input id="gotyaCreateMedia" type="file" name="media" accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v" required style="display:block;width:100%;margin:9px 0 14px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button type="submit" style="flex:1;padding:12px;border:0;border-radius:12px;background:var(--purple,#7555e8);color:white;font-weight:700;cursor:pointer;">Publish</button>
+                <a href="{{ url_for('create_story', editor=1) }}" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border:1px solid var(--line,#ddd);border-radius:12px;color:inherit;text-decoration:none;">Create Story</a>
+            </div>
         </form>
-    </section>
+    </dialog>
+    <script>
+    (() => {
+        const dialog = document.getElementById('gotyaCreateComposer');
+        const closeButton = document.getElementById('closeGotyaComposer');
+        const typeSelect = document.getElementById('gotyaPublishType');
+        const typeInput = document.getElementById('gotyaContentType');
+        const mediaInput = document.getElementById('gotyaCreateMedia');
+
+        if (!dialog || !typeSelect || !typeInput || !mediaInput) return;
+
+        document.addEventListener('click', event => {
+            const openLink = event.target.closest('a[data-gotya-create]');
+            if (!openLink) return;
+            event.preventDefault();
+            if (!dialog.open) dialog.showModal();
+        });
+
+        closeButton?.addEventListener('click', () => dialog.close());
+
+        dialog.addEventListener('click', event => {
+            if (event.target === dialog) dialog.close();
+        });
+
+        typeSelect.addEventListener('change', () => {
+            const isReel = typeSelect.value === 'reel';
+            typeInput.value = isReel ? 'reel' : 'post';
+            mediaInput.accept = isReel
+                ? 'video/mp4,video/webm,video/quicktime,video/x-m4v'
+                : 'image/*,video/mp4,video/webm,video/quicktime,video/x-m4v';
+            mediaInput.value = '';
+        });
+    })();
+    </script>
 
     <div class="latest-posts-label">Latest posts</div>
 
@@ -1168,7 +1217,7 @@ document.addEventListener("click", function (event) {
     <a href="{{ url_for('watch') }}" aria-label="Watch">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg><small>Watch</small>
     </a>
-    <a href="{{ url_for('profile') }}" aria-label="Create post">
+    <a href="#gotyaCreateComposer" data-gotya-create aria-label="Create post">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><small>Create</small>
     </a>
     <a href="{{ url_for('messages') }}" aria-label="Chats">

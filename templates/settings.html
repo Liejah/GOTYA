@@ -490,8 +490,70 @@
     </section>
 
     <section class="card" id="help">
-        <h2>❓ Help and support</h2>
-        <p class="description">If something isn't working, return to the feed and try again. Never share your password with anyone offering support.</p>
+        <h2>❓ Help and Support</h2>
+        <p class="description">Welcome to the Gotya Help Center. Find answers and learn how to use your account safely.</p>
+        <h3>Account and Profile</h3>
+        <details><summary>How do I update my profile?</summary><p>Open your Profile and use Edit Profile to update your information and photos.</p></details>
+        <details><summary>What if I cannot log in?</summary><p>Check your login details or use the password recovery option.</p></details>
+        <h3>Privacy and Security</h3>
+        <details><summary>Who can see my locked profile?</summary><p>People who are not accepted friends are restricted from viewing private content on your locked profile.</p></details>
+        <details><summary>How can I keep my account safe?</summary><p>Use a strong password. Never share your password or verification codes.</p></details>
+        <h3>Posts, Stories and Reels</h3>
+        <details><summary>Who can see my posts?</summary><p>Use the audience setting when creating a post to choose who can see it.</p></details>
+        <details><summary>Can I delete my content?</summary><p>Use the available options on your own posts or stories to manage or delete them.</p></details>
+        <h3>Messages and Calls</h3>
+        <details><summary>Can I remove a sent message?</summary><p>Open the message options to see the available deletion controls.</p></details>
+        <details><summary>Why are messages or calls not loading?</summary><p>Check your internet connection, refresh Gotya, and try again.</p></details>
+        <h3>Notifications</h3>
+        <details><summary>Why am I not receiving notifications?</summary><p>Check your device notification permissions and Gotya notification settings.</p></details>
+        <h3>Gotya Premium and Verification</h3>
+        <details><summary>What do the Gotya badges mean?</summary><p>Badges identify account statuses such as ownership, verification, and Premium membership.</p></details>
+        <h3>Still need help?</h3>
+        <p class="description">For bugs or account problems, note what happened, when it happened, and which page you were using. Never include your password or verification codes.</p>
+        <form method="POST" action="{{ url_for('settings') }}" class="support-report-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="submit_support_report">
+
+            <label for="support-category">What do you need help with?</label>
+            <select id="support-category" name="category" required>
+                <option value="">Choose a category</option>
+                <option value="technical">Technical problem</option>
+                <option value="account">Account or login</option>
+                <option value="privacy">Privacy or security</option>
+                <option value="abuse">Report abuse or harmful behavior</option>
+                <option value="content">Post, Story, or Reel</option>
+                <option value="other">Other</option>
+            </select>
+
+            <label for="support-subject">Subject</label>
+            <input id="support-subject" name="subject" type="text"
+                   maxlength="120" required placeholder="Briefly describe the issue">
+
+            <label for="support-description">Details</label>
+            <textarea id="support-description" name="description"
+                      maxlength="3000" rows="5" required
+                      placeholder="Tell us what happened, when it happened, and which page you were using. Do not include your password or verification codes."></textarea>
+
+            <button type="submit">Submit report</button>
+        </form>
+
+        <h3>Your support reports</h3>
+        {% if support_reports %}
+            {% for report in support_reports %}
+                <div class="support-report-item">
+                    <strong>{{ report.subject }}</strong>
+                    <p class="description">
+                        Reference: {{ report.reference_code }} ·
+                        Status: {{ report.status }} ·
+                        Category: {{ report.category|title }}
+                    </p>
+                    <p>{{ report.description }}</p>
+                    <p class="description">{{ report.created_at.strftime('%b %d, %Y %I:%M %p') }}</p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="description">You have not submitted any support reports yet.</p>
+        {% endif %}
         <a href="{{ url_for('feed') }}">Return to feed</a>
     </section>
 
@@ -1127,7 +1189,7 @@ body.gotya-settings-enhanced .settings-layout {
         "#password": "privacy-control",
         "#other-devices": "privacy-control",
         "#logout": "privacy-control",
-        "#help": "privacy-policy"
+        "#help": "help"
     };
 
     const requestedId = hashToCategory[window.location.hash];

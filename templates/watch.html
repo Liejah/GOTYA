@@ -253,7 +253,7 @@ body {
   <div class="layout">
     <section id="videoList" aria-label="Gotya videos">
       {% for video in external_videos %}
-      <article class="video-card gotya-external-video">
+      <article class="video-card gotya-external-video" data-content-type="video">
         <div class="posthead">
           <div class="avatar" aria-hidden="true">&#9654;</div>
           <div>
@@ -285,7 +285,7 @@ body {
       {% endfor %}
 
       {% for post in posts %}
-      <article class="video-card">
+      <article class="video-card" data-content-type="{{ 'reel' if post.content_type == 'reel' else 'video' }}">
         <div class="posthead">
           <a class="avatar" href="{{ url_for('public_profile', user_id=post.author.id) }}">
             {% if post.author.profile_picture %}
@@ -320,6 +320,11 @@ body {
       </section>
       {% endif %}
       {% endfor %}
+      <section class="empty" data-filter-empty hidden>
+        <div class="emptyicon">&#9654;</div>
+        <h2>No videos in this category yet</h2>
+        <p>Publish a video or Reel to see it here.</p>
+      </section>
     </section>
 
     <aside class="sidebar">
@@ -363,8 +368,23 @@ const csrfToken = {{ csrf_token()|tojson }};
 
 tabs.forEach(tab => tab.addEventListener('click', () => {
   tabs.forEach(item => item.classList.toggle('active', item === tab));
-  list.classList.toggle('reels-mode', tab.dataset.mode === 'reels');
+  const reelsMode = tab.dataset.mode === 'reels';
+  list.classList.toggle('reels-mode', reelsMode);
+
+  let visibleCount = 0;
+  list.querySelectorAll('[data-content-type]').forEach(card => {
+    const isReel = card.dataset.contentType === 'reel';
+    const visible = reelsMode ? isReel : !isReel;
+    card.hidden = !visible;
+    if (visible) visibleCount++;
+  });
+
+  const emptyState = list.querySelector('[data-filter-empty]');
+  if (emptyState) emptyState.hidden = visibleCount !== 0;
 }));
+
+const initialTab = document.querySelector('.tab.active') || tabs[0];
+if (initialTab) initialTab.click();
 
 document.querySelectorAll('[data-like][data-post-id]').forEach(button => {
   button.addEventListener('click', async () => {

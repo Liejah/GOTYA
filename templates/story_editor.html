@@ -1,0 +1,554 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#17191d">
+<title>Gotya | Story Editor</title>
+<style>
+html,body{margin:0;min-height:100%;background:#101116;color:#fff;font-family:Arial,Helvetica,sans-serif}
+
+html,body {
+    margin:0;
+    min-height:100%;
+    background:#101116;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+}
+
+
+
+/* Android Story editor layout */
+.story-screen {
+  width:100%;
+  max-width:420px;
+  box-sizing:border-box;
+  margin:0 auto;
+  padding:10px 12px 18px;
+}
+.story-top { min-height:42px; margin-bottom:8px; }
+.story-top button {
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  background:#292b30;
+  color:#fff;
+}
+.story-stage {
+  width:min(100%,360px);
+  aspect-ratio:9/16;
+  max-height:calc(100dvh - 190px);
+  margin:0 auto;
+  border-radius:22px;
+}
+.story-tools {
+  top:50%;
+  right:10px;
+  bottom:auto;
+  left:auto;
+  transform:translateY(-50%);
+  flex-direction:column;
+  justify-content:center;
+  gap:10px;
+}
+.story-tool {
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  font-size:19px;
+  background:#17191de8;
+}
+.story-menu {
+  top:58px;
+  right:10px;
+  bottom:auto;
+  left:auto;
+  width:190px;
+  box-sizing:border-box;
+}
+.story-bottom {
+  display:flex;
+  width:min(100%,360px);
+  margin:12px auto 0;
+}
+.story-share {
+  width:100%;
+  height:48px;
+  background:#fff;
+  color:#111;
+  font-size:14px;
+}
+.story-notice {
+  width:min(100%,360px);
+  margin:8px auto 0;
+}
+@media(max-height:650px) {
+  .story-stage { max-height:calc(100dvh - 160px); }
+}
+
+
+
+.story-screen{max-width:520px;margin:0 auto;padding:12px 12px 28px;color:var(--text-color,#fff)}
+.story-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.story-top button{border:0;background:transparent;color:inherit;font-size:23px}
+.story-top strong{font-size:18px}
+.story-stage{position:relative;width:100%;aspect-ratio:9/14;border-radius:22px;overflow:hidden;background:#25272d;touch-action:none;isolation:isolate}
+.story-stage .media-preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center;pointer-events:none;user-select:none}
+.story-audio{position:absolute;z-index:4;top:15px;left:50%;transform:translateX(-50%);border:0;border-radius:30px;background:#17191ddd;color:white;padding:10px 17px;display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:13px;max-width:85%;overflow:hidden;text-overflow:ellipsis}
+.story-audio span{overflow:hidden;text-overflow:ellipsis}
+.story-tools{position:absolute;z-index:4;bottom:15px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:13px}
+.story-tool{width:48px;height:48px;flex:0 0 48px;border:0;border-radius:50%;background:#17191ddd;color:white;display:grid;place-items:center;font-size:21px;box-shadow:0 3px 12px #0003}
+.story-tool:active{transform:scale(.94)}
+.story-overlay{position:absolute;z-index:3;left:12px;right:12px;top:50%;transform:translateY(-50%);text-align:center;color:white;font-size:26px;font-weight:700;text-shadow:0 2px 8px #000;pointer-events:none;overflow-wrap:anywhere}
+.story-panel{margin-top:10px;padding:14px;background:var(--card-bg, #24262b);border:1px solid #ffffff12;border-radius:20px}
+.story-panel[hidden]{display:none}
+.story-panel h3{font-size:14px;margin:0 0 10px}
+.story-panel input,.story-panel textarea{width:100%;box-sizing:border-box;border:1px solid #ffffff20;background:#ffffff08;color:inherit;border-radius:14px;padding:12px;font:inherit;outline:none}
+.story-panel textarea{resize:vertical;min-height:65px}
+.story-options{display:flex;gap:8px;flex-wrap:wrap}
+.story-option{border:1px solid #ffffff25;border-radius:20px;background:#ffffff0c;color:inherit;padding:8px 13px;font-size:12px}
+.story-option.active{background:#ffffff30;border-color:#ffffff70}
+.story-bottom{display:flex;align-items:center;gap:10px;margin-top:12px}
+.story-audience{position:relative;flex:1;min-width:0}
+.story-audience-button,.story-share{width:100%;height:46px;border:0;border-radius:28px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:650}
+.story-audience-button{background:#292b30;color:white;border:1px solid #ffffff12}
+.story-share{background:#fff;color:#111}
+.story-menu{position:absolute;z-index:10;bottom:54px;left:0;width:190px;padding:9px;background:#292b30;border:1px solid #ffffff18;border-radius:18px;box-shadow:0 10px 30px #0008}
+.story-menu[hidden]{display:none}
+.story-menu-title{font-size:11px;color:#aaa;padding:8px 10px}
+.story-menu button{display:flex;width:100%;align-items:center;gap:12px;text-align:left;border:0;background:transparent;color:white;padding:11px;border-radius:10px}
+.story-menu button.selected{background:#ffffff18}
+.story-menu .check{margin-left:auto}
+.story-notice{font-size:12px;color:#ffcf8c;margin-top:9px}
+.story-gallery{min-height:65vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
+.story-gallery h2{font-size:23px;margin:0}
+.story-gallery p{color:#999;font-size:13px}
+.story-primary{border:0;border-radius:24px;padding:13px 22px;background:#fff;color:#111;font-weight:700}
+.story-tabs{display:flex;gap:8px;margin-top:10px}
+.story-tabs button{border:0;border-radius:20px;padding:8px 17px;background:#292b30;color:white}
+.story-tabs button.active{background:#fff;color:#111}
+@media(min-width:700px){.story-screen{padding-top:22px}.story-stage{max-height:680px}}
+
+</style>
+<style>
+
+/* Final Story Editor layout overrides */
+#editorPage { display:block; width:100%; }
+#editorPage[hidden] { display:none; }
+.story-screen {
+  width:100%;
+  max-width:420px;
+  box-sizing:border-box;
+  margin:0 auto;
+  padding:10px 12px 18px;
+}
+#editorPage .story-top {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  min-height:44px;
+  margin-bottom:10px;
+}
+#editorPage .story-stage {
+  position:relative;
+  width:min(100%,360px);
+  aspect-ratio:9 / 16;
+  max-height:calc(100dvh - 180px);
+  margin:0 auto;
+  overflow:hidden;
+  border-radius:22px;
+  background:#25272d;
+}
+#editorPage .story-tools {
+  position:absolute;
+  z-index:5;
+  top:50%;
+  right:10px;
+  bottom:auto;
+  left:auto;
+  transform:translateY(-50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+}
+#editorPage .story-tool {
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#17191de8;
+  color:#fff;
+  font-size:19px;
+}
+#editorPage .story-menu {
+  position:absolute;
+  z-index:10;
+  top:10px;
+  right:10px;
+  bottom:auto;
+  left:auto;
+  width:190px;
+}
+#editorPage .story-bottom {
+  display:flex;
+  width:min(100%,360px);
+  margin:12px auto 0;
+}
+#editorPage .story-share {
+  width:100%;
+  height:48px;
+  justify-content:center;
+  border:0;
+  border-radius:28px;
+  background:#fff;
+  color:#111;
+  font-size:14px;
+}
+#editorPage .story-notice {
+  width:min(100%,360px);
+  margin:8px auto 0;
+}
+@media(max-height:650px) {
+  #editorPage .story-stage { max-height:calc(100dvh - 150px); }
+}
+
+</style>
+</head>
+<body>
+<div class="story-screen">
+<form id="storyForm" method="POST" action="{{ url_for('create_story') }}" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="audience" id="audience" value="public">
+<input id="media" type="file" name="media" accept="image/*,video/*" hidden required>
+<section id="editorPage">
+<div class="story-top">
+<button type="button" id="backGallery" aria-label="Back">&#10005;</button>
+<strong>Story Editor</strong>
+<button type="button" id="audienceMenuToggle" aria-label="Story audience options">&#8942;</button>
+</div>
+
+<div class="story-stage" id="storyStage">
+<div id="mediaMount"></div>
+<button type="button" class="story-audio" id="audioButton">&#9835; <span id="audioLabel">Add audio</span> +
+</button>
+<div class="story-overlay" id="textOverlay"></div>
+<div class="story-tools">
+<button type="button" class="story-tool" data-panel="textPanel" aria-label="Text">Aa</button>
+<button type="button" class="story-tool" data-panel="musicPanel" aria-label="Music">&#9835;</button>
+<button type="button" class="story-tool" data-panel="filterPanel" aria-label="Filters">&#127899;</button>
+<button type="button" class="story-tool" data-panel="mentionPanel" aria-label="Mention">@</button>
+</div>
+<div class="story-menu" id="audienceMenu" hidden>
+<div class="story-menu-title">Story audience</div>
+<button type="button" data-audience="public" class="selected">
+<span>&#127760;</span> Public <span class="check">&#10003;</span>
+</button>
+<button type="button" data-audience="friends">
+<span>&#128101;</span> Friends <span class="check"></span>
+</button>
+</div>
+</div>
+
+<div class="story-panel" id="textPanel" hidden>
+<h3>Add text</h3>
+<textarea id="storyText" maxlength="150" placeholder="Write something..."></textarea>
+</div>
+
+<div class="story-panel" id="musicPanel" hidden>
+<h3>Choose music</h3>
+<div class="story-options">
+<button type="button" class="story-option" data-song="Golden Hour">Golden Hour</button>
+<button type="button" class="story-option" data-song="Soft Piano">Soft Piano</button>
+<button type="button" class="story-option" data-song="Summer Vibes">Summer Vibes</button>
+</div>
+<p style="font-size:11px;color:#999;margin-bottom:0">Music selection is a visual control until a licensed music library is connected.</p>
+</div>
+
+<div class="story-panel" id="filterPanel" hidden>
+<h3>Filters</h3>
+<div class="story-options">
+<button type="button" class="story-option active" data-filter="none">Original</button>
+<button type="button" class="story-option" data-filter="warm">Warm</button>
+<button type="button" class="story-option" data-filter="vintage">Vintage</button>
+<button type="button" class="story-option" data-filter="mono">B&W</button>
+<button type="button" class="story-option" data-filter="bright">Bright</button>
+</div>
+</div>
+
+<div class="story-panel" id="mentionPanel" hidden>
+<h3>Mention someone</h3>
+<input id="storyMention" type="text" placeholder="Enter Gotya username">
+</div>
+
+<div class="story-bottom">
+<button type="submit" class="story-share">Your Story &#8599;</button>
+</div>
+<div id="notice" class="story-notice" role="status"></div>
+</section>
+</form>
+</div>
+<script>
+
+(() => {
+const form = document.getElementById('storyForm');
+const media = document.getElementById('media');
+const stage = document.getElementById('storyStage');
+const mount = document.getElementById('mediaMount');
+const notice = document.getElementById('notice');
+const audienceInput = document.getElementById('audience');
+let kind = 'photo';
+let objectUrl = null;
+let selectedAudience = 'public';
+let selectedMusic = '';
+let currentMedia = null;
+let scale = 1, tx = 0, ty = 0;
+let pointers = new Map(), startDistance = 0, startScale = 1;
+let startX = 0, startY = 0, startTX = 0, startTY = 0;
+
+document.getElementById('backGallery').addEventListener('click', () => {
+  window.location.href = "{{ url_for('create_story') }}";
+});
+
+
+
+function showMedia(file) {
+  if (!file) return;
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  objectUrl = URL.createObjectURL(file);
+  currentMedia = file;
+  mount.replaceChildren();
+
+  let element;
+  if (file.type.startsWith('video/')) {
+    element = document.createElement('video');
+    element.autoplay = true;
+    element.loop = true;
+    element.muted = true;
+    element.playsInline = true;
+  } else if (file.type.startsWith('image/')) {
+    element = document.createElement('img');
+    element.alt = 'Story photo';
+  } else {
+    notice.textContent = 'Please choose a supported photo or video.';
+    return;
+  }
+
+  element.className = 'media-preview';
+  element.src = objectUrl;
+  mount.appendChild(element);
+  resetCrop();
+}
+
+async function restoreSelectedMedia() {
+  try {
+    const request = indexedDB.open('gotya-story-draft', 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('media')) {
+        request.result.createObjectStore('media');
+      }
+    };
+    request.onsuccess = () => {
+      const db = request.result;
+      const getRequest = db.transaction('media', 'readonly')
+        .objectStore('media').get('selected');
+      getRequest.onsuccess = () => {
+        const file = getRequest.result;
+        if (!file) {
+          notice.textContent = 'No media selected. Please return to the Gallery.';
+          return;
+        }
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        media.files = transfer.files;
+        showMedia(file);
+      };
+    };
+    request.onerror = () => {
+      notice.textContent = 'Could not retrieve your selected media. Return to Gallery and try again.';
+    };
+  } catch (error) {
+    notice.textContent = 'Your browser could not restore the selected media.';
+  }
+}
+
+restoreSelectedMedia();
+
+
+function resetCrop() {
+  scale = 1; tx = 0; ty = 0;
+  applyTransform();
+}
+function applyTransform() {
+  const element = mount.querySelector('.media-preview');
+  if (element) element.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+}
+function distance(a,b) {
+  return Math.hypot(a.x-b.x,a.y-b.y);
+}
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('button')) return;
+  stage.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if (pointers.size === 1) {
+    startX=e.clientX; startY=e.clientY; startTX=tx; startTY=ty;
+  } else if (pointers.size === 2) {
+    const pts=[...pointers.values()];
+    startDistance=distance(pts[0],pts[1]);
+    startScale=scale;
+  }
+});
+stage.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if (pointers.size === 1) {
+    tx=startTX+(e.clientX-startX);
+    ty=startTY+(e.clientY-startY);
+  } else if (pointers.size === 2) {
+    const pts=[...pointers.values()];
+    if (startDistance) scale=Math.max(1,Math.min(4,startScale*distance(pts[0],pts[1])/startDistance));
+  }
+  applyTransform();
+});
+function releasePointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size === 1) {
+    const p=[...pointers.values()][0];
+    startX=p.x; startY=p.y; startTX=tx; startTY=ty;
+  }
+  if (pointers.size < 2) startDistance=0;
+}
+stage.addEventListener('pointerup',releasePointer);
+stage.addEventListener('pointercancel',releasePointer);
+
+document.querySelectorAll('[data-panel]').forEach(button => {
+  button.addEventListener('click', () => {
+    const id=button.dataset.panel;
+    ['textPanel','musicPanel','filterPanel','mentionPanel'].forEach(panelId => {
+      const panel=document.getElementById(panelId);
+      panel.hidden = panelId === id ? !panel.hidden : true;
+    });
+  });
+});
+document.getElementById('audioButton').addEventListener('click', () => {
+  document.getElementById('textPanel').hidden=true;
+  document.getElementById('filterPanel').hidden=true;
+  document.getElementById('mentionPanel').hidden=true;
+  document.getElementById('musicPanel').hidden=false;
+});
+document.querySelectorAll('[data-song]').forEach(button => {
+  button.addEventListener('click', () => {
+    selectedMusic=button.dataset.song;
+    document.getElementById('audioLabel').textContent=selectedMusic;
+    document.getElementById('musicPanel').hidden=true;
+  });
+});
+document.getElementById('storyText').addEventListener('input', e => {
+  document.getElementById('textOverlay').textContent=e.target.value;
+});
+document.querySelectorAll('[data-filter]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter]').forEach(b=>b.classList.remove('active'));
+    button.classList.add('active');
+    const element=mount.querySelector('.media-preview');
+    if (!element) return;
+    const filters={
+      none:'none',warm:'sepia(.28) saturate(1.25)',
+      vintage:'sepia(.45) contrast(.9)',mono:'grayscale(1)',
+      bright:'brightness(1.2) saturate(1.15)'
+    };
+    element.style.filter=filters[button.dataset.filter] || 'none';
+  });
+});
+const audienceMenu=document.getElementById('audienceMenu');
+const audienceMenuToggle=document.getElementById('audienceMenuToggle');
+
+audienceMenuToggle.addEventListener('click',()=>{
+  audienceMenu.hidden=!audienceMenu.hidden;
+});
+
+document.querySelectorAll('[data-audience]').forEach(button => {
+  button.addEventListener('click',()=>{
+    selectedAudience=button.dataset.audience;
+    audienceInput.value=selectedAudience;
+
+    document.querySelectorAll('[data-audience]').forEach(b=>{
+      b.classList.toggle('selected',b===button);
+      b.querySelector('.check').textContent=b===button?'?':'';
+    });
+
+    audienceMenu.hidden=true;
+    notice.textContent='';
+  });
+});
+
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const uploadFile = media.files && media.files[0]
+    ? media.files[0]
+    : currentMedia;
+
+  if (!uploadFile || !uploadFile.size) {
+    notice.textContent = 'Your selected media is unavailable. Please return to Gallery and select it again.';
+    return;
+  }
+
+  if (selectedAudience === 'custom') {
+    notice.textContent = 'Custom audience is not yet supported. Please choose Public or Friends.';
+    return;
+  }
+
+  const tokenInput = form.querySelector('input[name="csrf_token"]');
+  if (!tokenInput || !tokenInput.value) {
+    notice.textContent = 'Security token unavailable. Please refresh and try again.';
+    return;
+  }
+
+  const submitButton = form.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  notice.textContent = 'Publishing your Story...';
+
+  const uploadData = new FormData();
+  uploadData.append('csrf_token', tokenInput.value);
+  uploadData.append('audience', selectedAudience);
+  uploadData.append('media', uploadFile, uploadFile.name || 'story-media');
+
+  console.log('GOTYA MANUAL STORY UPLOAD:', {
+    filename: uploadFile.name,
+    size: uploadFile.size,
+    type: uploadFile.type,
+    csrfPresent: true
+  });
+
+  try {
+    const response = await fetch(form.action, {
+      method: 'POST',
+      body: uploadData,
+      credentials: 'same-origin',
+      headers: {
+        'X-CSRFToken': tokenInput.value
+      },
+      redirect: 'follow'
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error('Upload failed (' + response.status + '): ' + details.slice(0, 180));
+    }
+
+    window.location.assign('/feed');
+  } catch (error) {
+    console.error('GOTYA STORY UPLOAD ERROR:', error);
+    notice.textContent = 'Story upload failed: ' + error.message;
+    submitButton.disabled = false;
+  }
+});
+})();
+
+</script>
+</body>
+</html>

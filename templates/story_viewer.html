@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#08080c">
+    <title>Gotya | {{ story_owner.username }}'s Stories</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%; margin: 0; overflow: hidden;
+            background: #08080c; color: #fff;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        }
+        .viewer {
+            position: relative; width: 100%; height: 100%;
+            height: 100dvh; overflow: hidden; background: #08080c;
+            isolation: isolate;
+        }
+        .story-slide {
+            position: absolute; inset: 0; display: none;
+            align-items: center; justify-content: center;
+            background: #08080c;
+        }
+        .story-slide.active { display: flex; }
+        .story-media {
+            display: block; width: 100%; height: 100%;
+            object-fit: contain; background: #08080c;
+        }
+        .story-caption {
+            position: absolute; z-index: 3; left: 18px; right: 18px;
+            bottom: calc(112px + env(safe-area-inset-bottom));
+            margin: 0; padding: 12px 15px; border-radius: 13px;
+            background: linear-gradient(90deg,rgba(0,0,0,.55),rgba(0,0,0,.25));
+            color: white; font-size: 15px; line-height: 1.45;
+            white-space: pre-wrap; overflow-wrap: anywhere;
+            pointer-events: none;
+        }
+        .top-ui {
+            position: absolute; z-index: 8; top: 0; left: 0; right: 0;
+            padding: calc(10px + env(safe-area-inset-top)) 13px 35px;
+            background: linear-gradient(#0009,transparent);
+        }
+        .progress-list { display: flex; gap: 4px; width: 100%; margin-bottom: 13px; }
+        .progress-segment {
+            height: 3px; flex: 1; overflow: hidden; border-radius: 10px;
+            background: #ffffff60;
+        }
+        .progress-fill {
+            display: block; width: 0; height: 100%;
+            border-radius: inherit; background: white;
+        }
+        .story-header { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .owner-avatar {
+            width: 38px; height: 38px; flex: 0 0 38px;
+            display: grid; place-items: center; overflow: hidden;
+            border: 1px solid #ffffff70; border-radius: 50%;
+            background: #7555e8; color: white; font-weight: 800;
+        }
+        .owner-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .owner-details { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .owner-details strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+        .owner-details span { color: #ffffffbd; font-size: 11px; }
+        .top-actions { display: flex; align-items: center; gap: 8px; }
+        .top-actions button, .top-actions a {
+            display: grid; place-items: center; width: 38px; height: 38px;
+            border: 0; border-radius: 50%; background: #ffffff1c;
+            color: white; font-size: 23px; text-decoration: none; cursor: pointer;
+        }
+        .tap-zone {
+            position: absolute; z-index: 4; top: 80px; bottom: 105px;
+            width: 35%; border: 0; background: transparent;
+            touch-action: pan-y;
+        }
+        .tap-zone.prev { left: 0; }
+        .tap-zone.next { right: 0; width: 65%; }
+        .bottom-ui {
+            position: absolute; z-index: 9; left: 0; right: 0; bottom: 0;
+            display: flex; align-items: center; gap: 9px;
+            padding: 16px 13px calc(13px + env(safe-area-inset-bottom));
+            background: linear-gradient(transparent,#000b);
+        }
+        .reply-form { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+        .reply-form input {
+            width: 100%; min-width: 0; height: 43px; padding: 0 15px;
+            border: 1px solid #ffffffa0; border-radius: 24px;
+            outline: none; background: #ffffff18; color: white; font-size: 14px;
+        }
+        .reply-form input::placeholder { color: #ffffffc0; }
+        .reply-form button {
+            height: 42px; padding: 0 15px; border: 0; border-radius: 22px;
+            background: #1877f2; color: white; font-weight: 700; cursor: pointer;
+        }
+        .reaction-tools { display: flex; align-items: center; gap: 5px; }
+        .reaction-tools button {
+            width: 35px; height: 39px; padding: 0; border: 0;
+            background: transparent; font-size: 24px; cursor: pointer;
+        }
+        .delete-form {
+            display: none; position: absolute; z-index: 12;
+            top: calc(65px + env(safe-area-inset-top)); right: 13px;
+            padding: 10px; border: 1px solid #ffffff35; border-radius: 12px;
+            background: #211e29;
+        }
+        .delete-form.visible { display: block; }
+        .delete-form button {
+            padding: 9px 13px; border: 0; border-radius: 8px;
+            background: #d92d3a; color: white; font-weight: 700;
+        }
+        .viewer-empty { display: grid; place-items: center; height: 100%; color: #ddd; }
+        @media (min-width: 700px) {
+            .viewer { width: min(100%, 470px); margin: 0 auto; }
+            body { background: #17131f; }
+        }
+    </style>
+</head>
+<body>
+<div class="viewer" id="storyViewer">
+    {% if stories %}
+    <div class="top-ui">
+        <div class="progress-list" id="storyProgress">
+            {% for story in stories %}
+            <div class="progress-segment"><span class="progress-fill"></span></div>
+            {% endfor %}
+        </div>
+        <div class="story-header">
+            <div class="owner-avatar">
+                {% if story_owner.profile_picture %}
+                <img src="{{ url_for('profile_picture_file', filename=story_owner.profile_picture) }}" alt="">
+                {% else %}
+                {{ story_owner.username[0]|upper }}
+                {% endif %}
+            </div>
+            <div class="owner-details">
+                <strong>{{ story_owner.username }}</strong>
+                <span id="storyTime">{{ stories[0].created_at.strftime('%b %d, %I:%M %p') }}</span>
+            </div>
+            <div class="top-actions">
+                {% if story_owner.id == current_user.id %}
+                <button type="button" id="storyMore" aria-label="Story options">?</button>
+                {% endif %}
+                <a href="{{ url_for('feed') }}" aria-label="Close Stories">?</a>
+            </div>
+        </div>
+    </div>
+
+    {% for story in stories %}
+    <section class="story-slide{% if loop.first %} active{% endif %}"
+             data-index="{{ loop.index0 }}"
+             data-kind="{% if story.media_type.startswith('video/') %}video{% else %}image{% endif %}"
+             data-time="{{ story.created_at.strftime('%b %d, %I:%M %p') }}">
+        {% if story.media_type.startswith('video/') %}
+        <video class="story-media"
+               src="{{ url_for('story_media_file', story_id=story.id) }}"
+               playsinline muted preload="metadata"></video>
+        {% else %}
+        <img class="story-media"
+             src="{{ url_for('story_media_file', story_id=story.id) }}"
+             alt="Story photo">
+        {% endif %}
+        {% if story.caption %}
+        <p class="story-caption">{{ story.caption }}</p>
+        {% endif %}
+        {% if story.user_id == current_user.id %}
+        <div class="delete-form">
+            <form method="POST" action="{{ url_for('delete_story', story_id=story.id) }}"
+                  onsubmit="return confirm('Delete this Story?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit">Delete this Story</button>
+            </form>
+        </div>
+        {% endif %}
+    </section>
+    {% endfor %}
+
+    <button class="tap-zone prev" id="storyPrev" aria-label="Previous Story"></button>
+    <button class="tap-zone next" id="storyNext" aria-label="Next Story"></button>
+
+    <div class="bottom-ui">
+        {% if can_reply %}
+        <form class="reply-form" method="POST"
+              action="{{ url_for('conversation', user_id=story_owner.id) }}" id="storyReplyForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="content" id="storyReplyInput"
+                   maxlength="2000" placeholder="Reply to {{ story_owner.username }}..."
+                   autocomplete="off" required>
+            <button type="submit">Send</button>
+        </form>
+        <div class="reaction-tools" aria-label="Quick reactions">
+            <button type="button" data-reaction="??" aria-label="Heart">??</button>
+            <button type="button" data-reaction="??" aria-label="Laugh">??</button>
+            <button type="button" data-reaction="??" aria-label="Wow">??</button>
+        </div>
+        {% else %}
+        <div style="width:100%;text-align:center;color:#ffffffc9;font-size:13px;">
+            {% if story_owner.id == current_user.id %}Your Story{% else %}Stories{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="viewer-empty">No active Stories.</div>
+    {% endif %}
+</div>
+
+<script>
+(() => {
+    const viewer = document.getElementById("storyViewer");
+    const slides = Array.from(document.querySelectorAll(".story-slide"));
+    if (!viewer || !slides.length) return;
+
+    const fills = Array.from(document.querySelectorAll(".progress-fill"));
+    const timeLabel = document.getElementById("storyTime");
+    const replyInput = document.getElementById("storyReplyInput");
+    const moreButton = document.getElementById("storyMore");
+    let index = 0;
+    let timer = null;
+    let paused = false;
+    let startedAt = 0;
+    let remaining = 5000;
+
+    function stopTimer() {
+        if (timer) clearTimeout(timer);
+        timer = null;
+    }
+
+    function updateProgress() {
+        fills.forEach((fill, i) => {
+            fill.style.width = i < index ? "100%" : "0%";
+        });
+    }
+
+    function playCurrent() {
+        stopTimer();
+        paused = false;
+        const slide = slides[index];
+        if (!slide) return;
+
+        slides.forEach((item, i) => {
+            item.classList.toggle("active", i === index);
+            const video = item.querySelector("video");
+            if (video && i !== index) {
+                video.pause();
+                try { video.currentTime = 0; } catch (_) {}
+            }
+        });
+
+        updateProgress();
+        if (timeLabel) timeLabel.textContent = slide.dataset.time || "";
+
+        const video = slide.querySelector("video");
+        if (video) {
+            video.currentTime = 0;
+            video.play().catch(() => {});
+            video.onended = next;
+            video.ontimeupdate = () => {
+                if (!video.duration || !isFinite(video.duration)) return;
+                fills[index].style.width =
+                    Math.min(100, (video.currentTime / video.duration) * 100) + "%";
+            };
+        } else {
+            remaining = 5000;
+            startedAt = Date.now();
+            timer = setTimeout(next, remaining);
+            requestAnimationFrame(function paint() {
+                if (index >= fills.length || paused) return;
+                const elapsed = Date.now() - startedAt;
+                fills[index].style.width =
+                    Math.min(100, (elapsed / 5000) * 100) + "%";
+                if (timer) requestAnimationFrame(paint);
+            });
+        }
+    }
+
+    function next() {
+        if (index < slides.length - 1) {
+            index++;
+            playCurrent();
+        } else {
+            window.location.href = "{{ url_for('feed') }}";
+        }
+    }
+
+    function previous() {
+        if (index > 0) {
+            index--;
+            playCurrent();
+        } else {
+            playCurrent();
+        }
+    }
+
+    function pauseStory() {
+        if (paused) return;
+        paused = true;
+        if (timer) {
+            remaining = Math.max(0, remaining - (Date.now() - startedAt));
+            stopTimer();
+        }
+        const video = slides[index].querySelector("video");
+        if (video) video.pause();
+    }
+
+    function resumeStory() {
+        if (!paused) return;
+        paused = false;
+        const video = slides[index].querySelector("video");
+        if (video) {
+            video.play().catch(() => {});
+        } else {
+            startedAt = Date.now();
+            timer = setTimeout(next, remaining);
+        }
+    }
+
+    function bindTapZone(element, direction) {
+        if (!element) return;
+        let holdTimer = null;
+        let held = false;
+
+        element.addEventListener("pointerdown", () => {
+            held = false;
+            holdTimer = setTimeout(() => {
+                held = true;
+                pauseStory();
+            }, 180);
+        });
+        element.addEventListener("pointerup", () => {
+            if (holdTimer) clearTimeout(holdTimer);
+            if (held) {
+                resumeStory();
+            } else if (direction === "prev") {
+                previous();
+            } else {
+                next();
+            }
+        });
+        element.addEventListener("pointerleave", () => {
+            if (holdTimer) clearTimeout(holdTimer);
+            if (held) resumeStory();
+        });
+        element.addEventListener("pointercancel", () => {
+            if (holdTimer) clearTimeout(holdTimer);
+            if (held) resumeStory();
+        });
+    }
+
+    bindTapZone(document.getElementById("storyPrev"), "prev");
+    bindTapZone(document.getElementById("storyNext"), "next");
+
+    document.querySelectorAll("[data-reaction]").forEach(button => {
+        button.addEventListener("click", () => {
+            if (!replyInput) return;
+            replyInput.value += button.dataset.reaction;
+            replyInput.focus();
+        });
+    });
+
+    if (moreButton) {
+        moreButton.addEventListener("click", () => {
+            const form = slides[index].querySelector(".delete-form");
+            if (form) form.classList.toggle("visible");
+        });
+    }
+
+    const replyForm = document.getElementById("storyReplyForm");
+    if (replyForm) {
+        replyForm.addEventListener("focusin", pauseStory);
+        replyForm.addEventListener("focusout", resumeStory);
+    }
+
+    playCurrent();
+})();
+</script>
+</body>
+</html>
