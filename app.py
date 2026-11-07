@@ -241,9 +241,11 @@ PROFILE_PICTURE_DIR = BASE_DIR / "uploads" / "profile_pictures"
 COVER_PHOTO_DIR = BASE_DIR / "uploads" / "cover_photos"
 COVER_VIDEO_DIR = BASE_DIR / "uploads" / "cover_videos"
 POST_MEDIA_DIR = BASE_DIR / "uploads" / "post_media"
+STORY_MEDIA_DIR = BASE_DIR / "uploads" / "stories"
 COVER_PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 COVER_VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 POST_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+STORY_MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_PICTURE_DIR.mkdir(parents=True, exist_ok=True)
 load_dotenv(BASE_DIR / ".env")
 
@@ -321,6 +323,20 @@ def add_upload_security_headers(response):
         "autoplay=(self), payment=(), usb=()"
     )
     response.headers["Strict-Transport-Security"] = "max-age=31536000"
+    response.headers["Content-Security-Policy-Report-Only"] = (
+        "default-src 'self'; "
+        "base-uri 'self'; "
+        "object-src 'none'; "
+        "frame-ancestors 'self'; "
+        "form-action 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "media-src 'self' blob:; "
+        "font-src 'self' data:; "
+        "connect-src 'self' wss:; "
+        "frame-src https://www.youtube-nocookie.com https://www.youtube.com"
+    )
     return response
 
 
@@ -670,6 +686,20 @@ def send_password_reset_email(user, token):
         return False
 
 
+class SupportReport(db.Model):
+    """Private support reports submitted by Gotya users."""
+    __tablename__ = "support_report"
+
+    id = db.Column(db.Integer, primary_key=True)
+    reference_code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    category = db.Column(db.String(40), nullable=False)
+    subject = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="Open")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    user = db.relationship("User")
+
 class UserPreference(db.Model):
     """Per-user preferences, stored separately from existing account data."""
     __tablename__ = "user_preference"
@@ -747,6 +777,7 @@ class Post(db.Model):
     content = db.Column(db.String(2000), nullable=False)
     media_filename = db.Column(db.String(255), nullable=True)
     media_type = db.Column(db.String(120), nullable=True)
+    content_type = db.Column(db.String(20), nullable=False, default="post", server_default="post")
     audience = db.Column(
         db.String(20), nullable=False,
         default="public", server_default="public"
@@ -840,6 +871,36 @@ class Friendship(db.Model):
             name="ck_friendship_status"
         ),
     )
+
+
+class Story(db.Model):
+    __tablename__ = "story"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    media_filename = db.Column(db.String(255), nullable=False)
+    media_type = db.Column(db.String(120), nullable=False)
+    caption = db.Column(db.String(500), nullable=True)
+    audience = db.Column(db.String(20), nullable=False, default="public")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+
+    author = db.relationship("User")
+
+
+class StoryView(db.Model):
+    __tablename__ = "story_view"
+
+    id = db.Column(db.Integer, primary_key=True)
+    story_id = db.Column(db.Integer, db.ForeignKey("story.id"), nullable=False, index=True)
+    viewer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    viewed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("story_id", "viewer_id", name="uq_story_viewer"),
+    )
+
+
 
 
 class Follow(db.Model):
@@ -1188,6 +1249,7 @@ def migrate_existing_database_schema():
                 "audience": "VARCHAR(20) NOT NULL DEFAULT 'public'",
                 "media_filename": "VARCHAR(255)",
                 "media_type": "VARCHAR(120)",
+                "content_type": "VARCHAR(20) NOT NULL DEFAULT 'post'",
             },
             "message": {
                 "is_unsent": "BOOLEAN NOT NULL DEFAULT FALSE",
@@ -1251,6 +1313,7 @@ with app.app_context():
     LoginAttempt.__table__.create(bind=db.engine, checkfirst=True)
     Follow.__table__.create(bind=db.engine, checkfirst=True)
     OfflineMessageReceipt.__table__.create(bind=db.engine, checkfirst=True)
+    SupportReport.__table__.create(bind=db.engine, checkfirst=True)
 
 # Run after all SQLAlchemy models have been declared.
 migrate_existing_database_schema()
@@ -3564,6 +3627,49 @@ def settings():
     if request.method == "POST":
         action = request.form.get("action", "").strip()
 
+        if action == "submit_support_report":
+            allowed_categories = {
+                "technical", "account", "privacy", "abuse", "content", "other"
+            }
+            category = request.form.get("category", "").strip().lower()
+            subject = request.form.get("subject", "").strip()
+            description = request.form.get("description", "").strip()
+
+            if category not in allowed_categories:
+                flash("Please choose a valid report category.", "error")
+                return redirect(url_for("settings", _anchor="help"))
+
+            if not subject or len(subject) > 120:
+                flash("Enter a subject of up to 120 characters.", "error")
+                return redirect(url_for("settings", _anchor="help"))
+
+            if not description or len(description) > 3000:
+                flash("Enter a description of up to 3000 characters.", "error")
+                return redirect(url_for("settings", _anchor="help"))
+
+
+            report = SupportReport(
+                reference_code="GOT-" + uuid.uuid4().hex[:12].upper(),
+                user_id=current_user.id,
+                category=category,
+                subject=subject,
+                description=description,
+                status="Open",
+            )
+
+            try:
+                db.session.add(report)
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash("Your report could not be saved. Please try again.", "error")
+                return redirect(url_for("settings", _anchor="help"))
+
+            flash(
+                f"Your report was submitted. Reference: {report.reference_code}",
+                "success",
+            )
+            return redirect(url_for("settings", _anchor="help"))
         if action == "save_profile_lock":
             value = request.form.get("profile_locked", "off").strip().lower()
             if value not in {"on", "off"}:
@@ -3752,6 +3858,15 @@ def settings():
     ).first()
     profile_locked = bool(lock_record and lock_record.is_locked)
 
+
+    support_reports = (
+        SupportReport.query
+        .filter_by(user_id=current_user.id)
+        .order_by(SupportReport.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
     if font_scale not in {"normal", "large", "extra-large"}:
         font_scale = "normal"
 
@@ -3768,6 +3883,7 @@ def settings():
         reduce_motion=reduce_motion,
         high_contrast=high_contrast,
         profile_locked=profile_locked,
+        support_reports=support_reports,
     )
 
 def _can_view_post(post, viewer_id):
@@ -3775,13 +3891,7 @@ def _can_view_post(post, viewer_id):
     if post.user_id == viewer_id:
         return True
 
-    audience = getattr(post, "audience", None) or "public"
-    if audience == "public":
-        return True
-    if audience != "friends":
-        return False
-
-    return Friendship.query.filter(
+    is_friend = Friendship.query.filter(
         Friendship.status == "accepted",
         db.or_(
             db.and_(
@@ -3794,6 +3904,275 @@ def _can_view_post(post, viewer_id):
             ),
         ),
     ).first() is not None
+
+    lock_record = ProfileLock.query.filter_by(user_id=post.user_id).first()
+    if lock_record is not None and lock_record.is_locked and not is_friend:
+        return False
+
+    audience = getattr(post, "audience", None) or "public"
+    if audience == "public":
+        return True
+    if audience == "friends":
+        return is_friend
+    return False
+
+def _can_view_story(story, viewer_id):
+    if story.user_id == viewer_id:
+        return True
+
+    if story.expires_at <= datetime.utcnow():
+        return False
+
+    is_friend = Friendship.query.filter(
+        Friendship.status == "accepted",
+        db.or_(
+            db.and_(
+                Friendship.requester_id == story.user_id,
+                Friendship.recipient_id == viewer_id,
+            ),
+            db.and_(
+                Friendship.requester_id == viewer_id,
+                Friendship.recipient_id == story.user_id,
+            ),
+        ),
+    ).first() is not None
+
+    lock_record = ProfileLock.query.filter_by(
+        user_id=story.user_id
+    ).first()
+
+    if lock_record and lock_record.is_locked and not is_friend:
+        return False
+
+    if story.audience == "public":
+        return True
+
+    if story.audience != "friends":
+        return False
+
+    return is_friend
+
+
+@app.route("/stories/create", methods=["GET", "POST"])
+@login_required
+def create_story():
+    if request.method == "GET":
+        if request.args.get("editor") == "1":
+            return render_template("story_editor.html")
+        return render_template("story_create.html")
+
+    upload = request.files.get("media")
+    caption = (request.form.get("caption") or "").strip()
+    audience = (request.form.get("audience") or "public").strip().lower()
+
+    if audience not in {"public", "friends"}:
+        flash("Please choose a valid Story audience.", "error")
+        return redirect(url_for("create_story"))
+
+    if len(caption) > 500:
+        flash("Story captions cannot exceed 500 characters.", "error")
+        return redirect(url_for("create_story"))
+
+    if upload is None or not upload.filename:
+        flash("Choose a photo or video for your Story.", "error")
+        return redirect(url_for("create_story"))
+
+    extension = Path(secure_filename(upload.filename)).suffix.lower()
+    image_types = {
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".png": "image/png", ".webp": "image/webp",
+        ".gif": "image/gif",
+    }
+    video_types = {
+        ".mp4": "video/mp4", ".webm": "video/webm",
+        ".mov": "video/quicktime", ".m4v": "video/mp4",
+    }
+    media_type = image_types.get(extension) or video_types.get(extension)
+
+    if not media_type:
+        flash("Unsupported Story format. Use JPG, PNG, WEBP, GIF, MP4, WEBM, MOV or M4V.", "error")
+        return redirect(url_for("create_story"))
+
+    max_story_size = (
+        15 * 1024 * 1024 if media_type.startswith("image/")
+        else 50 * 1024 * 1024
+    )
+    file_bytes = upload.stream.read(max_story_size + 1)
+    if len(file_bytes) > max_story_size:
+        flash("Story images must be 15 MB or smaller; videos must be 50 MB or smaller.", "error")
+        return redirect(url_for("create_story"))
+    if not file_bytes:
+        flash("The selected file is empty.", "error")
+        return redirect(url_for("create_story"))
+
+    if media_type.startswith("image/"):
+        try:
+            with Image.open(BytesIO(file_bytes)) as image:
+                image.verify()
+        except (UnidentifiedImageError, OSError, ValueError):
+            flash("That photo could not be opened as a valid image.", "error")
+            return redirect(url_for("create_story"))
+
+    filename = uuid.uuid4().hex + extension
+    destination = STORY_MEDIA_DIR / filename
+    storage_path = "stories/" + filename
+
+    try:
+        destination.write_bytes(file_bytes)
+
+        if supabase_storage is not None:
+            upload_to_supabase(storage_path, file_bytes, media_type)
+
+        now = datetime.utcnow()
+        story = Story(
+            user_id=current_user.id,
+            media_filename=filename,
+            media_type=media_type,
+            caption=caption or None,
+            audience=audience,
+            created_at=now,
+            expires_at=now + timedelta(hours=24),
+        )
+        db.session.add(story)
+        db.session.commit()
+
+        flash("Your Story was published!", "success")
+        return redirect(url_for("feed"))
+
+    except Exception:
+        db.session.rollback()
+        destination.unlink(missing_ok=True)
+        app.logger.exception("Story creation failed")
+        flash("Your Story could not be saved. Please try again.", "error")
+        return redirect(url_for("create_story"))
+
+
+@app.route("/stories/view/<int:user_id>")
+@login_required
+def view_stories(user_id):
+    now = datetime.utcnow()
+    stories = Story.query.filter(
+        Story.user_id == user_id,
+        Story.expires_at > now,
+    ).order_by(Story.created_at.asc(), Story.id.asc()).all()
+
+    stories = [
+        story for story in stories
+        if _can_view_story(story, current_user.id)
+    ]
+
+    if not stories:
+        abort(404)
+
+    for story in stories:
+        if story.user_id != current_user.id:
+            existing_view = StoryView.query.filter_by(
+                story_id=story.id,
+                viewer_id=current_user.id,
+            ).first()
+            if existing_view is None:
+                db.session.add(StoryView(
+                    story_id=story.id,
+                    viewer_id=current_user.id,
+                ))
+
+    db.session.commit()
+
+    story_owner = stories[0].author
+    can_reply = False
+
+    if story_owner.id != current_user.id:
+        can_reply = Friendship.query.filter(
+            Friendship.status == "accepted",
+            db.or_(
+                db.and_(
+                    Friendship.requester_id == current_user.id,
+                    Friendship.recipient_id == story_owner.id,
+                ),
+                db.and_(
+                    Friendship.requester_id == story_owner.id,
+                    Friendship.recipient_id == current_user.id,
+                ),
+            ),
+        ).first() is not None
+
+    return render_template(
+        "story_viewer.html",
+        stories=stories,
+        story_owner=story_owner,
+        can_reply=can_reply,
+    )
+
+
+@app.route("/story-media/<int:story_id>")
+@login_required
+def story_media_file(story_id):
+    story = db.session.get(Story, story_id)
+
+    if (
+        story is None
+        or story.expires_at <= datetime.utcnow()
+        or not _can_view_story(story, current_user.id)
+        or not re.fullmatch(r"[0-9a-f]{32}\.[a-z0-9]+", story.media_filename or "")
+    ):
+        abort(404)
+
+    storage_path = "stories/" + story.media_filename
+
+    try:
+        file_bytes = download_from_supabase(storage_path)
+        response = send_file(
+            BytesIO(file_bytes),
+            mimetype=story.media_type,
+            download_name=story.media_filename,
+            conditional=True,
+        )
+    except Exception:
+        response = send_from_directory(
+            STORY_MEDIA_DIR,
+            story.media_filename,
+            mimetype=story.media_type,
+            conditional=True,
+        )
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@app.route("/stories/<int:story_id>/delete", methods=["POST"])
+@login_required
+def delete_story(story_id):
+    story = db.session.get(Story, story_id)
+
+    if story is None or story.user_id != current_user.id:
+        abort(404)
+
+    media_filename = story.media_filename
+    StoryView.query.filter_by(story_id=story.id).delete(
+        synchronize_session=False
+    )
+    db.session.delete(story)
+    db.session.commit()
+
+    if media_filename and Path(media_filename).name == media_filename:
+        try:
+            (STORY_MEDIA_DIR / media_filename).unlink(missing_ok=True)
+        except OSError:
+            app.logger.exception("Could not remove local Story media.")
+
+        if supabase_storage is not None:
+            try:
+                supabase_storage.storage.from_(SUPABASE_BUCKET).remove(
+                    ["stories/" + media_filename]
+                )
+            except Exception:
+                app.logger.exception("Could not remove Supabase Story media.")
+
+    flash("Your Story was deleted.", "success")
+    return redirect(url_for("feed"))
+
+
 
 
 @app.route("/feed", methods=["GET", "POST"])
@@ -3811,7 +4190,8 @@ def feed():
             flash("Posts cannot exceed 2000 characters.", "error")
         else:
             post = Post(
-                content=content, author=current_user, audience=audience
+                content=content, author=current_user, audience=audience,
+                content_type="post"
             )
             db.session.add(post)
             db.session.commit()
@@ -3877,10 +4257,15 @@ def feed():
 def create_media_post():
     content = (request.form.get("content") or "").strip()
     audience = (request.form.get("audience") or "public").strip().lower()
+    content_type = (request.form.get("content_type") or "post").strip().lower()
     upload = request.files.get("media")
 
     if audience not in {"public", "friends"}:
         flash("Please choose a valid post audience.", "error")
+        return redirect(url_for("feed"))
+
+    if content_type not in {"post", "reel"}:
+        flash("Please choose a valid publishing type.", "error")
         return redirect(url_for("feed"))
     if len(content) > 2000:
         flash("Captions cannot exceed 2000 characters.", "error")
@@ -3902,6 +4287,10 @@ def create_media_post():
     media_type = image_types.get(extension) or video_types.get(extension)
     if not media_type:
         flash("Supported formats: JPG, PNG, WEBP, GIF, MP4, WEBM, MOV and M4V.", "error")
+        return redirect(url_for("feed"))
+
+    if content_type == "reel" and not media_type.startswith("video/"):
+        flash("Reels must be video uploads.", "error")
         return redirect(url_for("feed"))
 
     filename = uuid.uuid4().hex + extension
@@ -3941,6 +4330,7 @@ def create_media_post():
             audience=audience,
             media_filename=filename,
             media_type=media_type,
+            content_type=content_type,
         )
         db.session.add(post)
         db.session.commit()

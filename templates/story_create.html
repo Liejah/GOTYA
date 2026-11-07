@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#17191d">
+<title>Gotya | Add to Story</title>
+<style>
+html,body{margin:0;min-height:100%;background:#101116;color:#fff;font-family:Arial,Helvetica,sans-serif}
+
+html,body {
+    margin:0;
+    min-height:100%;
+    background:#101116;
+    color:#fff;
+    font-family:Arial,Helvetica,sans-serif;
+}
+
+
+
+/* Android Story editor layout */
+.story-screen {
+  width:100%;
+  max-width:420px;
+  box-sizing:border-box;
+  margin:0 auto;
+  padding:10px 12px 18px;
+}
+.story-top { min-height:42px; margin-bottom:8px; }
+.story-top button {
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  background:#292b30;
+  color:#fff;
+}
+.story-stage {
+  width:min(100%,360px);
+  aspect-ratio:9/16;
+  max-height:calc(100dvh - 190px);
+  margin:0 auto;
+  border-radius:22px;
+}
+.story-tools {
+  top:50%;
+  right:10px;
+  bottom:auto;
+  left:auto;
+  transform:translateY(-50%);
+  flex-direction:column;
+  justify-content:center;
+  gap:10px;
+}
+.story-tool {
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  font-size:19px;
+  background:#17191de8;
+}
+.story-menu {
+  top:58px;
+  right:10px;
+  bottom:auto;
+  left:auto;
+  width:190px;
+  box-sizing:border-box;
+}
+.story-bottom {
+  display:flex;
+  width:min(100%,360px);
+  margin:12px auto 0;
+}
+.story-share {
+  width:100%;
+  height:48px;
+  background:#fff;
+  color:#111;
+  font-size:14px;
+}
+.story-notice {
+  width:min(100%,360px);
+  margin:8px auto 0;
+}
+@media(max-height:650px) {
+  .story-stage { max-height:calc(100dvh - 160px); }
+}
+
+
+
+.story-screen{max-width:520px;margin:0 auto;padding:12px 12px 28px;color:var(--text-color,#fff)}
+.story-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.story-top button{border:0;background:transparent;color:inherit;font-size:23px}
+.story-top strong{font-size:18px}
+.story-stage{position:relative;width:100%;aspect-ratio:9/14;border-radius:22px;overflow:hidden;background:#25272d;touch-action:none;isolation:isolate}
+.story-stage .media-preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:center;pointer-events:none;user-select:none}
+.story-audio{position:absolute;z-index:4;top:15px;left:50%;transform:translateX(-50%);border:0;border-radius:30px;background:#17191ddd;color:white;padding:10px 17px;display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:13px;max-width:85%;overflow:hidden;text-overflow:ellipsis}
+.story-audio span{overflow:hidden;text-overflow:ellipsis}
+.story-tools{position:absolute;z-index:4;bottom:15px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:13px}
+.story-tool{width:48px;height:48px;flex:0 0 48px;border:0;border-radius:50%;background:#17191ddd;color:white;display:grid;place-items:center;font-size:21px;box-shadow:0 3px 12px #0003}
+.story-tool:active{transform:scale(.94)}
+.story-overlay{position:absolute;z-index:3;left:12px;right:12px;top:50%;transform:translateY(-50%);text-align:center;color:white;font-size:26px;font-weight:700;text-shadow:0 2px 8px #000;pointer-events:none;overflow-wrap:anywhere}
+.story-panel{margin-top:10px;padding:14px;background:var(--card-bg, #24262b);border:1px solid #ffffff12;border-radius:20px}
+.story-panel[hidden]{display:none}
+.story-panel h3{font-size:14px;margin:0 0 10px}
+.story-panel input,.story-panel textarea{width:100%;box-sizing:border-box;border:1px solid #ffffff20;background:#ffffff08;color:inherit;border-radius:14px;padding:12px;font:inherit;outline:none}
+.story-panel textarea{resize:vertical;min-height:65px}
+.story-options{display:flex;gap:8px;flex-wrap:wrap}
+.story-option{border:1px solid #ffffff25;border-radius:20px;background:#ffffff0c;color:inherit;padding:8px 13px;font-size:12px}
+.story-option.active{background:#ffffff30;border-color:#ffffff70}
+.story-bottom{display:flex;align-items:center;gap:10px;margin-top:12px}
+.story-audience{position:relative;flex:1;min-width:0}
+.story-audience-button,.story-share{width:100%;height:46px;border:0;border-radius:28px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:650}
+.story-audience-button{background:#292b30;color:white;border:1px solid #ffffff12}
+.story-share{background:#fff;color:#111}
+.story-menu{position:absolute;z-index:10;bottom:54px;left:0;width:190px;padding:9px;background:#292b30;border:1px solid #ffffff18;border-radius:18px;box-shadow:0 10px 30px #0008}
+.story-menu[hidden]{display:none}
+.story-menu-title{font-size:11px;color:#aaa;padding:8px 10px}
+.story-menu button{display:flex;width:100%;align-items:center;gap:12px;text-align:left;border:0;background:transparent;color:white;padding:11px;border-radius:10px}
+.story-menu button.selected{background:#ffffff18}
+.story-menu .check{margin-left:auto}
+.story-notice{font-size:12px;color:#ffcf8c;margin-top:9px}
+.story-gallery{min-height:65vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px}
+.story-gallery h2{font-size:23px;margin:0}
+.story-gallery p{color:#999;font-size:13px}
+.story-primary{border:0;border-radius:24px;padding:13px 22px;background:#fff;color:#111;font-weight:700}
+.story-tabs{display:flex;gap:8px;margin-top:10px}
+.story-tabs button{border:0;border-radius:20px;padding:8px 17px;background:#292b30;color:white}
+.story-tabs button.active{background:#fff;color:#111}
+@media(min-width:700px){.story-screen{padding-top:22px}.story-stage{max-height:680px}}
+
+.story-screen{min-height:100dvh;display:flex;align-items:center;justify-content:center}
+.story-gallery{width:100%;padding:24px;box-sizing:border-box}
+</style>
+</head>
+<body>
+<div class="story-screen">
+<section id="galleryPage" class="story-gallery">
+<h2>Add to Story</h2>
+<p>Select a photo or video from your device.</p>
+<div class="story-tabs">
+<button type="button" id="photosTab" class="active">Photos</button>
+<button type="button" id="videosTab">Videos</button>
+</div>
+<button type="button" class="story-primary" id="openGallery">Choose from gallery</button>
+<input id="media" type="file"
+accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,video/x-m4v"
+hidden>
+<p id="galleryNotice" class="story-notice" role="status"></p>
+</section>
+</div>
+<script>
+(() => {
+  const media = document.getElementById('media');
+  const notice = document.getElementById('galleryNotice');
+  let kind = 'photo';
+
+  function openPicker(type) {
+    kind = type;
+    media.accept = type === 'photo'
+      ? 'image/jpeg,image/png,image/webp,image/gif'
+      : 'video/mp4,video/webm,video/quicktime,video/x-m4v';
+    media.value = '';
+    media.click();
+  }
+
+  document.getElementById('photosTab').addEventListener('click', () => {
+    document.getElementById('photosTab').classList.add('active');
+    document.getElementById('videosTab').classList.remove('active');
+    openPicker('photo');
+  });
+
+  document.getElementById('videosTab').addEventListener('click', () => {
+    document.getElementById('videosTab').classList.add('active');
+    document.getElementById('photosTab').classList.remove('active');
+    openPicker('video');
+  });
+
+  document.getElementById('openGallery').addEventListener('click', () => openPicker(kind));
+
+  media.addEventListener('change', async () => {
+    const file = media.files && media.files[0];
+    if (!file) return;
+
+    if (kind === 'photo' && !file.type.startsWith('image/')) {
+      notice.textContent = 'Please select a photo.';
+      return;
+    }
+    if (kind === 'video' && !file.type.startsWith('video/')) {
+      notice.textContent = 'Please select a video.';
+      return;
+    }
+
+    try {
+      const request = indexedDB.open('gotya-story-draft', 1);
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains('media')) {
+          request.result.createObjectStore('media');
+        }
+      };
+      request.onerror = () => {
+        notice.textContent = 'Could not prepare your media. Please try again.';
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction('media', 'readwrite');
+        transaction.objectStore('media').put(file, 'selected');
+        transaction.oncomplete = () => {
+          window.location.href = "{{ url_for('create_story', editor=1) }}";
+        };
+        transaction.onerror = () => {
+          notice.textContent = 'Could not save your selection. Please try again.';
+        };
+      };
+    } catch (error) {
+      notice.textContent = 'Your browser could not prepare this media.';
+    }
+  });
+})();
+</script>
+</body>
+</html>
