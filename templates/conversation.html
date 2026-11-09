@@ -34,7 +34,7 @@ body {
   font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
   overflow:hidden;
 }
-body > header { display:none!important; }
+body.gotya-conversation-page > header:not(.gotya-topbar) { display:none!important; }
 main {
   width:100%; max-width:none;
   height:var(--chat-viewport-height, 100dvh); min-height:0;
@@ -478,11 +478,22 @@ button:focus-visible, a:focus-visible, textarea:focus-visible {
   display: none !important;
 }
 
+
+/* Active Story ring on chat avatar */
+.avatar.has-active-story {
+    box-shadow: 0 0 0 3px #1877f2, 0 0 0 5px rgba(24,119,242,.20);
+}
+
 </style>
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/connection-status.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='gotya-laptop.css') }}?v=2">
 </head>
-<body data-theme="{{ gotya_theme|default("system") }}">
+<body class="gotya-conversation-page" data-theme="{{ gotya_theme|default("system") }}" data-conversation-theme="{{ conversation_preference.theme if conversation_preference else "lavender" }}">
+{% set gotya_active_page = 'messages' %}
+{% set gotya_header_label = 'Gotya Chats' %}
+{% set gotya_hide_header_actions = True %}
+{% include '_gotya_shared_topbar.html' %}
+{% include '_gotya_desktop_shell.html' %}
 
 <main>
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -490,11 +501,61 @@ button:focus-visible, a:focus-visible, textarea:focus-visible {
 <div class="flash {{ 'error' if category == 'error' else '' }}">{{ message }}</div>
 {% endfor %}
 {% endwith %}
+
+<aside class="gotya-conversation-settings" id="gotyaConversationSettings"
+       aria-label="Conversation profile and settings">
+  <div class="gotya-cs-profile">
+    {% if person.profile_picture %}
+    <img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}"
+         alt="{{ person.username }}'s profile picture">
+    {% else %}
+    <div class="gotya-cs-avatar">{{ person.username[:1]|upper }}</div>
+    {% endif %}
+    <strong>{{ person.username }}{{ gotya_badge_html(person) }}</strong>
+    <a href="{{ url_for('public_profile', user_id=person.id) }}">View profile</a>
+  </div>
+
+  <div class="gotya-cs-section">
+    <label for="gotyaConversationTheme">Conversation theme</label>
+    <select id="gotyaConversationTheme">
+      <option value="lavender" {% if conversation_preference and conversation_preference.theme == 'lavender' %}selected{% endif %}>Lavender</option>
+      <option value="ocean" {% if conversation_preference and conversation_preference.theme == 'ocean' %}selected{% endif %}>Ocean</option>
+      <option value="sunset" {% if conversation_preference and conversation_preference.theme == 'sunset' %}selected{% endif %}>Sunset</option>
+      <option value="midnight" {% if conversation_preference and conversation_preference.theme == 'midnight' %}selected{% endif %}>Midnight</option>
+    </select>
+  </div>
+
+  <div class="gotya-cs-section">
+    <label for="gotyaConversationNickname">Your nickname for {{ person.username }}</label>
+    <input id="gotyaConversationNickname" type="text" maxlength="32"
+           value="{% if conversation_preference %}{{ (conversation_preference.nickname_set_by_low if current_user.id == conversation_preference.participant_low_id else conversation_preference.nickname_set_by_high) or '' }}{% endif %}"
+           placeholder="Add a nickname">
+    <button type="button" id="gotyaSaveNickname">Save nickname</button>
+  </div>
+
+  <div class="gotya-cs-section">
+    <label for="gotyaPinnedMessage">Pinned message</label>
+    <select id="gotyaPinnedMessage">
+      <option value="">No pinned message</option>
+      {% for item in history %}
+        {% if not item.is_unsent %}
+        <option value="{{ item.id }}"
+          {% if conversation_preference and conversation_preference.pinned_message_id == item.id %}selected{% endif %}>
+          {{ (item.sender.username if item.sender else 'User') }}:
+          {{ (item.content or item.attachment_original_name or 'Attachment')[:65] }}
+        </option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  <p class="gotya-cs-status" id="gotyaConversationSettingsStatus" role="status" aria-live="polite"></p>
+</aside>
+
 <section class="chat">
 <div class="chat-header">
 <a class="back" href="{{ url_for('messages') }}" aria-label="Back to messages">&#8592;</a>
-<a class="chat-profile-avatar-link" style="color:inherit;text-decoration:none;" href="{{ url_for('public_profile', user_id=person.id) }}"><div class="avatar">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div></a>
-<div class="person-info"><div class="name"><a class="chat-profile-name-link" style="color:inherit;text-decoration:none;" href="{{ url_for('public_profile', user_id=person.id) }}">{{ person.username }}{% if is_verified_account(person) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</a></div><div class="status" id="personPresence" aria-live="polite"><span class="presence-dot" aria-hidden="true"></span><span id="presenceLabel">Checking status...</span></div></div>
+<a class="chat-profile-avatar-link" style="color:inherit;text-decoration:none;" href="{% if person_has_active_story %}{{ url_for('view_stories', user_id=person.id) }}{% else %}{{ url_for('public_profile', user_id=person.id) }}{% endif %}" aria-label="{% if person_has_active_story %}View {{ person.username }}'s Story{% else %}View {{ person.username }}'s profile{% endif %}"><div class="avatar{% if person_has_active_story %} has-active-story{% endif %}">{% if person.profile_picture %}<img src="{{ url_for('profile_picture_file', filename=person.profile_picture) }}" alt="">{% else %}{{ person.username[0]|upper }}{% endif %}</div></a>
+<div class="person-info"><div class="name"><a class="chat-profile-name-link" style="color:inherit;text-decoration:none;" href="{{ url_for('public_profile', user_id=person.id) }}">{{ person.username }}{{ gotya_badge_html(person) }}</a></div><div class="status" id="personPresence" aria-live="polite"><span class="presence-dot" aria-hidden="true"></span><span id="presenceLabel">Checking status...</span></div></div>
 
 <button type="button" class="gotya-call-btn" id="gotyaStartVideoCall"
         aria-label="Start video call" title="Video call">
@@ -538,7 +599,6 @@ button:focus-visible, a:focus-visible, textarea:focus-visible {
 </div>
 
 
-<div class="gotya-connection-banner" data-gotya-connection-banner role="status" aria-live="polite" hidden></div>
 <div class="gotya-call-overlay" id="gotyaVideoCallPanel" role="dialog"
      aria-modal="true" aria-labelledby="gotyaCallTitle">
   <div class="gotya-call-card">
@@ -581,17 +641,17 @@ button:focus-visible, a:focus-visible, textarea:focus-visible {
 {% if history %}
 {% for item in history %}
 {% if loop.first or (item.created_at - loop.previtem.created_at).total_seconds() >= 600 %}
-<div class="time-separator">{{ item.created_at.strftime('%b %d ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· %I:%M %p') }}</div>
+<div class="time-separator">{{ item.created_at.strftime('%b %d · %I:%M %p') }}</div>
 {% endif %}
 <div class="message-row {{ 'mine' if item.sender_id == current_user.id else '' }}{% if item.is_unsent %} is-unsent{% endif %}" data-message-id="{{ item.id }}" data-sender-id="{{ item.sender_id }}" data-created-at="{{ item.created_at.isoformat() }}" data-message-preview="{{ 'This message was unsent.' if item.is_unsent else ((item.content or item.attachment_original_name or ('Photo' if item.attachment_mimetype and item.attachment_mimetype.startswith('image/') else 'Attachment'))[:140]) }}" data-message-sender="{{ (item.sender.username if item.sender else 'Message') }}">
-{% if item.sender_id != current_user.id and not item.is_unsent %}<div class="message-sender-label">{% if item.sender %}<a href="{{ url_for('public_profile', user_id=item.sender.id) }}" style="color:inherit;text-decoration:none;">{{ item.sender.username }}{% if is_verified_account(item.sender) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</a>{% else %}Message{% endif %}</div>{% endif %}
+{% if item.sender_id != current_user.id and not item.is_unsent %}<div class="message-sender-label">{% if item.sender %}<a href="{{ url_for('public_profile', user_id=item.sender.id) }}" style="color:inherit;text-decoration:none;">{{ item.sender.username }}{{ gotya_badge_html(item.sender) }}</a>{% else %}Message{% endif %}</div>{% endif %}
 <div class="bubble">
 {% if item.is_unsent %}
 <div class="message-text">This message was unsent.</div>
 {% else %}
 {% if item.reply_to %}
 <div class="reply-quote" tabindex="0" role="button" data-reply-target="{{ item.reply_to.id }}">
-<span class="reply-quote-sender">{% if item.reply_to.sender %}<a href="{{ url_for('public_profile', user_id=item.reply_to.sender.id) }}" style="color:inherit;text-decoration:none;">{{ item.reply_to.sender.username }}</a>{% else %}Message{% endif %}{% if item.reply_to.sender and is_verified_account(item.reply_to.sender) %}<span class="gotya-verified-badge" title="Verified account" aria-label="Verified account" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;"><svg aria-hidden="true" viewBox="0 0 16 16" width="8" height="8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.5 8.2 6.4 11 12.5 4.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% endif %}</span>
+<span class="reply-quote-sender">{% if item.reply_to.sender %}<a href="{{ url_for('public_profile', user_id=item.reply_to.sender.id) }}" style="color:inherit;text-decoration:none;">{{ item.reply_to.sender.username }}</a>{% else %}Message{% endif %}{{ gotya_badge_html(item.reply_to.sender) }}</span>
 <span class="reply-quote-text">{{ 'This message was unsent.' if item.reply_to.is_unsent else ((item.reply_to.content or item.reply_to.attachment_original_name or ('Photo' if item.reply_to.attachment_mimetype and item.reply_to.attachment_mimetype.startswith('image/') else 'Attachment'))[:140]) }}</span>
 </div>
 {% endif %}
@@ -733,6 +793,24 @@ button:focus-visible, a:focus-visible, textarea:focus-visible {
 </form>
 
 <script>
+// Keep the chat layout within the visible area when Android's keyboard opens.
+(() => {
+  const updateChatViewportHeight = () => {
+    const viewport = window.visualViewport;
+    if (viewport && viewport.height > 0) {
+      document.documentElement.style.setProperty(
+        "--chat-viewport-height",
+        `${viewport.height}px`
+      );
+    }
+  };
+
+  updateChatViewportHeight();
+  window.addEventListener("resize", updateChatViewportHeight);
+  window.visualViewport?.addEventListener("resize", updateChatViewportHeight);
+  window.visualViewport?.addEventListener("scroll", updateChatViewportHeight);
+})();
+
 const list = document.getElementById("messageList");
 const input = document.getElementById("messageInput");
 const photoInput = document.getElementById("photoInput");
@@ -1362,27 +1440,38 @@ if (input) {
   max-width: 100%;
   box-sizing: border-box;
 }
+
+/* GOTYA_PRIVATE_CONVERSATION_DESKTOP_SHELL */
+@media screen and (min-width: 1024px) {
+    body.gotya-conversation-page > main {
+        box-sizing: border-box;
+        width: auto !important;
+        margin: 28px 35px 45px 255px !important;
+    }
+
+    body.gotya-conversation-page .gotya-desktop-right-panel {
+        display: none !important;
+    }
+
+    body.gotya-conversation-page .chat {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 1120px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1250px) {
+    body.gotya-conversation-page > main {
+        margin-left: 215px !important;
+        margin-right: 35px !important;
+    }
+}
+
 </style>
 <script id="GOTYA_REALTIME_CHAT_SCRIPT">
 (() => {
-// Keep the chat layout within the visible area when Android's keyboard opens.
-(() => {
-  const updateChatViewportHeight = () => {
-    const viewport = window.visualViewport;
-    if (viewport && viewport.height > 0) {
-      document.documentElement.style.setProperty(
-        "--chat-viewport-height",
-        `${viewport.height}px`
-      );
-    }
-  };
-
-  updateChatViewportHeight();
-  window.addEventListener("resize", updateChatViewportHeight);
-  window.visualViewport?.addEventListener("resize", updateChatViewportHeight);
-  window.visualViewport?.addEventListener("scroll", updateChatViewportHeight);
-})();
-
   const list = document.getElementById("messageList");
   const composer = document.querySelector("form.composer");
   const messageInput = document.getElementById("messageInput");
@@ -1995,26 +2084,42 @@ if (input) {
     if (text !== undefined && text !== null) node.textContent = text;
     return node;
   }
-  function createVerifiedBadge() {
+  function createVerifiedBadge(type = "blue") {
     const badge = document.createElement("span");
     badge.className = "gotya-verified-badge";
-    badge.title = "Verified account";
-    badge.setAttribute("aria-label", "Verified account");
-    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;box-sizing:border-box;border-radius:50%;background:#16a34a;color:#fff;border:1px solid rgba(255,255,255,.95);box-shadow:0 1px 2px rgba(0,0,0,.15);vertical-align:middle;margin-left:4px;flex-shrink:0;";
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const names = String(type || "blue").split("+");
+    const palette = { gold: "#E5A51A", blue: "#2589F4", silver: "#AEB8C5" };
+    const title = names.map(n => ({gold:"Gotya Gold",blue:"Verified account",silver:"Gotya Premium"}[n] || n)).join(" + ");
+    badge.title = title;
+    badge.setAttribute("aria-label", title);
+    badge.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;min-width:14px;vertical-align:middle;margin-left:4px;flex-shrink:0;";
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
     svg.setAttribute("viewBox", "0 0 16 16");
-    svg.setAttribute("width", "8");
-    svg.setAttribute("height", "8");
+    svg.setAttribute("width", "14");
+    svg.setAttribute("height", "14");
     svg.setAttribute("fill", "none");
     svg.setAttribute("aria-hidden", "true");
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M3.5 8.2 6.4 11 12.5 4.8");
-    path.setAttribute("stroke", "currentColor");
-    path.setAttribute("stroke-width", "2.2");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-linejoin", "round");
-    svg.appendChild(path);
-    badge.appendChild(svg);
+    const defs = document.createElementNS(ns, "defs");
+    const grad = document.createElementNS(ns, "linearGradient");
+    grad.id = "gotya-badge-" + Math.random().toString(36).slice(2);
+    grad.setAttribute("x1", "0"); grad.setAttribute("y1", "0");
+    grad.setAttribute("x2", "1"); grad.setAttribute("y2", "1");
+    names.forEach((n, i) => {
+      const stop = document.createElementNS(ns, "stop");
+      stop.setAttribute("offset", (i / names.length * 100) + "%");
+      stop.setAttribute("stop-color", palette[n] || palette.blue);
+      grad.appendChild(stop);
+    });
+    defs.appendChild(grad); svg.appendChild(defs);
+    const seal = document.createElementNS(ns, "path");
+    seal.setAttribute("d", "M8 0.4 9.9 2 12.4 1.8 13.1 4.2 15.2 5.5 14.5 8 15.2 10.5 13.1 11.8 12.4 14.2 9.9 14 8 15.6 6.1 14 3.6 14.2 2.9 11.8 0.8 10.5 1.5 8 0.8 5.5 2.9 4.2 3.6 1.8 6.1 2Z");
+    seal.setAttribute("fill", "url(#" + grad.id + ")"); svg.appendChild(seal);
+    const check = document.createElementNS(ns, "path");
+    check.setAttribute("d", "M4.1 8.1 6.7 10.5 11.9 5.4");
+    check.setAttribute("stroke", "#fff"); check.setAttribute("stroke-width", "1.8");
+    check.setAttribute("stroke-linecap", "round"); check.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(check); badge.appendChild(svg);
     return badge;
   }
 
@@ -2155,7 +2260,7 @@ if (input) {
       senderLabel.textContent = replyTo.sender_name || "Message";
     }
     quote.appendChild(senderLabel);
-    if (replyTo.sender_verified) senderLabel.appendChild(createVerifiedBadge());
+    if (replyTo.sender_verified) senderLabel.appendChild(createVerifiedBadge(replyTo.sender_badge_type || 'blue'));
     quote.appendChild(makeElement(
       "span", "reply-quote-text", replyTo.preview || "Message"
     ));
@@ -2262,7 +2367,7 @@ if (input) {
       } else {
         senderLabel.textContent = message.sender_name;
       }
-      if (message.sender_verified) senderLabel.appendChild(createVerifiedBadge());
+      if (message.sender_verified) senderLabel.appendChild(createVerifiedBadge(message.sender_badge_type || 'blue'));
       bubble.insertBefore(senderLabel, bubble.firstChild);
     }
     row.appendChild(bubble);
@@ -2314,7 +2419,7 @@ if (input) {
       if (!receipt) continue;
 
       if (message.read_at) {
-        receipt.textContent = "Seen at " + message.read_at.split(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ").pop();
+        receipt.textContent = "Seen at " + message.read_at.split(" · ").pop();
       } else if (message.delivered_at) {
         receipt.textContent = "??";
         receipt.title = "Delivered";
@@ -2393,166 +2498,6 @@ if (input) {
   }
 
   let sendingMessage = false;
-  let retryingOfflineMessages = false;
-
-  // Private, account-scoped storage for text messages waiting for a connection.
-  function openOfflineMessageDB() {
-    return new Promise((resolve, reject) => {
-      if (!window.indexedDB) {
-        reject(new Error("Offline storage is unavailable."));
-        return;
-      }
-
-      const request = indexedDB.open("gotya-offline-messages-v1", 1);
-
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains("messages")) {
-          const store = db.createObjectStore("messages", {
-            keyPath: "clientMessageId"
-          });
-          store.createIndex(
-            "accountRecipient",
-            ["accountId", "recipientId"],
-            { unique: false }
-          );
-        }
-      };
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async function saveOfflineMessage(record) {
-    const db = await openOfflineMessageDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("messages", "readwrite");
-      tx.objectStore("messages").put(record);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-      tx.onabort = () => { db.close(); reject(tx.error); };
-    });
-  }
-
-  async function getOfflineMessages() {
-    const db = await openOfflineMessageDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("messages", "readonly");
-      const request = tx.objectStore("messages")
-        .index("accountRecipient")
-        .getAll([String(currentUserId), String(recipientId)]);
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-      tx.oncomplete = () => db.close();
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    });
-  }
-
-  async function deleteOfflineMessage(clientMessageId) {
-    const db = await openOfflineMessageDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("messages", "readwrite");
-      tx.objectStore("messages").delete(clientMessageId);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-      tx.onabort = () => { db.close(); reject(tx.error); };
-    });
-  }
-
-  function findOfflineRow(clientMessageId) {
-    return Array.from(
-      list.querySelectorAll(".message-row[data-offline-client-id]")
-    ).find(row => row.dataset.offlineClientId === clientMessageId);
-  }
-
-  function showOfflineRow(record) {
-    if (findOfflineRow(record.clientMessageId)) return;
-
-    const row = makeElement("div", "message-row mine");
-    row.dataset.offlineClientId = record.clientMessageId;
-    row.dataset.messageId = "pending-" + record.clientMessageId;
-    row.dataset.messagePreview = record.content;
-    row.dataset.createdAt = record.createdAt;
-
-    const bubble = makeElement("div", "bubble");
-    bubble.appendChild(makeElement("div", "message-text", record.content));
-    row.appendChild(bubble);
-    row.appendChild(
-      makeElement("div", "delivery-receipt", "Pending ? will send when online")
-    );
-
-    list.appendChild(row);
-    list.scrollTop = list.scrollHeight;
-  }
-
-  async function restoreOfflineMessages() {
-    try {
-      const records = await getOfflineMessages();
-      records.forEach(showOfflineRow);
-    } catch (error) {
-      console.warn("Gotya could not restore offline messages:", error);
-    }
-  }
-
-  async function sendQueuedMessages() {
-    if (!navigator.onLine || sendingMessage || retryingOfflineMessages) return;
-
-    retryingOfflineMessages = true;
-    let sentAny = false;
-
-    try {
-      const records = await getOfflineMessages();
-
-      for (const record of records) {
-        if (
-          !navigator.onLine ||
-          record.accountId !== String(currentUserId) ||
-          record.recipientId !== String(recipientId)
-        ) break;
-
-        const retryData = new FormData();
-        retryData.set(
-          "csrf_token",
-          document.querySelector('input[name="csrf_token"]')?.value || ""
-        );
-        retryData.set("content", record.content);
-        retryData.set("client_message_id", record.clientMessageId);
-
-        try {
-          const response = await fetch(composer.action, {
-            method: "POST",
-            body: retryData,
-            credentials: "same-origin",
-            headers: {
-              "X-Requested-With": "XMLHttpRequest",
-              "Accept": "application/json"
-            }
-          });
-
-          const contentType = response.headers.get("content-type") || "";
-          if (!response.ok || !contentType.includes("application/json")) break;
-
-          const result = await response.json();
-          if (!result.success) break;
-
-          await deleteOfflineMessage(record.clientMessageId);
-          const row = findOfflineRow(record.clientMessageId);
-          if (row) row.remove();
-          sentAny = true;
-        } catch (_) {
-          // Keep the queued message for the next connection attempt.
-          break;
-        }
-      }
-
-      if (sentAny) await pollUpdates();
-    } catch (error) {
-      console.warn("Gotya offline queue retry failed:", error);
-    } finally {
-      retryingOfflineMessages = false;
-    }
-  }
 
   composer.addEventListener("submit", async event => {
     event.preventDefault();
@@ -2575,15 +2520,6 @@ if (input) {
     }
 
     const formData = new FormData(composer);
-    const offlineClientMessageId =
-      text && !hasAttachment && window.crypto?.randomUUID
-        ? window.crypto.randomUUID()
-        : "";
-
-    if (offlineClientMessageId) {
-      formData.set("client_message_id", offlineClientMessageId);
-    }
-
     const voiceFileInput = document.getElementById("voiceInput");
     const voiceFile = voiceFileInput?.files?.[0];
     const documentFile = fileInput?.files?.[0];
@@ -2601,9 +2537,6 @@ if (input) {
 
     if (text && !hasAttachment) {
       pendingRow = makeElement("div", "message-row mine");
-      if (offlineClientMessageId) {
-        pendingRow.dataset.offlineClientId = offlineClientMessageId;
-      }
       pendingRow.dataset.messageId = "pending-" + Date.now();
       pendingRow.dataset.messagePreview = text;
       pendingRow.dataset.createdAt = new Date().toISOString();
@@ -2671,31 +2604,6 @@ if (input) {
       clearReply();
       await pollUpdates();
     } catch (error) {
-      const isNetworkFailure =
-        !navigator.onLine || error instanceof TypeError;
-
-      if (offlineClientMessageId && isNetworkFailure) {
-        try {
-          await saveOfflineMessage({
-            clientMessageId: offlineClientMessageId,
-            accountId: String(currentUserId),
-            recipientId: String(recipientId),
-            content: text,
-            createdAt: new Date().toISOString()
-          });
-
-          if (pendingRow) {
-            const receipt = pendingRow.querySelector(".delivery-receipt");
-            if (receipt) {
-              receipt.textContent = "Pending ? will send when online";
-            }
-          }
-          return;
-        } catch (storageError) {
-          console.warn("Gotya could not save the offline message:", storageError);
-        }
-      }
-
       if (pendingRow) pendingRow.remove();
 
       if (messageInput) {
@@ -2704,6 +2612,7 @@ if (input) {
         } else if (text) {
           messageInput.value = originalText + "\n" + messageInput.value;
         }
+
       }
 
       console.warn("Gotya message send failed:", error);
@@ -2713,10 +2622,6 @@ if (input) {
       if (sendButton) sendButton.disabled = false;
     }
   });
-  restoreOfflineMessages();
-  window.addEventListener("online", sendQueuedMessages);
-  if (navigator.onLine) sendQueuedMessages();
-
   pollUpdates();
   const pollTimer = setInterval(pollUpdates, 2000);
 
@@ -4166,8 +4071,8 @@ if ("serviceWorker" in navigator) {
     try {
       const file = await gpvEditedFile();
       const input = document.querySelector('form.composer input[type="file"][name="photos"], form.composer input[name="photos"]');
-      if (!input) { showStatus('Could not find GotyaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢s photo upload field. Save the edited copy and attach it using the composer.'); return; }
-      if (file.size > 15 * 1024 * 1024) { showStatus('The edited photo exceeds GotyaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢s 15 MB per-file limit. Save it and use a smaller image.'); return; }
+      if (!input) { showStatus('Could not find Gotya\'s photo upload field. Save the edited copy and attach it using the composer.'); return; }
+      if (file.size > 15 * 1024 * 1024) { showStatus('The edited photo exceeds Gotya\'s 15 MB per-file limit. Save it and use a smaller image.'); return; }
       const transfer = new DataTransfer();
       Array.from(input.files || []).forEach(f => transfer.items.add(f));
       transfer.items.add(file); input.files = transfer.files;
@@ -4197,7 +4102,7 @@ if ("serviceWorker" in navigator) {
       const csrf = form?.querySelector('input[name="csrf_token"]')?.value;
       if (!form || !csrf) throw new Error('That conversation is unavailable. Gotya only allows messages to accepted friends.');
       const file = await gpvEditedFile();
-      if (file.size > 15 * 1024 * 1024) throw new Error('This photo exceeds GotyaÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢s 15 MB per-file limit.');
+      if (file.size > 15 * 1024 * 1024) throw new Error('This photo exceeds Gotya\'s 15 MB per-file limit.');
       const data = new FormData(); data.append('csrf_token',csrf); data.append('content','Forwarded a photo'); data.append('photos',file,file.name);
       const post = await fetch(targetUrl,{method:'POST',body:data,credentials:'same-origin',redirect:'follow'});
       const html = await post.text();
@@ -4480,7 +4385,153 @@ if ("serviceWorker" in navigator) {
 })();
 </script>
 
-<script src="{{ url_for('static', filename='js/connection-status.js') }}?v=1"></script>
+
+<style id="GOTYA_CONVERSATION_SETTINGS_PANEL_V1">
+@media screen and (min-width: 1024px) {
+  body.gotya-conversation-page > header.gotya-topbar {
+    display:flex !important;
+    position:relative !important;
+    inset:auto !important;
+    flex:0 0 62px;
+    min-height:62px;
+    z-index:1200;
+  }
+  body.gotya-conversation-page > main {
+    box-sizing:border-box;
+    height:calc(100dvh - 62px) !important;
+    min-height:0 !important;
+    display:flex !important;
+    align-items:stretch;
+    gap:18px;
+    margin:0 24px 0 255px !important;
+    padding:16px 0 20px;
+    overflow:hidden;
+  }
+  body.gotya-conversation-page > main > .chat {
+    order:1;
+    flex:1 1 auto !important;
+    width:auto !important;
+    max-width:none !important;
+    min-width:0;
+    height:100% !important;
+    margin:0 !important;
+  }
+  body.gotya-conversation-page > main > .gotya-conversation-settings {
+    order:2;
+    display:block;
+    flex:0 0 270px;
+    width:270px;
+    height:100%;
+    box-sizing:border-box;
+    overflow-y:auto;
+    padding:20px 16px;
+    border:1px solid var(--border-color, #e7e1f0);
+    border-radius:18px;
+    background:var(--card-bg, #fff);
+    color:var(--text-color, #302547);
+  }
+  body.gotya-conversation-page .gotya-desktop-right-panel {
+    display:none !important;
+  }
+}
+@media screen and (min-width:1024px) and (max-width:1250px) {
+  body.gotya-conversation-page > main {
+    margin-left:215px !important;
+    margin-right:14px !important;
+    gap:12px;
+  }
+  body.gotya-conversation-page > main > .gotya-conversation-settings {
+    flex-basis:245px;
+    width:245px;
+  }
+}
+.gotya-conversation-settings { display:none; }
+.gotya-cs-profile {
+  display:flex; flex-direction:column; align-items:center;
+  gap:7px; padding:4px 0 20px; text-align:center;
+  border-bottom:1px solid var(--border-color, #e7e1f0);
+}
+.gotya-cs-profile img,.gotya-cs-avatar {
+  width:76px;height:76px;border-radius:50%;object-fit:cover;
+}
+.gotya-cs-avatar {
+  display:grid;place-items:center;background:#7555e8;color:white;
+  font-size:28px;font-weight:700;
+}
+.gotya-cs-profile a { color:#7555e8;text-decoration:none;font-size:13px; }
+.gotya-cs-section {
+  display:flex;flex-direction:column;gap:8px;padding:17px 0;
+  border-bottom:1px solid var(--border-color, #e7e1f0);
+}
+.gotya-cs-section label { font-size:13px;font-weight:700; }
+.gotya-cs-section select,.gotya-cs-section input {
+  width:100%;min-width:0;box-sizing:border-box;padding:10px 11px;
+  border:1px solid var(--border-color, #ded7e9);border-radius:10px;
+  background:var(--input-bg, #fff);color:inherit;font:inherit;
+}
+.gotya-cs-section button {
+  border:0;border-radius:10px;padding:10px 12px;
+  background:#7555e8;color:#fff;font-weight:650;cursor:pointer;
+}
+.gotya-cs-status { min-height:18px;font-size:12px;color:#7555e8; }
+body.gotya-conversation-page[data-conversation-theme="ocean"] .chat {
+  --conversation-accent:#2586b8;
+}
+body.gotya-conversation-page[data-conversation-theme="sunset"] .chat {
+  --conversation-accent:#e47755;
+}
+body.gotya-conversation-page[data-conversation-theme="midnight"] .chat {
+  --conversation-accent:#6654a5;
+}
+body.gotya-conversation-page[data-conversation-theme="lavender"] .chat {
+  --conversation-accent:#7555e8;
+}
+</style>
+<script id="GOTYA_CONVERSATION_SETTINGS_PANEL_V1_JS">
+(() => {
+  const panel = document.getElementById("gotyaConversationSettings");
+  if (!panel) return;
+
+  const userId = {{ person.id|tojson }};
+  const csrf = document.querySelector('input[name="csrf_token"]')?.value || "";
+  const status = document.getElementById("gotyaConversationSettingsStatus");
+  const theme = document.getElementById("gotyaConversationTheme");
+  const nickname = document.getElementById("gotyaConversationNickname");
+  const pin = document.getElementById("gotyaPinnedMessage");
+
+  async function save(field, value) {
+    status.textContent = "Saving?";
+    try {
+      const response = await fetch(`/messages/${userId}/preferences`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrf,
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({field, value})
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "Could not save this setting.");
+      }
+      if (field === "theme") {
+        document.body.dataset.conversationTheme = result.theme;
+      }
+      status.textContent = "Saved";
+    } catch (error) {
+      status.textContent = error.message || "Could not save. Please retry.";
+    }
+  }
+
+  theme?.addEventListener("change", () => save("theme", theme.value));
+  document.getElementById("gotyaSaveNickname")?.addEventListener("click", () => {
+    save("nickname", nickname.value);
+  });
+  pin?.addEventListener("change", () => save("pinned_message", pin.value));
+})();
+</script>
+
 </body>
 </html>
-

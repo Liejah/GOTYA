@@ -190,8 +190,15 @@ h2{font-size:19px;margin:0 0 16px}
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='gotya-laptop.css') }}?v=2">
 </head>
 <body data-theme="{{ gotya_theme|default("system") }}">
+{% set gotya_header_label = 'Gotya Friends' %}
+{% include '_gotya_shared_topbar.html' %}
+
+{% set gotya_active_page = 'friends' %}
+{% include '_gotya_desktop_shell.html' %}
+
 <header>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
@@ -199,18 +206,7 @@ h2{font-size:19px;margin:0 0 16px}
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Gotya">
- <div class="topbar">
-  <a class="brand" href="{{ url_for('home') }}">Gotya<span style="color:var(--ink)">.</span></a>
-  <nav>
-   <a href="{{ url_for('feed') }}">Feed</a>
-   <a class="active" href="{{ url_for('friends') }}">Friends</a>
-   <a href="{{ url_for('profile') }}">Profile</a>
-   <form action="{{ url_for('logout') }}" method="post" style="display:inline">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="secondary" type="submit">Log out</button>
-   </form>
-  </nav>
- </div>
+ 
 </header>
 
 <div class="gotya-notification-widget" id="gotyaNotificationWidget">
@@ -221,7 +217,7 @@ h2{font-size:19px;margin:0 0 16px}
               id="gotyaNotificationEnable">Enable browser alerts</button>
     </div>
     <div id="gotyaNotificationList">
-      <div class="gotya-notification-empty">Loading notificationsâ€¦</div>
+      <div class="gotya-notification-empty">Loading notifications…</div>
     </div>
     <div class="gotya-notification-status" id="gotyaNotificationStatus"
          role="status">Browser alerts are optional.</div>
@@ -229,7 +225,7 @@ h2{font-size:19px;margin:0 0 16px}
   <button type="button" class="gotya-notification-bell"
           id="gotyaNotificationToggle" aria-label="Open notifications"
           aria-expanded="false" aria-controls="gotyaNotificationPanel">
-    <span aria-hidden="true">â™§</span>
+    <span aria-hidden="true">♧</span>
     <span class="gotya-notification-count" id="gotyaNotificationCount" hidden>0</span>
   </button>
 </div>

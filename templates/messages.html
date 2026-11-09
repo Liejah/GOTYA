@@ -260,41 +260,24 @@ main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/connection-status.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='gotya-laptop.css') }}?v=2">
 </head>
 <body data-theme="{{ gotya_theme|default("system") }}">
+{% set gotya_header_label = 'Gotya Chats' %}
+{% set gotya_hide_header_actions = True %}
+{% include '_gotya_shared_topbar.html' %}
+
+{% set gotya_active_page = 'messages' %}
+{% include '_gotya_desktop_shell.html' %}
+
 <header>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/svg+xml" href="/static/gotya-icon.svg">
     <meta name="theme-color" content="#1877f2">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Gotya"><div class="chats-topbar">
-  <div class="chats-heading">
-    <h1>Chats</h1>
-    <p>Stay close to your people</p>
-  </div>
-  <div class="chats-top-actions">
-    <button type="button" class="chats-icon-button" aria-label="Camera"
-            title="Camera">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="3" y="6" width="18" height="14" rx="3"/>
-        <circle cx="12" cy="13" r="4"/>
-        <path d="m8 6 1.5-2h5L16 6"/>
-      </svg>
-    </button>
-    <a class="chats-icon-button chats-compose"
-       href="{{ url_for('friends') }}" aria-label="New message"
-       title="New message">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 20h9"/>
-        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/>
-      </svg>
-    </a>
-  </div>
-</div></header>
+    <meta name="apple-mobile-web-app-title" content="Gotya"></header>
 
-<div class="gotya-connection-banner" data-gotya-connection-banner role="status" aria-live="polite" hidden></div>
 <main>
 <div class="heading">
 <div><h1 class="chats-hidden-heading">Your messages</h1><p class="chats-hidden-heading">Private conversations with your friends.</p></div>
@@ -364,11 +347,11 @@ main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
 {% if last_message.is_unsent %}This message was unsent.{% else %}{% if last_message.sender_id == current_user.id %}You: {% endif %}{{ last_message.content or ('Sent an attachment' if last_message.attachment_filename else '') }}{% endif %}
 {% else %}You're friends ? say hello!{% endif %}
 </div>
-</div><span class="arrow">Ã¢â‚¬Âº</span>
+</div><span class="arrow">â€º</span>
 </a>
 {% endfor %}
 {% else %}
-<div class="empty"><div class="empty-icon">Ã¢â„¢Â¡</div><strong>Your inbox starts here</strong>You don't have any conversations yet. Visit Friends to connect with someone, then start chatting.</div>
+<div class="empty"><div class="empty-icon">â™¡</div><strong>Your inbox starts here</strong>You don't have any conversations yet. Visit Friends to connect with someone, then start chatting.</div>
 {% endif %}
 </section>
 </main>
@@ -385,7 +368,7 @@ main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
 
   function updateUnreadCount(count) {
     const unread = Number(count) || 0;
-    navLink.textContent = unread > 0 ? `Messages Ã‚Â· ${unread}` : "Messages";
+    navLink.textContent = unread > 0 ? `Messages Â· ${unread}` : "Messages";
     unreadBadge.textContent = `${unread} unread`;
     unreadBadge.hidden = unread === 0;
   }
@@ -465,7 +448,7 @@ main{max-width:1000px;margin:16px auto;padding:0 12px 30px}
 
     const arrow = document.createElement("span");
     arrow.className = "arrow";
-    arrow.textContent = "Ã¢â‚¬Âº";
+    arrow.textContent = "â€º";
 
     link.append(avatar, info, arrow);
     return link;
@@ -1017,10 +1000,8 @@ if ("serviceWorker" in navigator) {
 })();
 </script>
 
-<script src="{{ url_for('static', filename='js/connection-status.js') }}?v=1"></script>
 </body>
 </html>
-
 
 
 

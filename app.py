@@ -9,7 +9,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 from flask import session, Flask, render_template, request, redirect, url_for, flash, send_from_directory, send_file, jsonify, abort
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_login import (
@@ -315,7 +315,6 @@ def add_upload_security_headers(response):
         )
     except Exception:
         response.headers["X-Gotya-Account"] = "anonymous"
-
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = (
@@ -339,6 +338,35 @@ def add_upload_security_headers(response):
     )
     return response
 
+
+
+
+@app.after_request
+def add_liquid_glass_stylesheet(response):
+    if response.mimetype != "text/html":
+        return response
+
+    if response.headers.get("Content-Encoding", "").lower() not in ("", "identity"):
+        return response
+
+    body = response.get_data()
+    lowered = body.lower()
+    marker = b"</head>"
+
+    if b"data-gotya-liquid-glass" in lowered:
+        return response
+
+    position = lowered.find(marker)
+    if position < 0:
+        return response
+
+    stylesheet = (
+        b'<link rel="stylesheet" href="/static/liquid-glass.css?v=2" '
+        b'data-gotya-liquid-glass="true">' + bytes([10])
+    )
+
+    response.set_data(body[:position] + stylesheet + body[position:])
+    return response
 
 @app.errorhandler(413)
 def handle_request_too_large(error):
@@ -392,6 +420,29 @@ app.config["SESSION_COOKIE_SECURE"] = (
 
 db = SQLAlchemy(app)
 csrf = CSRFProtect(app)
+
+@app.errorhandler(CSRFError)
+def handle_story_csrf_error(error):
+    field = app.config.get("WTF_CSRF_FIELD_NAME", "csrf_token")
+    cookie_name = app.config.get("SESSION_COOKIE_NAME", "session")
+    submitted_token = request.form.get(field, "")
+    app.logger.error(
+        "STORY CSRF DIAGNOSTIC: reason=%s method=%s path=%s "
+        "content_length=%s content_type=%s form_keys=%s "
+        "token_present=%s token_length=%s session_cookie_present=%s",
+        error.description,
+        request.method,
+        request.path,
+        request.content_length,
+        request.content_type,
+        list(request.form.keys()),
+        bool(submitted_token),
+        len(submitted_token),
+        bool(request.cookies.get(cookie_name)),
+    )
+    return "Story request rejected by CSRF protection. Check server log.", 400
+
+
 
 limiter = Limiter(
     key_func=get_remote_address,
@@ -902,7 +953,6 @@ class StoryView(db.Model):
 
 
 
-
 class Follow(db.Model):
     __tablename__ = "user_follow"
 
@@ -1067,6 +1117,41 @@ class MessageHidden(db.Model):
             name="uq_message_hidden_user"
         ),
     )
+
+
+class ConversationPreference(db.Model):
+    """Settings shared by a private conversation, plus each participant's nickname."""
+    __tablename__ = "conversation_preference"
+
+    id = db.Column(db.Integer, primary_key=True)
+    participant_low_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    participant_high_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    theme = db.Column(db.String(20), nullable=False, default="lavender")
+    nickname_set_by_low = db.Column(db.String(32), nullable=True)
+    nickname_set_by_high = db.Column(db.String(32), nullable=True)
+    pinned_message_id = db.Column(
+        db.Integer, db.ForeignKey("message.id"), nullable=True
+    )
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "participant_low_id", "participant_high_id",
+            name="uq_conversation_preference_pair"
+        ),
+        db.CheckConstraint(
+            "participant_low_id < participant_high_id",
+            name="ck_conversation_preference_order"
+        ),
+    )
+
 
 class PushSubscription(db.Model):
     __tablename__ = "push_subscription"
@@ -1314,6 +1399,8 @@ with app.app_context():
     Follow.__table__.create(bind=db.engine, checkfirst=True)
     OfflineMessageReceipt.__table__.create(bind=db.engine, checkfirst=True)
     SupportReport.__table__.create(bind=db.engine, checkfirst=True)
+    Story.__table__.create(bind=db.engine, checkfirst=True)
+    StoryView.__table__.create(bind=db.engine, checkfirst=True)
 
 # Run after all SQLAlchemy models have been declared.
 migrate_existing_database_schema()
@@ -1786,9 +1873,7 @@ def public_profile(user_id):
     )
 
     all_profile_posts = (
-        []
-        if profile_locked and not is_profile_owner
-        else Post.query.filter_by(user_id=profile_user.id)
+        Post.query.filter_by(user_id=profile_user.id)
         .order_by(Post.created_at.desc(), Post.id.desc())
         .all()
     )
@@ -1809,6 +1894,31 @@ def public_profile(user_id):
     followers_count = Follow.query.filter_by(followed_id=profile_user.id).count()
     following_count = Follow.query.filter_by(follower_id=profile_user.id).count()
 
+    is_accepted_friend = (
+        Friendship.query.filter(
+            Friendship.status == "accepted",
+            db.or_(
+                db.and_(
+                    Friendship.requester_id == current_user.id,
+                    Friendship.recipient_id == profile_user.id,
+                ),
+                db.and_(
+                    Friendship.requester_id == profile_user.id,
+                    Friendship.recipient_id == current_user.id,
+                ),
+            ),
+        ).first() is not None
+        if not is_profile_owner else True
+    )
+
+    profile_has_active_story = (
+        (not profile_locked or is_profile_owner or is_accepted_friend)
+        and Story.query.filter(
+            Story.user_id == profile_user.id,
+            Story.expires_at > datetime.utcnow(),
+        ).first() is not None
+    )
+
     return render_template(
         "public_profile.html",
         profile_user=profile_user,
@@ -1820,6 +1930,7 @@ def public_profile(user_id):
         friend_count=friend_count,
         followers_count=followers_count,
         following_count=following_count,
+        profile_has_active_story=profile_has_active_story,
     )
 
 
@@ -2029,13 +2140,6 @@ def cover_video_file(filename):
     if video_owner is None:
         abort(404)
 
-    if video_owner.id != current_user.id:
-        lock_record = ProfileLock.query.filter_by(
-            user_id=video_owner.id
-        ).first()
-        if lock_record is not None and lock_record.is_locked:
-            abort(404)
-
     try:
         file_bytes = download_from_supabase("cover_videos/" + filename)
         response = send_file(
@@ -2058,6 +2162,54 @@ def cover_video_file(filename):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Cache-Control"] = "private, no-store"
         return response
+
+
+
+@app.route("/api/users/search", methods=["GET"])
+@login_required
+def gotya_user_search():
+    """Search public usernames only; never return emails or private account data."""
+    from flask import jsonify
+    from difflib import SequenceMatcher
+
+    query = (request.args.get("q") or "").strip()[:30]
+    if len(query) < 2:
+        return jsonify(users=[])
+
+    matches = User.query.filter(
+        User.id != current_user.id,
+        User.username.ilike(f"%{query}%")
+    ).order_by(User.username.asc()).limit(20).all()
+
+    # If there are no direct matches, offer close username spellings.
+    if not matches:
+        candidates = User.query.filter(
+            User.id != current_user.id
+        ).with_entities(User.id, User.username).order_by(
+            User.username.asc()
+        ).limit(3000).all()
+
+        ranked = []
+        needle = query.casefold()
+        for user_id, username in candidates:
+            score = SequenceMatcher(None, needle, username.casefold()).ratio()
+            if score >= 0.62:
+                ranked.append((score, user_id, username))
+
+        ranked.sort(key=lambda item: (-item[0], item[2].casefold()))
+        matches = [
+            db.session.get(User, user_id)
+            for _, user_id, _ in ranked[:10]
+        ]
+        matches = [user for user in matches if user is not None]
+
+    return jsonify(users=[
+        {
+            "username": user.username,
+            "url": url_for("public_profile", user_id=user.id)
+        }
+        for user in matches
+    ])
 
 
 @app.route("/friends", methods=["GET"])
@@ -2368,6 +2520,14 @@ def conversation(user_id):
     if friendship is None:
         flash("You can message accepted friends only.", "error")
         return redirect(url_for("messages"))
+
+    # Additive, safe table creation; existing account/message tables are untouched.
+    ConversationPreference.__table__.create(db.engine, checkfirst=True)
+
+    person_has_active_story = Story.query.filter(
+        Story.user_id == person.id,
+        Story.expires_at > datetime.utcnow(),
+    ).first() is not None
 
     if request.method == "POST":
         content = request.form.get("content", "").strip()
@@ -2709,11 +2869,119 @@ def conversation(user_id):
         history=history,
         reaction_map=reaction_map,
         reaction_emojis=reaction_emojis,
-        reaction_counts_visible=reaction_counts_visible
+        reaction_counts_visible=reaction_counts_visible,
+        person_has_active_story=person_has_active_story,
+        conversation_preference=ConversationPreference.query.filter_by(
+            participant_low_id=min(current_user.id, person.id),
+            participant_high_id=max(current_user.id, person.id),
+        ).first(),
+
     )
 
 
 
+
+
+
+@app.route("/messages/<int:user_id>/preferences", methods=["POST"])
+@login_required
+def save_conversation_preferences(user_id):
+    person = db.session.get(User, user_id)
+    if (
+        person is None
+        or person.id == current_user.id
+        or not _chat_friendship_exists(current_user.id, person.id)
+    ):
+        return jsonify(error="Conversation unavailable."), 403
+
+    ConversationPreference.__table__.create(db.engine, checkfirst=True)
+    low_id, high_id = sorted((current_user.id, person.id))
+
+    preference = ConversationPreference.query.filter_by(
+        participant_low_id=low_id,
+        participant_high_id=high_id,
+    ).first()
+
+    if preference is None:
+        preference = ConversationPreference(
+            participant_low_id=low_id,
+            participant_high_id=high_id,
+        )
+        db.session.add(preference)
+
+    payload = request.get_json(silent=True) or {}
+    field = payload.get("field")
+
+    if field == "theme":
+        theme = payload.get("value")
+        allowed = {"lavender", "ocean", "sunset", "midnight"}
+        if theme not in allowed:
+            return jsonify(error="Choose a valid conversation theme."), 400
+        preference.theme = theme
+
+    elif field == "nickname":
+        nickname = payload.get("value", "")
+        if not isinstance(nickname, str):
+            return jsonify(error="Enter a valid nickname."), 400
+        nickname = nickname.strip()
+        if len(nickname) > 32:
+            return jsonify(error="Nicknames must be 32 characters or fewer."), 400
+
+        if current_user.id == low_id:
+            preference.nickname_set_by_low = nickname or None
+        else:
+            preference.nickname_set_by_high = nickname or None
+
+    elif field == "pinned_message":
+        raw_id = payload.get("value")
+        if raw_id in (None, "", 0, "0"):
+            preference.pinned_message_id = None
+        else:
+            try:
+                message_id = int(raw_id)
+            except (TypeError, ValueError):
+                return jsonify(error="Choose a valid message."), 400
+
+            message = Message.query.filter(
+                Message.id == message_id,
+                Message.is_unsent.is_(False),
+                db.or_(
+                    db.and_(
+                        Message.sender_id == current_user.id,
+                        Message.recipient_id == person.id,
+                    ),
+                    db.and_(
+                        Message.sender_id == person.id,
+                        Message.recipient_id == current_user.id,
+                    ),
+                ),
+            ).first()
+
+            if message is None:
+                return jsonify(error="That message is not in this conversation."), 400
+            preference.pinned_message_id = message.id
+
+    else:
+        return jsonify(error="Unsupported conversation setting."), 400
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Could not save conversation preferences.")
+        return jsonify(error="Could not save this setting. Please retry."), 500
+
+    nickname = (
+        preference.nickname_set_by_high
+        if current_user.id == low_id
+        else preference.nickname_set_by_low
+    )
+    return jsonify(
+        ok=True,
+        theme=preference.theme,
+        nickname=nickname or "",
+        pinned_message_id=preference.pinned_message_id,
+    )
 
 
 # Temporary typing signals for the single-process local development server.
@@ -2930,7 +3198,7 @@ def conversation_updates(user_id):
             ),
             "reply_to_id": item.reply_to_id,
             "reply_to": reply_data,
-            "created_at": item.created_at.strftime("%b %d · %I:%M %p"),
+            "created_at": item.created_at.strftime("%b %d Â· %I:%M %p"),
             "created_at_iso": item.created_at.isoformat(),
             "attachment_url": (
                 url_for("message_attachment_file", message_id=item.id)
@@ -2946,11 +3214,11 @@ def conversation_updates(user_id):
                 None if item.is_unsent else item.attachment_size
             ),
             "delivered_at": (
-                item.delivered_at.strftime("%b %d · %I:%M %p")
+                item.delivered_at.strftime("%b %d Â· %I:%M %p")
                 if item.delivered_at else None
             ),
             "read_at": (
-                item.read_at.strftime("%b %d · %I:%M %p")
+                item.read_at.strftime("%b %d Â· %I:%M %p")
                 if item.read_at else None
             )
         }
@@ -3038,7 +3306,7 @@ def inbox_updates():
             if latest.sender_id == current_user.id:
                 preview = "You: " + preview
         else:
-            preview = "You're friends — say hello!"
+            preview = "You're friends â€” say hello!"
 
         conversations.append({
             "user_id": person.id,
@@ -3887,7 +4155,7 @@ def settings():
     )
 
 def _can_view_post(post, viewer_id):
-    """Check whether a signed-in user may view a post."""
+    """Check post audience and the owner's Profile Lock setting."""
     if post.user_id == viewer_id:
         return True
 
@@ -3905,8 +4173,11 @@ def _can_view_post(post, viewer_id):
         ),
     ).first() is not None
 
-    lock_record = ProfileLock.query.filter_by(user_id=post.user_id).first()
-    if lock_record is not None and lock_record.is_locked and not is_friend:
+    lock_record = ProfileLock.query.filter_by(
+        user_id=post.user_id
+    ).first()
+
+    if lock_record and lock_record.is_locked and not is_friend:
         return False
 
     audience = getattr(post, "audience", None) or "public"
@@ -3964,6 +4235,7 @@ def create_story():
     upload = request.files.get("media")
     caption = (request.form.get("caption") or "").strip()
     audience = (request.form.get("audience") or "public").strip().lower()
+
 
     if audience not in {"public", "friends"}:
         flash("Please choose a valid Story audience.", "error")
@@ -4172,9 +4444,6 @@ def delete_story(story_id):
     flash("Your Story was deleted.", "success")
     return redirect(url_for("feed"))
 
-
-
-
 @app.route("/feed", methods=["GET", "POST"])
 @login_required
 def feed():
@@ -4223,8 +4492,20 @@ def feed():
         )
         if other_id not in circle_friend_ids:
             circle_friend_ids.append(other_id)
-        if len(circle_friend_ids) >= 8:
-            break
+
+    active_story_user_ids = set(
+        row[0] for row in db.session.query(Story.user_id).filter(
+            Story.user_id.in_(circle_friend_ids + [current_user.id]),
+            Story.expires_at > datetime.utcnow(),
+        ).distinct().all()
+    )
+
+    own_story_exists = current_user.id in active_story_user_ids
+
+    circle_friend_ids = [
+        friend_id for friend_id in circle_friend_ids
+        if friend_id in active_story_user_ids
+    ][:8]
 
     circle_users = (
         User.query.filter(User.id.in_(circle_friend_ids)).all()
@@ -4248,7 +4529,8 @@ def feed():
         "feed.html",
         posts=posts,
         reaction_counts_visible=reaction_counts_visible,
-        circle_friends=circle_friends
+        circle_friends=circle_friends,
+        own_story_exists=own_story_exists
     )
 
 
@@ -4381,11 +4663,36 @@ def post_media_file(post_id):
     return response
 
 
+
 # GOTYA_WATCH_EXTERNAL_CATALOG
 WATCH_EXTERNAL_VIDEOS = [
-    {"title":"Big Buck Bunny","category":"Comedy","description":"Animated comedy from the Blender Open Movies project.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ?rel=0","watch_url":"https://www.youtube.com/watch?v=aqz-KE-bpKQ","license_note":"Check the film's current license and attribution terms before commercial use."},
-    {"title":"Sintel","category":"Drama","description":"An independently produced fantasy short film from Blender Open Movies.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/eRsGyueVLvQ?rel=0","watch_url":"https://www.youtube.com/watch?v=eRsGyueVLvQ","license_note":"Check the film's current license and attribution terms before commercial use."},
-    {"title":"Tears of Steel","category":"Entertainment","description":"A science-fiction short film from Blender Open Movies.","source":"Blender Studio","embed_url":"https://www.youtube-nocookie.com/embed/R6MlUcmOul8?rel=0","watch_url":"https://www.youtube.com/watch?v=R6MlUcmOul8","license_note":"Check the film's current license and attribution terms before commercial use."},
+    {
+        "title": "Big Buck Bunny",
+        "category": "Comedy",
+        "description": "Animated comedy from the Blender Open Movies project.",
+        "source": "Blender Studio",
+        "embed_url": "https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ?rel=0",
+        "watch_url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+        "license_note": "Check the film's current license and attribution terms before commercial use.",
+    },
+    {
+        "title": "Sintel",
+        "category": "Drama",
+        "description": "An independently produced fantasy short film from Blender Open Movies.",
+        "source": "Blender Studio",
+        "embed_url": "https://www.youtube-nocookie.com/embed/eRsGyueVLvQ?rel=0",
+        "watch_url": "https://www.youtube.com/watch?v=eRsGyueVLvQ",
+        "license_note": "Check the film's current license and attribution terms before commercial use.",
+    },
+    {
+        "title": "Tears of Steel",
+        "category": "Entertainment",
+        "description": "A science-fiction short film from Blender Open Movies.",
+        "source": "Blender Studio",
+        "embed_url": "https://www.youtube-nocookie.com/embed/R6MlUcmOul8?rel=0",
+        "watch_url": "https://www.youtube.com/watch?v=R6MlUcmOul8",
+        "license_note": "Check the film's current license and attribution terms before commercial use.",
+    },
 ]
 
 
@@ -4472,73 +4779,98 @@ def add_comment(post_id):
 @app.route("/notifications/updates", methods=["GET"])
 @login_required
 def notifications_updates():
-    """Read-only summary of notifications for the signed-in user."""
+    """Return social activity only; messages and calls belong elsewhere."""
+    from datetime import datetime
 
-    unread_count = Message.query.filter(
-        Message.recipient_id == current_user.id,
-        Message.read_at.is_(None),
-        Message.is_unsent.is_(False)
-    ).count()
+    items = []
+    current_id = current_user.id
 
-    unread_messages = Message.query.filter(
-        Message.recipient_id == current_user.id,
-        Message.read_at.is_(None),
-        Message.is_unsent.is_(False)
-    ).order_by(Message.created_at.desc()).limit(20).all()
-
-    message_items = [
-        {
-            "id": message.id,
-            "sender_id": message.sender_id,
-            "sender_name": message.sender.username,
-            "preview": (
-                message.content[:160]
-                if message.content else "Sent an attachment"
-            ),
-            "created_at": message.created_at.isoformat() + "Z",
-        }
-        for message in unread_messages
-    ]
-
+    # Incoming friend requests are real, pending Friendship records.
     pending_requests = Friendship.query.filter_by(
-        recipient_id=current_user.id,
+        recipient_id=current_id,
         status="pending"
-    ).order_by(Friendship.created_at.desc()).limit(20).all()
+    ).order_by(Friendship.created_at.desc()).limit(30).all()
 
-    friend_request_items = [
-        {
+    friend_request_items = []
+    for friendship in pending_requests:
+        created = friendship.created_at
+        friend_request_items.append({
             "id": friendship.id,
             "sender_id": friendship.requester_id,
             "sender_name": friendship.requester.username,
-            "created_at": friendship.created_at.isoformat() + "Z",
-        }
-        for friendship in pending_requests
-    ]
+            "created_at": created.isoformat() + "Z" if created else "",
+        })
+        items.append({
+            "id": "friend-" + str(friendship.id),
+            "type": "friends",
+            "actor_id": friendship.requester_id,
+            "actor_name": friendship.requester.username,
+            "detail": "Sent you a friend request",
+            "created_at": created.isoformat() + "Z" if created else "",
+            "href": url_for("friends"),
+            "request_id": friendship.id,
+        })
 
-    call = VideoCall.query.filter_by(
-        recipient_id=current_user.id,
-        status="ringing"
-    ).order_by(VideoCall.created_at.desc()).first()
+    # Likes on the signed-in user's posts.
+    liked_posts = Post.query.filter(
+        Post.user_id == current_id
+    ).order_by(Post.created_at.desc()).limit(100).all()
 
-    incoming_call = None
-    if call is not None and video_call_access(call):
-        incoming_call = {
-            "id": call.id,
-            "caller_id": call.caller_id,
-            "caller_name": call.caller.username,
-            "created_at": call.created_at.isoformat() + "Z",
-        }
+    for post in liked_posts:
+        likes = PostLike.query.filter(
+            PostLike.post_id == post.id,
+            PostLike.user_id != current_id
+        ).order_by(PostLike.id.desc()).limit(20).all()
+        for like in likes:
+            actor = like.user
+            if actor is None:
+                continue
+            items.append({
+                "id": "like-" + str(like.id),
+                "type": "like",
+                "actor_id": actor.id,
+                "actor_name": actor.username,
+                "detail": "Reacted to your post",
+                "created_at": (
+                    post.created_at.isoformat() + "Z"
+                    if post.created_at else ""
+                ),
+                "href": url_for("feed", _anchor=f"post-{post.id}"),
+                "request_id": None,
+            })
 
+    # Comments on the signed-in user's posts.
+    comments = Comment.query.join(Post, Comment.post_id == Post.id).filter(
+        Post.user_id == current_id,
+        Comment.user_id != current_id
+    ).order_by(Comment.created_at.desc()).limit(40).all()
+
+    for comment in comments:
+        actor = comment.author
+        if actor is None:
+            continue
+        items.append({
+            "id": "comment-" + str(comment.id),
+            "type": "comment",
+            "actor_id": actor.id,
+            "actor_name": actor.username,
+            "detail": "Commented: " + (comment.content or "")[:120],
+            "created_at": (
+                comment.created_at.isoformat() + "Z"
+                if comment.created_at else ""
+            ),
+            "href": url_for("feed", _anchor=f"post-{comment.post_id}"),
+            "request_id": None,
+        })
+
+    # Sort by timestamp, newest first. Do not expose message/call records.
+    items.sort(key=lambda item: item["created_at"], reverse=True)
     return jsonify({
-        "unread_count": unread_count,
-        "unread_messages": message_items,
+        "items": items[:50],
         "pending_friend_requests": friend_request_items,
-        "incoming_call": incoming_call,
+        "unread_count": len(items),
     })
 
-
-# GOTYA VIDEO CALL API
-# Authenticated, accepted-friend-only call signaling.
 # ------------------------------------------------------------
 
 def video_call_are_friends(first_id, second_id):

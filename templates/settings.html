@@ -252,16 +252,17 @@
         /* END GOTYA_SETTINGS_ACCESSIBILITY_V1 */
 
     </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='gotya-laptop.css') }}?v=2">
 </head>
 <body data-theme="{{ theme }}" data-high-contrast="{{ 'true' if high_contrast else 'false' }}" data-font-scale="{{ font_scale }}">
-<header>
-    <h1>Gotya</h1>
-    <nav aria-label="Main navigation">
-        <a href="{{ url_for('feed') }}">Feed</a>
-        <a href="{{ url_for('profile') }}">Profile</a>
-        <a href="{{ url_for('messages') }}">Messages</a>
-    </nav>
-</header>
+{% set gotya_active_page = 'settings' %}
+{% include '_gotya_desktop_shell.html' %}
+
+
+{% set gotya_header_label = 'Gotya | Settings' %}
+{% set gotya_hide_header_actions = True %}
+{% include '_gotya_shared_topbar.html' %}
+
 
 <main>
     <h1 class="page-title">Settings</h1>
@@ -289,7 +290,7 @@
 
     <h2 class="settings-group-title">TOOLS AND CONTROL</h2>
     <section class="card" id="account">
-        <h2>👤 Account information</h2>
+        <h2>Account information</h2>
         <p class="description">Your current account details.</p>
         <div class="detail">
             <span class="detail-label">Username</span>
@@ -347,7 +348,7 @@
 
     <h2 class="settings-group-title">AUDIENCE AND VISIBILITY</h2>
     <section class="card" id="privacy">
-        <h2>🛡️ Privacy and safety</h2>
+        <h2>Privacy and safety</h2>
         <p class="description">Keep your account secure and share information carefully.</p>
 
         <form method="POST" action="{{ url_for('settings') }}">
@@ -469,7 +470,7 @@
     </section>
 
     <section class="card" id="appearance">
-        <h2>?? Appearance</h2>
+        <h2>Appearance</h2>
         <p class="description">Choose how Gotya looks. Your theme preference is saved to your account.</p>
 
         <form method="POST" action="{{ url_for('settings') }}">
@@ -490,70 +491,8 @@
     </section>
 
     <section class="card" id="help">
-        <h2>❓ Help and Support</h2>
-        <p class="description">Welcome to the Gotya Help Center. Find answers and learn how to use your account safely.</p>
-        <h3>Account and Profile</h3>
-        <details><summary>How do I update my profile?</summary><p>Open your Profile and use Edit Profile to update your information and photos.</p></details>
-        <details><summary>What if I cannot log in?</summary><p>Check your login details or use the password recovery option.</p></details>
-        <h3>Privacy and Security</h3>
-        <details><summary>Who can see my locked profile?</summary><p>People who are not accepted friends are restricted from viewing private content on your locked profile.</p></details>
-        <details><summary>How can I keep my account safe?</summary><p>Use a strong password. Never share your password or verification codes.</p></details>
-        <h3>Posts, Stories and Reels</h3>
-        <details><summary>Who can see my posts?</summary><p>Use the audience setting when creating a post to choose who can see it.</p></details>
-        <details><summary>Can I delete my content?</summary><p>Use the available options on your own posts or stories to manage or delete them.</p></details>
-        <h3>Messages and Calls</h3>
-        <details><summary>Can I remove a sent message?</summary><p>Open the message options to see the available deletion controls.</p></details>
-        <details><summary>Why are messages or calls not loading?</summary><p>Check your internet connection, refresh Gotya, and try again.</p></details>
-        <h3>Notifications</h3>
-        <details><summary>Why am I not receiving notifications?</summary><p>Check your device notification permissions and Gotya notification settings.</p></details>
-        <h3>Gotya Premium and Verification</h3>
-        <details><summary>What do the Gotya badges mean?</summary><p>Badges identify account statuses such as ownership, verification, and Premium membership.</p></details>
-        <h3>Still need help?</h3>
-        <p class="description">For bugs or account problems, note what happened, when it happened, and which page you were using. Never include your password or verification codes.</p>
-        <form method="POST" action="{{ url_for('settings') }}" class="support-report-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="submit_support_report">
-
-            <label for="support-category">What do you need help with?</label>
-            <select id="support-category" name="category" required>
-                <option value="">Choose a category</option>
-                <option value="technical">Technical problem</option>
-                <option value="account">Account or login</option>
-                <option value="privacy">Privacy or security</option>
-                <option value="abuse">Report abuse or harmful behavior</option>
-                <option value="content">Post, Story, or Reel</option>
-                <option value="other">Other</option>
-            </select>
-
-            <label for="support-subject">Subject</label>
-            <input id="support-subject" name="subject" type="text"
-                   maxlength="120" required placeholder="Briefly describe the issue">
-
-            <label for="support-description">Details</label>
-            <textarea id="support-description" name="description"
-                      maxlength="3000" rows="5" required
-                      placeholder="Tell us what happened, when it happened, and which page you were using. Do not include your password or verification codes."></textarea>
-
-            <button type="submit">Submit report</button>
-        </form>
-
-        <h3>Your support reports</h3>
-        {% if support_reports %}
-            {% for report in support_reports %}
-                <div class="support-report-item">
-                    <strong>{{ report.subject }}</strong>
-                    <p class="description">
-                        Reference: {{ report.reference_code }} ·
-                        Status: {{ report.status }} ·
-                        Category: {{ report.category|title }}
-                    </p>
-                    <p>{{ report.description }}</p>
-                    <p class="description">{{ report.created_at.strftime('%b %d, %Y %I:%M %p') }}</p>
-                </div>
-            {% endfor %}
-        {% else %}
-            <p class="description">You have not submitted any support reports yet.</p>
-        {% endif %}
+        <h2>Help and support</h2>
+        <p class="description">If something isn't working, return to the feed and try again. Never share your password with anyone offering support.</p>
         <a href="{{ url_for('feed') }}">Return to feed</a>
     </section>
 
@@ -915,6 +854,47 @@ body.gotya-settings-enhanced .settings-layout {
         transition-duration: .01ms !important;
     }
 }
+
+/* GOTYA_SETTINGS_CHATS_ALIGNMENT_V1 */
+/* Keep the shared Chats-style header visible on Settings. */
+body.gotya-settings-enhanced > header.gotya-topbar {
+    display: flex !important;
+}
+
+/* Match the desktop content alignment used by Chats. */
+@media screen and (min-width: 1251px) {
+    body.gotya-settings-enhanced main {
+        box-sizing: border-box;
+        width: auto !important;
+        max-width: none !important;
+        margin: 28px 286px 45px 255px !important;
+        padding: 0 0 40px !important;
+    }
+    #gotyaSettingsMenu,
+    #gotyaSettingsDetail {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+}
+@media screen and (min-width: 1024px) and (max-width: 1250px) {
+    body.gotya-settings-enhanced main {
+        box-sizing: border-box;
+        width: auto !important;
+        max-width: none !important;
+        margin: 28px 35px 45px 215px !important;
+        padding: 0 0 40px !important;
+    }
+    #gotyaSettingsMenu,
+    #gotyaSettingsDetail {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+}
+
 </style>
 <script>
 (function () {
@@ -1053,17 +1033,7 @@ body.gotya-settings-enhanced .settings-layout {
     const menu = document.createElement("section");
     menu.id = "gotyaSettingsMenu";
     menu.innerHTML = `
-        <div class="gotya-settings-brand">
-            <div class="gotya-settings-mark" aria-hidden="true">G</div>
-            <div class="gotya-settings-brand-copy">
-                <h2>Settings</h2>
-                <p>Make Gotya yours.</p>
-            </div>
-            <span class="gotya-settings-search" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="7"></circle><path d="m16 16 4.5 4.5"></path></svg>
-            </span>
-        </div>
-        <p class="gotya-settings-intro">Control your experience and privacy.</p>
+
     `;
 
     function iconSvg(name) {
@@ -1189,7 +1159,7 @@ body.gotya-settings-enhanced .settings-layout {
         "#password": "privacy-control",
         "#other-devices": "privacy-control",
         "#logout": "privacy-control",
-        "#help": "help"
+        "#help": "privacy-policy"
     };
 
     const requestedId = hashToCategory[window.location.hash];
