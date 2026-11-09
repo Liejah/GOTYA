@@ -671,21 +671,44 @@ body.gotya-feed {
     height: 34px;
 }
 
+
+/* Active Story ring */
+.gotya-feed .circle-avatar.has-active-story {
+    border: 3px solid #1877f2 !important;
+    box-shadow: 0 0 0 2px rgba(24,119,242,.20);
+}
+.gotya-feed .circle-add-story.has-active-story .circle-avatar {
+    border-style: solid !important;
+    border-color: #1877f2 !important;
+}
+
 </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/connection-status.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('static', filename='gotya-laptop.css') }}?v=2">
 </head>
 <body class="gotya-feed" data-theme="{{ gotya_theme|default("system") }}">
+{% set gotya_active_page = 'feed' %}
+{% include '_gotya_desktop_shell.html' %}
+
 <header class="gotya-topbar">
     <a class="gotya-brand" href="{{ url_for('feed') }}" aria-label="Gotya Home">
-        <span class="gotya-brand-mark">G</span><span>Gotya</span>
+        <span class="gotya-brand-mark">G</span><span>Gotya Page</span>
     </a>
     <div class="gotya-top-actions">
 
-    <span class="gotya-top-icon" role="img" aria-label="Search" title="Search">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-    </span>
+    <div class="gotya-home-search" id="gotyaHomeSearch">
+      <button class="gotya-top-icon" id="gotyaHomeSearchButton" type="button"
+              aria-label="Search people" title="Search people" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      </button>
+      <div class="gotya-home-search-panel" id="gotyaHomeSearchPanel" hidden>
+        <input id="gotyaHomeSearchInput" type="search" maxlength="30"
+               placeholder="Search people by name..." autocomplete="off"
+               aria-label="Search Gotya users">
+        <div id="gotyaHomeSearchResults" role="list" aria-live="polite"></div>
+      </div>
+    </div>
     <div class="gotya-notification-wrap">
       <button class="gotya-top-icon gotya-notification-button" id="gotyaNotificationButton"
               type="button" aria-label="Notifications" title="Notifications"
@@ -712,7 +735,6 @@ body.gotya-feed {
   </div>
 </header>
 
-<div class="gotya-connection-banner" data-gotya-connection-banner role="status" aria-live="polite" hidden></div>
 <div class="gotya-feed-layout">
     <main>
 
@@ -728,21 +750,25 @@ body.gotya-feed {
             <a href="{{ url_for('friends') }}">See all</a>
         </div>
         <div class="circle-list">
-            <a class="circle-person circle-add-story" href="{{ url_for('profile') }}" aria-label="View your profile" title="View your profile">
-                <span class="circle-avatar circle-own-avatar">
+            <a class="circle-person circle-add-story{% if own_story_exists %} has-active-story{% endif %}"
+               href="{% if own_story_exists %}{{ url_for('view_stories', user_id=current_user.id) }}{% else %}{{ url_for('create_story') }}{% endif %}"
+               aria-label="{% if own_story_exists %}View your Story{% else %}Add to your Story{% endif %}"
+               title="{% if own_story_exists %}View your Story{% else %}Add to your Story{% endif %}">
+                <span class="circle-avatar circle-own-avatar{% if own_story_exists %} has-active-story{% endif %}">
                     {% if current_user.profile_picture %}
-                    <img src="{{ url_for('profile_picture_file', filename=current_user.profile_picture) }}" alt="Your profile picture">
+                    <img src="{{ url_for('profile_picture_file', filename=current_user.profile_picture) }}"
+                         alt="Your profile picture">
                     {% else %}
                     {{ current_user.username[0]|upper }}
                     {% endif %}
                     <span class="story-add-plus" aria-hidden="true">+</span>
                 </span>
-                <span class="circle-name">Add to story</span>
+                <span class="circle-name">{% if own_story_exists %}Your story{% else %}Add to story{% endif %}</span>
             </a>
             {% for friend in circle_friends %}
-            <a class="circle-person" href="{{ url_for('public_profile', user_id=friend.id) }}"
+            <a class="circle-person" href="{{ url_for('view_stories', user_id=friend.id) }}"
                aria-label="View {{ friend.username }}'s profile">
-                <span class="circle-avatar">
+                <span class="circle-avatar has-active-story">
                     {% if friend.profile_picture %}
                     <img src="{{ url_for('profile_picture_file', filename=friend.profile_picture) }}"
                          alt="{{ friend.username }}'s profile picture">
@@ -754,75 +780,26 @@ body.gotya-feed {
             </a>
             {% endfor %}
         </div>
-        {% if not circle_friends %}
+        {% if not circle_friends and not own_story_exists %}
         <p class="circle-empty">Your friends will appear here when you connect.</p>
         {% endif %}
     </section>
 
-    <dialog id="gotyaCreateComposer" style="width:min(100%,620px);max-width:100%;max-height:90dvh;margin:auto 0 0;border:1px solid var(--line,#ddd);border-bottom:0;border-radius:24px 24px 0 0;padding:20px;background:var(--surface,#fff);color:var(--text,#302547);box-shadow:0 -12px 45px rgba(20,10,50,.2);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-            <strong style="font-size:18px;">Create</strong>
-            <button type="button" id="closeGotyaComposer" aria-label="Close composer" style="border:0;background:transparent;font-size:25px;padding:4px 10px;cursor:pointer;">&times;</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-            <strong>{{ current_user.username }}</strong>
-            <span style="color:var(--muted,#777);font-size:13px;">Create something to share</span>
-        </div>
-            <label for="gotyaCreateAudience">Who can see this?</label>
-            <select id="gotyaCreateAudience" name="audience" form="gotyaCreateForm" style="display:block;width:100%;padding:11px;margin:7px 0 15px;border:1px solid var(--line,#ddd);border-radius:12px;background:var(--surface,#fff);color:inherit;">
+    <section class="card media-composer" style="padding:16px;margin:16px 0;">
+        <h3 style="margin:0 0 10px;">Create a post</h3>
+        <form method="POST" action="{{ url_for('create_media_post') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <textarea name="content" maxlength="2000" placeholder="Write a caption (optional)" aria-label="Post caption" style="width:100%;min-height:72px;margin-bottom:10px;"></textarea>
+            <label for="post-media-file">Photo or video</label>
+            <input id="post-media-file" type="file" name="media" accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v" required style="display:block;max-width:100%;margin:10px 0;">
+            <label for="post-media-audience">Audience</label>
+            <select id="post-media-audience" name="audience" style="display:block;margin:8px 0 12px;padding:9px;">
                 <option value="public">Public</option>
                 <option value="friends">Friends</option>
             </select>
-        <form method="POST" action="{{ url_for('create_media_post') }}" enctype="multipart/form-data" id="gotyaCreateForm">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="content_type" id="gotyaContentType" value="post">
-            <label for="gotyaPublishType">Publishing as</label>
-            <select id="gotyaPublishType" style="display:block;width:100%;padding:11px;margin:7px 0 12px;border:1px solid var(--line,#ddd);border-radius:12px;background:var(--surface,#fff);color:inherit;">
-                <option value="post">Post</option>
-                <option value="reel">Reel</option>
-            </select>
-            <textarea name="content" maxlength="2000" placeholder="What's on your mind?" aria-label="Post caption" style="box-sizing:border-box;width:100%;min-height:100px;padding:12px;border:1px solid var(--line,#ddd);border-radius:14px;background:var(--surface,#fff);color:inherit;resize:vertical;"></textarea>
-            <label for="gotyaCreateMedia" style="display:block;margin-top:12px;">Photo or video</label>
-            <input id="gotyaCreateMedia" type="file" name="media" accept="image/*,video/mp4,video/webm,video/quicktime,video/x-m4v" required style="display:block;width:100%;margin:9px 0 14px;">
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <button type="submit" style="flex:1;padding:12px;border:0;border-radius:12px;background:var(--purple,#7555e8);color:white;font-weight:700;cursor:pointer;">Publish</button>
-                <a href="{{ url_for('create_story', editor=1) }}" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border:1px solid var(--line,#ddd);border-radius:12px;color:inherit;text-decoration:none;">Create Story</a>
-            </div>
+            <button type="submit" style="padding:10px 16px;border:0;border-radius:10px;cursor:pointer;">Publish media</button>
         </form>
-    </dialog>
-    <script>
-    (() => {
-        const dialog = document.getElementById('gotyaCreateComposer');
-        const closeButton = document.getElementById('closeGotyaComposer');
-        const typeSelect = document.getElementById('gotyaPublishType');
-        const typeInput = document.getElementById('gotyaContentType');
-        const mediaInput = document.getElementById('gotyaCreateMedia');
-
-        if (!dialog || !typeSelect || !typeInput || !mediaInput) return;
-
-        document.addEventListener('click', event => {
-            const openLink = event.target.closest('a[data-gotya-create]');
-            if (!openLink) return;
-            event.preventDefault();
-            if (!dialog.open) dialog.showModal();
-        });
-
-        closeButton?.addEventListener('click', () => dialog.close());
-
-        dialog.addEventListener('click', event => {
-            if (event.target === dialog) dialog.close();
-        });
-
-        typeSelect.addEventListener('change', () => {
-            const isReel = typeSelect.value === 'reel';
-            typeInput.value = isReel ? 'reel' : 'post';
-            mediaInput.accept = isReel
-                ? 'video/mp4,video/webm,video/quicktime,video/x-m4v'
-                : 'image/*,video/mp4,video/webm,video/quicktime,video/x-m4v';
-            mediaInput.value = '';
-        });
-    })();
-    </script>
+    </section>
 
     <div class="latest-posts-label">Latest posts</div>
 
@@ -850,7 +827,7 @@ body.gotya-feed {
                     <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">
                         {{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}
                     </time>
-                    ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {{ 'Friends' if post.audience == 'friends' else 'Public' }}
+                    · {{ 'Friends' if post.audience == 'friends' else 'Public' }}
                 </div>
             </div>
             <div class="post-menu-wrap">
@@ -1217,7 +1194,7 @@ document.addEventListener("click", function (event) {
     <a href="{{ url_for('watch') }}" aria-label="Watch">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg><small>Watch</small>
     </a>
-    <a href="#gotyaCreateComposer" data-gotya-create aria-label="Create post">
+    <a href="{{ url_for('profile') }}" aria-label="Create post">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><small>Create</small>
     </a>
     <a href="{{ url_for('messages') }}" aria-label="Chats">
@@ -1236,58 +1213,88 @@ document.addEventListener("click", function (event) {
   const badge = document.getElementById('gotyaNotificationBadge');
   const list = document.getElementById('gotyaNotificationList');
   const requestCount = document.getElementById('gotyaFriendRequestCount');
-  const tabs = Array.from(panel.querySelectorAll('[data-notification-tab]'));
-  if (!button || !panel || !list) return;
+  if (!button || !panel || !list || !badge) return;
 
-  let messages = [];
+  const tabs = Array.from(panel.querySelectorAll('[data-notification-tab]'));
+  const csrfToken = {{ csrf_token() | tojson }};
+  let items = [];
   let requests = [];
   let activeTab = 'all';
 
-  function empty(text) {
+  function empty(message) {
     list.replaceChildren();
     const p = document.createElement('p');
     p.className = 'gotya-notification-empty';
-    p.textContent = text;
+    p.textContent = message;
     list.appendChild(p);
-  }
-
-  function item(title, detail, href) {
-    const a = document.createElement('a');
-    a.className = 'gotya-notification-item';
-    a.href = href;
-    const strong = document.createElement('strong');
-    strong.textContent = title;
-    const span = document.createElement('span');
-    span.textContent = detail;
-    a.append(strong, span);
-    return a;
   }
 
   function render() {
     list.replaceChildren();
-    const rows = [];
-    if (activeTab === 'all' || activeTab === 'friends') {
-      requests.forEach(r => rows.push({
-        title: r.sender_name || 'Someone',
-        detail: 'Sent you a friend request',
-        href: {{ url_for('friends') | tojson }},
-        type: 'friends'
-      }));
-    }
-    if (activeTab === 'all') {
-      messages.forEach(m => rows.push({
-        title: m.sender_name || 'New message',
-        detail: m.preview || 'Sent you a message',
-        href: {{ url_for('messages') | tojson }},
-        type: 'message'
-      }));
-    }
+    const rows = items.filter(item =>
+      activeTab === 'all' || item.type === 'friends'
+    );
+
     if (!rows.length) {
-      empty(activeTab === 'friends' ? 'No pending friend requests.' : 'You?re all caught up.');
+      empty(activeTab === 'friends'
+        ? 'No pending friend requests.'
+        : "You're all caught up.");
       return;
     }
-    rows.slice(0, 30).forEach(r => {
-      list.appendChild(item(r.title, r.detail, r.href));
+
+    rows.slice(0, 30).forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'gotya-notification-item';
+
+      const link = document.createElement('a');
+      link.href = item.href || '#';
+      link.style.color = 'inherit';
+      link.style.textDecoration = 'none';
+      link.style.display = 'block';
+
+      const title = document.createElement('strong');
+      title.textContent = item.actor_name || 'Someone';
+      const detail = document.createElement('span');
+      detail.textContent = item.detail || 'New activity';
+      link.append(title, detail);
+      card.appendChild(link);
+
+      if (item.type === 'friends' && item.request_id) {
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '8px';
+        actions.style.marginTop = '8px';
+
+        [['accept', 'Confirm'], ['decline', 'Delete']].forEach(([action, label]) => {
+          const form = document.createElement('form');
+          form.method = 'post';
+          form.action = '/friends/' + encodeURIComponent(item.request_id) + '/respond';
+
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'action';
+          input.value = action;
+
+          const csrfInput = document.createElement('input');
+          csrfInput.type = 'hidden';
+          csrfInput.name = 'csrf_token';
+          csrfInput.value = csrfToken;
+
+          const submit = document.createElement('button');
+          submit.type = 'submit';
+          submit.textContent = label;
+          submit.style.border = '0';
+          submit.style.borderRadius = '8px';
+          submit.style.padding = '7px 11px';
+          submit.style.cursor = 'pointer';
+          submit.style.background = action === 'accept' ? '#7555e8' : '#f1edf7';
+          submit.style.color = action === 'accept' ? '#fff' : '#4a3c60';
+          form.append(input, csrfInput, submit);
+          actions.appendChild(form);
+        });
+        card.appendChild(actions);
+      }
+      list.appendChild(card);
     });
   }
 
@@ -1299,9 +1306,10 @@ document.addEventListener("click", function (event) {
       });
       if (!response.ok) throw new Error('Notification request failed');
       const data = await response.json();
-      messages = Array.isArray(data.unread_messages) ? data.unread_messages : [];
-      requests = Array.isArray(data.pending_friend_requests) ? data.pending_friend_requests : [];
-      const total = Number(data.unread_count || 0) + requests.length;
+      items = Array.isArray(data.items) ? data.items : [];
+      requests = Array.isArray(data.pending_friend_requests)
+        ? data.pending_friend_requests : [];
+      const total = Number(data.unread_count || 0);
       badge.textContent = total > 99 ? '99+' : String(total);
       badge.hidden = total < 1;
       requestCount.textContent = requests.length ? '(' + requests.length + ')' : '';
@@ -1318,7 +1326,7 @@ document.addEventListener("click", function (event) {
   }
 
   button.addEventListener('click', () => setOpen(panel.hidden));
-  close.addEventListener('click', () => setOpen(false));
+  if (close) close.addEventListener('click', () => setOpen(false));
   tabs.forEach(tab => tab.addEventListener('click', () => {
     activeTab = tab.dataset.notificationTab;
     tabs.forEach(t => t.classList.toggle('active', t === tab));
@@ -1340,7 +1348,83 @@ document.addEventListener("click", function (event) {
 })();
 </script>
 
-<script src="{{ url_for('static', filename='js/connection-status.js') }}?v=1"></script>
+
+<script>
+/* GOTYA_HOME_USER_SEARCH_V1 */
+(function () {
+  const button = document.getElementById("gotyaHomeSearchButton");
+  const panel = document.getElementById("gotyaHomeSearchPanel");
+  const input = document.getElementById("gotyaHomeSearchInput");
+  const results = document.getElementById("gotyaHomeSearchResults");
+  if (!button || !panel || !input || !results) return;
+
+  let timer = null;
+  let controller = null;
+
+  function showMessage(message) {
+    results.replaceChildren();
+    const item = document.createElement("p");
+    item.className = "gotya-home-search-message";
+    item.textContent = message;
+    results.appendChild(item);
+  }
+
+  button.addEventListener("click", function () {
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    button.setAttribute("aria-expanded", String(opening));
+    if (opening) input.focus();
+  });
+
+  input.addEventListener("input", function () {
+    clearTimeout(timer);
+    if (controller) controller.abort();
+    const query = input.value.trim();
+    if (query.length < 2) {
+      showMessage("Type at least 2 characters to search.");
+      return;
+    }
+
+    timer = setTimeout(async function () {
+      controller = new AbortController();
+      showMessage("Searching...");
+      try {
+        const response = await fetch(
+          "/api/users/search?q=" + encodeURIComponent(query),
+          { credentials: "same-origin", signal: controller.signal }
+        );
+        if (!response.ok) throw new Error("Search unavailable");
+        const data = await response.json();
+        results.replaceChildren();
+
+        if (!data.users || !data.users.length) {
+          showMessage("No matching people found.");
+          return;
+        }
+
+        data.users.forEach(function (user) {
+          const link = document.createElement("a");
+          link.className = "gotya-home-search-result";
+          link.href = user.url;
+          link.textContent = user.username;
+          results.appendChild(link);
+        });
+      } catch (error) {
+        if (error.name !== "AbortError") showMessage("Search could not be completed.");
+      }
+    }, 250);
+  });
+
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest("#gotyaHomeSearch")) {
+      panel.hidden = true;
+      button.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  showMessage("Type at least 2 characters to search.");
+})();
+</script>
+
 </body>
 </html>
-

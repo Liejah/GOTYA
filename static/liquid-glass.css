@@ -1,0 +1,75 @@
+﻿/* GOTYA — SITE-WIDE LIQUID GLASS */
+:root {
+    --gotya-glass-bg: rgba(255,255,255,.72);
+    --gotya-glass-border: rgba(255,255,255,.55);
+    --gotya-glass-shadow:
+        inset 0 1px 0 rgba(255,255,255,.55),
+        0 8px 28px rgba(45,30,85,.09);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background-image:
+        radial-gradient(ellipse at 8% 0%, rgba(177,151,255,.13), transparent 42%),
+        radial-gradient(ellipse at 95% 15%, rgba(202,185,255,.13), transparent 38%);
+}
+
+/* Shared glass surfaces across existing pages */
+:is(
+    header, nav, aside,
+    .card, .panel, .top, .surface,
+    .chat-header, .composer,
+    .gotya-mobile-nav, .gotya-topbar,
+    .gotya-notification-panel, .gotya-call-card,
+    .profile-action-card, .media-preview-card,
+    .post-menu-panel, .chat-more-menu,
+    .plus-menu, .location-options, .attachment-submenu,
+    [role="dialog"], [role="menu"]
+) {
+    -webkit-backdrop-filter: blur(22px) saturate(165%);
+    backdrop-filter: blur(22px) saturate(165%);
+    background-color: var(--gotya-glass-bg);
+    border-color: var(--gotya-glass-border);
+    box-shadow: var(--gotya-glass-shadow);
+}
+
+/* Glass finish for existing controls — dimensions unchanged */
+:is(button, input, textarea, select) {
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    backdrop-filter: blur(14px) saturate(150%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.28);
+}
+
+/* Dark theme */
+:is(html[data-theme="dark"], body[data-theme="dark"], [data-theme="dark"]) :is(
+    header, nav, aside,
+    .card, .panel, .top, .surface,
+    .chat-header, .composer,
+    .gotya-mobile-nav, .gotya-topbar,
+    .gotya-notification-panel, .gotya-call-card,
+    .profile-action-card, .media-preview-card,
+    .post-menu-panel, .chat-more-menu,
+    .plus-menu, .location-options, .attachment-submenu,
+    [role="dialog"], [role="menu"]
+) {
+    background-color: rgba(35,29,51,.76);
+    border-color: rgba(255,255,255,.13);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.10),
+        0 8px 28px rgba(0,0,0,.20);
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+    }
+}
+
+
+
