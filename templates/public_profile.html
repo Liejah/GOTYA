@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -332,17 +332,144 @@
     .public-social-counts small { font-size: 11px; }
 }
 
+
+/* Active Story ring around the existing public profile picture */
+.story-profile-avatar-link {
+    display: inline-flex;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    color: inherit;
+    text-decoration: none;
+}
+.story-profile-avatar-link.has-active-story {
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px #1877f2, 0 0 0 6px rgba(24,119,242,.22);
+}
+
+
+/* GOTYA_PUBLIC_PROFILE_PERSONAL_INFO_V1 */
+@media screen and (min-width: 1024px) {
+    body {
+        padding: 0 !important;
+        overflow-x: hidden;
+    }
+    body > .page {
+        width: calc(100vw - 565px);
+        max-width: none;
+        margin: 24px 300px 40px 235px;
+    }
+    body > .gotya-public-profile-personal-info {
+        display: block;
+        position: fixed;
+        top: 88px;
+        right: 24px;
+        width: 260px;
+        max-height: calc(100dvh - 112px);
+        overflow-y: auto;
+        padding: 20px;
+        border-radius: 16px;
+        background: #fff;
+        color: #302547;
+        box-shadow: 0 1px 5px #00000012;
+        z-index: 10;
+    }
+    body > .gotya-public-profile-personal-info h2 {
+        margin: 0 0 18px;
+        font-size: 17px;
+    }
+    body > .gotya-desktop-right-panel {
+        display: none !important;
+    }
+}
+@media screen and (min-width: 1024px) and (max-width: 1250px) {
+    body > .page {
+        width: calc(100vw - 500px);
+        margin-left: 215px;
+        margin-right: 270px;
+    }
+    body > .gotya-public-profile-personal-info {
+        right: 14px;
+        width: 240px;
+    }
+}
+.gotya-public-profile-personal-info {
+    display: none;
+}
+.gotya-public-info-identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+.gotya-public-info-identity img,
+.gotya-public-info-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.gotya-public-info-avatar {
+    display: grid;
+    place-items: center;
+    background: #7555e8;
+    color: white;
+    font-size: 22px;
+    font-weight: 700;
+}
+.gotya-public-info-item {
+    padding: 13px 0;
+    border-top: 1px solid #eee9f4;
+}
+.gotya-public-info-item span {
+    display: block;
+    color: #777080;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+.gotya-public-info-item p {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+.gotya-public-info-private {
+    color: #777080;
+    font-size: 13px;
+}
+.gotya-public-info-about {
+    display: inline-block;
+    margin-top: 14px;
+    color: #7555e8;
+    text-decoration: none;
+    font-weight: 600;
+}
+@media screen and (max-width: 1023px) {
+    body {
+        padding: 12px 10px 30px;
+    }
+}
+
+
+/* GOTYA_PUBLIC_PROFILE_MOBILE_GUARD_V1 */
+.gotya-desktop-right-panel {
+    display: none !important;
+}
+@media screen and (max-width: 1023px) {
+    .gotya-topbar,
+    .gotya-desktop-nav {
+        display: none !important;
+    }
+}
+/* END GOTYA_PUBLIC_PROFILE_MOBILE_GUARD_V1 */
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='gotya-laptop.css') }}?v=3">
 </head>
 <body>
+{% set gotya_active_page = 'profile' %}
+{% set gotya_header_label = 'Gotya' %}
+{% include '_gotya_shared_topbar.html' %}
+{% include '_gotya_desktop_shell.html' %}
 <div class="page">
     {% set is_locked_for_visitor = profile_locked and not is_profile_owner %}
-    <nav class="nav" aria-label="Main navigation">
-        <a href="{{ url_for('feed') }}">Feed</a>
-        <a href="{{ url_for('friends') }}">Friends</a>
-        <a href="{{ url_for('profile') }}">My profile</a>
-        <a href="{{ url_for('messages') }}">Messages</a>
-    </nav>
 
     <section class="public-cover" aria-label="Profile cover photo">
         {% if profile_user.cover_video and not is_locked_for_visitor %}
@@ -359,15 +486,19 @@
         {% endif %}
         <div class="identity">
             <div class="identity-text">
-            {% if profile_user.profile_picture %}
-                <img class="avatar"
-                     src="{{ url_for('profile_picture_file', filename=profile_user.profile_picture) }}"
-                     alt="{{ profile_user.username }}'s profile picture">
-            {% else %}
-                <div class="avatar avatar-fallback" aria-hidden="true">
-                    {{ profile_user.username[0]|upper }}
-                </div>
-            {% endif %}
+            <a class="story-profile-avatar-link{% if profile_has_active_story %} has-active-story{% endif %}"
+               href="{% if profile_has_active_story %}{{ url_for('view_stories', user_id=profile_user.id) }}{% else %}#{% endif %}"
+               {% if profile_has_active_story %}aria-label="View {{ profile_user.username }}'s Story"{% else %}aria-label="{{ profile_user.username }}'s profile picture"{% endif %}>
+                {% if profile_user.profile_picture %}
+                    <img class="avatar"
+                         src="{{ url_for('profile_picture_file', filename=profile_user.profile_picture) }}"
+                         alt="{{ profile_user.username }}'s profile picture">
+                {% else %}
+                    <div class="avatar avatar-fallback" aria-hidden="true">
+                        {{ profile_user.username[0]|upper }}
+                    </div>
+                {% endif %}
+            </a>
             <div>
                 <h1>
                     {{ profile_user.username }}
@@ -508,6 +639,50 @@
     {% endif %}
     {% endif %}
 </div>
+
+<aside class="gotya-public-profile-personal-info" aria-label="Profile owner's personal information">
+    <h2>Personal information</h2>
+    <div class="gotya-public-info-identity">
+        {% if profile_user.profile_picture %}
+        <img src="{{ url_for('profile_picture_file', filename=profile_user.profile_picture) }}"
+             alt="{{ profile_user.username }}'s profile picture">
+        {% else %}
+        <div class="gotya-public-info-avatar">{{ profile_user.username[:1]|upper }}</div>
+        {% endif %}
+        <div>
+            <strong>{{ profile_user.username }}</strong>
+            <div class="muted">Gotya member</div>
+        </div>
+    </div>
+
+    {% if is_locked_for_visitor %}
+        <p class="gotya-public-info-private">This person's personal information is private.</p>
+    {% else %}
+        {% if profile_user.bio %}
+        <section class="gotya-public-info-item">
+            <span>Bio</span>
+            <p>{{ profile_user.bio }}</p>
+        </section>
+        {% endif %}
+        <section class="gotya-public-info-item">
+            <span>Friends</span>
+            <strong>{{ friend_count }}</strong>
+        </section>
+        <section class="gotya-public-info-item">
+            <span>Followers</span>
+            <strong>{{ followers_count }}</strong>
+        </section>
+        <section class="gotya-public-info-item">
+            <span>Following</span>
+            <strong>{{ following_count }}</strong>
+        </section>
+        <a class="gotya-public-info-about"
+           href="{{ url_for('public_profile', user_id=profile_user.id, tab='about') }}">
+           View about information
+        </a>
+    {% endif %}
+</aside>
+
 <script>
 document.addEventListener("click", function (event) {
     const trigger = event.target.closest(".profile-post-menu > button");

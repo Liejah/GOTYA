@@ -1,0 +1,643 @@
+
+/* GOTYA LAPTOP DESIGN ? all rules isolated to laptop/desktop */
+@media screen and (min-width: 1024px) {
+  :root {
+    --gotya-bg: #f6f3fc;
+    --gotya-purple: #7555e8;
+    --gotya-purple-dark: #6040d0;
+    --gotya-text: #302547;
+    --gotya-muted: #827991;
+    --gotya-border: #ebe6f3;
+    --gotya-surface: rgba(255,255,255,.94);
+    --gotya-shadow: 0 8px 30px rgba(48,37,71,.055);
+    --gotya-radius: 18px;
+  }
+
+  html, body {
+    background: var(--gotya-bg) !important;
+    color: var(--gotya-text);
+  }
+
+  body {
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+  }
+
+  /* Shared top bar */
+  .gotya-topbar,
+  .chats-topbar,
+  body > header > .topbar {
+    box-sizing: border-box;
+    min-height: 70px;
+    background: var(--gotya-surface) !important;
+    border-bottom: 1px solid var(--gotya-border) !important;
+    box-shadow: 0 3px 20px rgba(48,37,71,.045) !important;
+    backdrop-filter: blur(18px);
+  }
+
+  .gotya-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 30px !important;
+  }
+
+  .gotya-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--gotya-purple) !important;
+    font-size: 23px !important;
+    font-weight: 800;
+    letter-spacing: -.7px;
+    text-decoration: none;
+  }
+
+  .gotya-brand-mark {
+    display: inline-grid;
+    place-items: center;
+    width: 39px;
+    height: 39px;
+    border-radius: 13px;
+    color: white !important;
+    background: linear-gradient(145deg,#8c70f3,#6040d0) !important;
+    box-shadow: 0 5px 13px rgba(117,85,232,.25);
+  }
+
+  .gotya-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .gotya-top-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    color: var(--gotya-text);
+    background: #f4f0fb;
+    border: 1px solid var(--gotya-border);
+  }
+
+  .gotya-top-icon svg,
+  .gotya-desktop-nav-icon svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Desktop left navigation */
+  .gotya-desktop-nav {
+    position: fixed;
+    z-index: 1050;
+    top: 88px;
+    bottom: 22px;
+    left: 22px;
+    width: 208px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 20px 13px;
+    overflow-y: auto;
+    background: var(--gotya-surface);
+    border: 1px solid var(--gotya-border);
+    border-radius: 21px;
+    box-shadow: var(--gotya-shadow);
+    backdrop-filter: blur(18px);
+  }
+
+  .gotya-desktop-nav-label {
+    padding: 4px 12px 12px;
+    color: #a097ae;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+  }
+
+  .gotya-desktop-nav a {
+    min-height: 48px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 0 13px;
+    color: #514765;
+    border: 1px solid transparent;
+    border-radius: 13px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background .18s ease, color .18s ease, transform .18s ease;
+  }
+
+  .gotya-desktop-nav a:hover {
+    color: var(--gotya-purple-dark);
+    background: #f2edff;
+    transform: translateX(2px);
+  }
+
+  .gotya-desktop-nav a:first-of-type {
+    color: var(--gotya-purple-dark);
+    background: #f0ebff;
+    border-color: #e8e0ff;
+  }
+
+  .gotya-desktop-nav-icon {
+    width: 23px;
+    height: 23px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 23px;
+    color: var(--gotya-purple);
+  }
+
+  .gotya-desktop-nav-footer {
+    margin-top: auto;
+    padding: 16px 9px 3px;
+    color: #a49bb2;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .7px;
+  }
+
+  .gotya-mobile-nav { display: none !important; }
+
+  /* Home: center feed and contextual right rail */
+  body.gotya-feed:not(.gotya-profile-page) .gotya-feed-layout {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 27px 286px 45px 252px !important;
+    padding: 0 !important;
+  }
+
+  body.gotya-feed:not(.gotya-profile-page) .gotya-feed-layout > main {
+    width: 100%;
+    max-width: 720px;
+    min-width: 0;
+    margin: 0 auto;
+  }
+
+  .circle-section,
+  .gotya-feed-layout .card {
+    background: white;
+    border: 1px solid var(--gotya-border);
+    border-radius: var(--gotya-radius);
+    box-shadow: var(--gotya-shadow);
+  }
+
+  .circle-section { padding: 19px; }
+
+  .gotya-desktop-right-panel {
+    position: fixed;
+    z-index: 100;
+    top: 92px;
+    right: 22px;
+    width: 238px;
+    max-height: calc(100vh - 115px);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow-y: auto;
+  }
+
+  .gotya-desktop-side-card {
+    padding: 19px;
+    background: white;
+    border: 1px solid var(--gotya-border);
+    border-radius: var(--gotya-radius);
+    box-shadow: var(--gotya-shadow);
+  }
+
+  .gotya-desktop-side-card h3 {
+    margin: 0 0 10px;
+    color: var(--gotya-text);
+    font-size: 14px;
+    font-weight: 750;
+  }
+
+  .gotya-desktop-side-card p {
+    margin: 0 0 12px;
+    color: var(--gotya-muted);
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .gotya-desktop-side-card a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 0;
+    color: var(--gotya-purple-dark);
+    border-top: 1px solid #f0ecf5;
+    font-size: 12px;
+    font-weight: 650;
+    text-decoration: none;
+  }
+
+  .gotya-side-arrow::after {
+    content: "?";
+    font-size: 20px;
+    line-height: 12px;
+  }
+
+  .gotya-desktop-side-note {
+    padding: 5px 8px;
+    color: #a097ae;
+    font-size: 11px;
+  }
+
+  /* Other standard pages */
+  body:has(> .page) > .page {
+    width: auto !important;
+    max-width: 1120px;
+    margin: 28px 35px 45px 255px !important;
+  }
+
+  body:has(.columns) main,
+  body:has(.chats-people) > main {
+    box-sizing: border-box;
+    width: auto;
+    margin: 28px 35px 45px 255px;
+  }
+
+  body:has(.columns) .columns {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 20px;
+  }
+
+  body:has(.chats-people) .inbox {
+    border-radius: 18px;
+    border: 1px solid var(--gotya-border);
+    box-shadow: var(--gotya-shadow);
+  }
+
+  body:has(.chats-people) .chats-people {
+    gap: 12px;
+  }
+
+  .gotya-profile-main {
+    box-sizing: border-box;
+    width: auto !important;
+    max-width: 1120px !important;
+    margin: 26px 35px 45px 255px !important;
+  }
+
+  body:has(.public-cover) > .page {
+    margin-left: 255px !important;
+  }
+
+  .chat {
+    box-sizing: border-box;
+    width: auto !important;
+    max-width: 1120px;
+    margin: 25px 35px 40px 255px !important;
+    border: 1px solid var(--gotya-border);
+    border-radius: 20px;
+    box-shadow: var(--gotya-shadow);
+    overflow: hidden;
+  }
+
+  body:has(.settings-layout) .settings-layout {
+    display: grid;
+    grid-template-columns: 235px minmax(0,1fr);
+    gap: 20px;
+    margin-left: 255px;
+    margin-right: 35px;
+  }
+
+  body:has(.settings-layout) .settings-nav,
+  body:has(.settings-layout) .settings-content {
+    background: white;
+    border: 1px solid var(--gotya-border);
+    border-radius: var(--gotya-radius);
+    box-shadow: var(--gotya-shadow);
+  }
+
+  body:has(.editor-field) .card {
+    max-width: 850px;
+    margin: 28px 35px 40px 255px;
+    padding: 25px;
+    background: white;
+    border: 1px solid var(--gotya-border);
+    border-radius: var(--gotya-radius);
+    box-shadow: var(--gotya-shadow);
+  }
+
+  body:has(.report) .report {
+    margin: 25px 35px 25px 255px;
+    padding: 22px;
+    background: white;
+    border: 1px solid var(--gotya-border);
+    border-radius: var(--gotya-radius);
+    box-shadow: var(--gotya-shadow);
+  }
+
+  .card, .video-card, .sidecard, .panel,
+  .profile-post, .settings-nav, .settings-content {
+    border-color: var(--gotya-border) !important;
+    border-radius: var(--gotya-radius) !important;
+  }
+
+  .primary {
+    background: var(--gotya-purple) !important;
+    border-color: var(--gotya-purple) !important;
+  }
+
+  /* Watch uses its own video sidebar; keep it inside the content area */
+  body:has(.video-card) > .page .layout {
+    grid-template-columns: minmax(0,1fr) 270px;
+    gap: 22px;
+  }
+
+  /* Laptop widths: preserve usable content space */
+  @media (min-width: 1024px) and (max-width: 1250px) {
+    .gotya-desktop-nav { width: 180px; }
+    .gotya-desktop-right-panel { display: none; }
+
+    body.gotya-feed:not(.gotya-profile-page) .gotya-feed-layout {
+      margin-left: 215px !important;
+      margin-right: 28px !important;
+    }
+
+    body:has(> .page) > .page,
+    body:has(.columns) main,
+    body:has(.chats-people) > main,
+    .gotya-profile-main,
+    .chat {
+      margin-left: 215px !important;
+    }
+
+    body:has(.settings-layout) .settings-layout {
+      margin-left: 215px;
+    }
+  }
+}
+
+/* Compact laptop sidebar menu — mobile layouts are untouched */
+@media screen and (min-width: 1024px) {
+  .gotya-desktop-nav {
+    gap: 4px !important;
+  }
+
+  .gotya-desktop-nav a {
+    min-height: 40px !important;
+  }
+
+  .gotya-desktop-nav-label {
+    padding-bottom: 7px !important;
+  }
+
+  .gotya-desktop-nav-footer {
+    margin-top: 8px !important;
+    padding-top: 8px !important;
+  }
+}
+
+@media screen and (min-width:1024px) {
+  .gotya-desktop-nav { gap:3px !important; }
+  .gotya-desktop-nav a { min-height:38px !important; }
+  .gotya-desktop-nav-label { padding-bottom:5px !important; }
+  .gotya-desktop-nav-footer {
+    margin-top:6px !important;
+    padding-top:6px !important;
+  }
+}
+
+/* Final compact desktop menu */
+@media screen and (min-width:1024px) {
+  .gotya-desktop-nav { gap:2px !important; }
+  .gotya-desktop-nav a {
+    min-height:38px !important;
+    padding:5px 10px !important;
+    margin:0 !important;
+  }
+  .gotya-desktop-nav a.active {
+    background:#eee9ff !important;
+    color:#6040d0 !important;
+    font-weight:700 !important;
+  }
+}
+
+/* Consistent sidebar inner spacing on every desktop page */
+@media screen and (min-width:1024px) {
+  .gotya-desktop-nav {
+    padding: 20px 13px !important;
+    gap: 7px !important;
+  }
+
+  .gotya-desktop-nav-label {
+    padding: 4px 12px 12px !important;
+  }
+
+  .gotya-desktop-nav a {
+    min-height: 48px !important;
+    padding: 0 13px !important;
+    margin: 0 !important;
+  }
+
+  .gotya-desktop-nav-footer {
+    padding: 16px 9px 3px !important;
+  }
+}
+
+/* GOTYA — LOCK FEED SIDEBAR DESIGN ACROSS ALL DESKTOP PAGES */
+@media screen and (min-width:1024px) {
+  .gotya-desktop-nav {
+    position: fixed !important;
+    top: 88px !important;
+    bottom: 22px !important;
+    left: 22px !important;
+    width: 208px !important;
+    padding: 20px 13px !important;
+    gap: 7px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+  }
+
+  .gotya-desktop-nav-label {
+    padding: 4px 12px 12px !important;
+  }
+
+  .gotya-desktop-nav a {
+    min-height: 48px !important;
+    padding: 0 13px !important;
+    margin: 0 !important;
+    gap: 13px !important;
+    box-sizing: border-box !important;
+  }
+
+  .gotya-desktop-nav-footer {
+    margin-top: auto !important;
+    padding: 16px 9px 3px !important;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1250px) {
+  .gotya-desktop-nav {
+    width: 180px !important;
+  }
+}
+
+/* Fix excess inner side spacing on desktop sidebar */
+@media screen and (min-width:1024px) {
+  .gotya-desktop-nav {
+    padding-left: 13px !important;
+    padding-right: 13px !important;
+  }
+
+  .gotya-desktop-nav > a {
+    width: 100% !important;
+    align-self: stretch !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+
+/* Fix excess inner side spacing on desktop sidebar */
+@media screen and (min-width:1024px) {
+  .gotya-desktop-nav {
+    padding-left: 13px !important;
+    padding-right: 13px !important;
+  }
+
+  .gotya-desktop-nav > a {
+    width: 100% !important;
+    align-self: stretch !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+
+/* Gotya shared laptop shell integration */
+@media screen and (min-width:1024px) {
+  .gotya-desktop-nav a:first-of-type:not(.active) {
+    color:#514765 !important;background:transparent !important;border-color:transparent !important;
+  }
+  .gotya-desktop-nav a.active {
+    color:#6040d0 !important;background:#eee9ff !important;border-color:#e8e0ff !important;font-weight:700 !important;
+  }
+  .gotya-desktop-nav-icon svg {width:23px;height:23px;}
+}
+@media screen and (min-width:1251px) {
+  body:has(> .page) > .page,
+  body:has(.columns) main,
+  body:has(.chats-people) > main,
+  .gotya-profile-main {margin-right:286px !important;}
+  body:has(.settings-layout) .settings-layout {margin-right:286px !important;}
+}
+
+
+/* GOTYA_SHARED_HOME_HEADER_SPACING_V1 */
+.gotya-topbar {
+    min-height: 62px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: #fff;
+    border-bottom: 1px solid #e9e3f2;
+    box-shadow: none;
+}
+.gotya-topbar .gotya-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #302547;
+    font-size: 19px;
+    font-weight: 800;
+    text-decoration: none;
+}
+.gotya-topbar .gotya-brand-mark {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: linear-gradient(135deg,#9d89ff,#704be5);
+    color: #fff;
+}
+.gotya-topbar .gotya-top-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    flex-shrink: 0;
+}
+.gotya-topbar .gotya-top-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 7px;
+    border: 0;
+    border-radius: 50%;
+    background: #f2edfc;
+    color: #7555e8;
+    cursor: pointer;
+}
+.gotya-topbar .gotya-top-icon svg {
+    width: 19px;
+    height: 19px;
+}
+
+
+/* GOTYA_HOME_USER_SEARCH_CSS_V1 */
+.gotya-home-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.gotya-home-search-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 1600;
+  width: min(320px, calc(100vw - 28px));
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e9e3f2;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(38, 25, 65, .16);
+}
+.gotya-home-search-panel[hidden] { display: none !important; }
+.gotya-home-search-panel input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #ded6ed;
+  border-radius: 10px;
+  outline: none;
+  color: #302547;
+  background: #fff;
+  font: inherit;
+}
+.gotya-home-search-panel input:focus { border-color: #7555e8; }
+.gotya-home-search-result {
+  display: block;
+  padding: 10px 9px;
+  margin-top: 4px;
+  border-radius: 8px;
+  color: #302547;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.gotya-home-search-result:hover { background: #f2edff; }
+.gotya-home-search-message {
+  margin: 10px 4px 2px;
+  color: #766d83;
+  font-size: 13px;
+}
