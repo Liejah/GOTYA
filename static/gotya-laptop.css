@@ -1,6 +1,6 @@
-
+ï»¿
 /* GOTYA LAPTOP DESIGN ? all rules isolated to laptop/desktop */
-@media screen and (min-width: 1024px) {
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   :root {
     --gotya-bg: #f6f3fc;
     --gotya-purple: #7555e8;
@@ -362,7 +362,7 @@
   }
 
   /* Laptop widths: preserve usable content space */
-  @media (min-width: 1024px) and (max-width: 1250px) {
+  @media (min-width: 1024px) and (max-width: 1250px) and (hover: hover) and (pointer: fine) {
     .gotya-desktop-nav { width: 180px; }
     .gotya-desktop-right-panel { display: none; }
 
@@ -385,8 +385,8 @@
   }
 }
 
-/* Compact laptop sidebar menu — mobile layouts are untouched */
-@media screen and (min-width: 1024px) {
+/* Compact laptop sidebar menu â€” mobile layouts are untouched */
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .gotya-desktop-nav {
     gap: 4px !important;
   }
@@ -405,7 +405,7 @@
   }
 }
 
-@media screen and (min-width:1024px) {
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .gotya-desktop-nav { gap:3px !important; }
   .gotya-desktop-nav a { min-height:38px !important; }
   .gotya-desktop-nav-label { padding-bottom:5px !important; }
@@ -416,7 +416,7 @@
 }
 
 /* Final compact desktop menu */
-@media screen and (min-width:1024px) {
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .gotya-desktop-nav { gap:2px !important; }
   .gotya-desktop-nav a {
     min-height:38px !important;
@@ -431,7 +431,7 @@
 }
 
 /* Consistent sidebar inner spacing on every desktop page */
-@media screen and (min-width:1024px) {
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .gotya-desktop-nav {
     padding: 20px 13px !important;
     gap: 7px !important;
@@ -452,8 +452,8 @@
   }
 }
 
-/* GOTYA — LOCK FEED SIDEBAR DESIGN ACROSS ALL DESKTOP PAGES */
-@media screen and (min-width:1024px) {
+/* GOTYA â€” LOCK FEED SIDEBAR DESIGN ACROSS ALL DESKTOP PAGES */
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .gotya-desktop-nav {
     position: fixed !important;
     top: 88px !important;
@@ -485,14 +485,14 @@
   }
 }
 
-@media screen and (min-width:1024px) and (max-width:1250px) {
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) and (max-width:1250px) {
   .gotya-desktop-nav {
     width: 180px !important;
   }
 }
 
 /* Fix excess inner side spacing on desktop sidebar */
-@media screen and (min-width:1024px) {
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .gotya-desktop-nav {
     padding-left: 13px !important;
     padding-right: 13px !important;
@@ -507,7 +507,7 @@
 }
 
 /* Fix excess inner side spacing on desktop sidebar */
-@media screen and (min-width:1024px) {
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .gotya-desktop-nav {
     padding-left: 13px !important;
     padding-right: 13px !important;
@@ -522,7 +522,7 @@
 }
 
 /* Gotya shared laptop shell integration */
-@media screen and (min-width:1024px) {
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
   .gotya-desktop-nav a:first-of-type:not(.active) {
     color:#514765 !important;background:transparent !important;border-color:transparent !important;
   }
@@ -531,6 +531,8 @@
   }
   .gotya-desktop-nav-icon svg {width:23px;height:23px;}
 }
+/* DESKTOP-ONLY PROTECTION FOR SHARED LAPTOP STYLES */
+@media screen and (min-width: 1024px) and (hover: hover) and (pointer: fine) {
 @media screen and (min-width:1251px) {
   body:has(> .page) > .page,
   body:has(.columns) main,
@@ -640,4 +642,20 @@
   margin: 10px 4px 2px;
   color: #766d83;
   font-size: 13px;
+}
+
+
+
+}
+/* GOTYA DEVICE SEPARATION - PHONE UI PROTECTION */
+@media screen and (max-width: 1023px),
+       screen and (hover: none),
+       screen and (pointer: coarse) {
+    .gotya-desktop-nav,
+    .gotya-desktop-right-panel,
+    .gotya-topbar {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
 }
