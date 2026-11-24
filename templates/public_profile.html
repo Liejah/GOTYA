@@ -460,6 +460,36 @@
     }
 }
 /* END GOTYA_PUBLIC_PROFILE_MOBILE_GUARD_V1 */
+
+/* GOTYA UNIFIED NEUTRAL MENU STYLE */
+.post-menu-panel,
+.profile-post-menu-panel,
+.gotya-post-menu-panel {
+    background-color: #f2f2f2 !important;
+    color: var(--text, #222222) !important;
+    box-shadow: none !important;
+}
+
+.gotya-post-menu-item,
+button.gotya-post-menu-label {
+    background: transparent !important;
+    color: var(--text, #222222) !important;
+    opacity: 1;
+    visibility: visible;
+}
+
+.gotya-post-menu-item:hover,
+button.gotya-post-menu-label:hover,
+.gotya-post-menu-item:focus,
+button.gotya-post-menu-label:focus {
+    background: transparent !important;
+    color: var(--text, #222222) !important;
+}
+
+.gotya-post-menu-item .gotya-menu-icon,
+button.gotya-post-menu-label .gotya-menu-icon {
+    color: var(--text, #222222) !important;
+}
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='gotya-laptop.css') }}?v=3">
 
@@ -492,6 +522,177 @@
 .gotya-watch-post-menu .gotya-post-menu-panel {
     position:absolute;top:34px;right:0;
 }
+
+/* Audience choices stay hidden until Set audience is clicked. */
+.gotya-post-audience form {display:none}
+.gotya-post-audience.is-expanded form {display:block}
+button.gotya-post-menu-label {
+    width:100%;border:0;background:transparent;text-align:left;cursor:pointer;
+}
+
+
+/* GOTYA floating post menu refinement */
+.post-menu-wrap,
+.profile-post-menu,
+.gotya-watch-post-menu {
+    position:relative;
+}
+
+.post-menu-panel,
+.profile-post-menu-panel,
+.gotya-post-menu-panel {
+    position:absolute!important;
+    z-index:1000!important;
+    box-sizing:border-box;
+    width:190px;
+    min-width:190px;
+    padding:6px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--surface,var(--card));
+    box-shadow:0 12px 32px rgba(0,0,0,.16);
+}
+
+.post-menu-panel[hidden],
+.profile-post-menu-panel[hidden],
+.gotya-post-menu-panel[hidden] {
+    display:none!important;
+}
+
+.gotya-post-menu-item,
+button.gotya-post-menu-label {
+    display:block;
+    box-sizing:border-box;
+    width:100%;
+    padding:9px 10px;
+    border:0;
+    border-radius:9px;
+    background:transparent;
+    color:var(--text);
+    font-size:13px;
+    font-weight:600;
+    line-height:1.35;
+    text-align:left;
+    cursor:pointer;
+}
+
+.gotya-post-menu-item:hover,
+button.gotya-post-menu-label:hover {
+    background:var(--page,#f6f3fc);
+}
+
+.gotya-post-audience form {
+    display:none;
+    margin:0;
+    padding-left:8px;
+}
+
+.gotya-post-audience.is-expanded form {
+    display:block;
+}
+
+
+/* Keep an open post menu inside the visible screen. */
+.post-menu-panel.gotya-viewport-menu,
+.profile-post-menu-panel.gotya-viewport-menu,
+.gotya-post-menu-panel.gotya-viewport-menu {
+    position:fixed!important;
+    z-index:99999!important;
+    box-sizing:border-box!important;
+    max-height:70vh;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+}
+
+
+/* Consistent menu icon alignment */
+.gotya-menu-icon {
+    display:inline-block;
+    width:17px;
+    height:17px;
+    flex:0 0 17px;
+    vertical-align:middle;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+}
+.gotya-post-menu-item,
+button.gotya-post-menu-label {
+    display:flex!important;
+    align-items:center;
+    gap:10px;
+}
+.gotya-post-menu-item:disabled {
+    display:flex!important;
+    align-items:center;
+}
+
+
+
+/* GOTYA clean post-menu icon styling */
+.gotya-post-menu-item,
+button.gotya-post-menu-label {
+    display:flex!important;
+    align-items:center!important;
+    gap:11px!important;
+    box-sizing:border-box;
+    min-height:38px;
+    padding:9px 11px!important;
+    border-radius:9px;
+    font-size:13px;
+    font-weight:550;
+    line-height:1.25;
+    text-align:left;
+}
+
+.gotya-post-menu-item .gotya-menu-icon,
+button.gotya-post-menu-label .gotya-menu-icon {
+    display:block;
+    width:18px;
+    height:18px;
+    min-width:18px;
+    flex:0 0 18px;
+    margin:0;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:1.75;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    opacity:.88;
+}
+
+.gotya-post-menu-item:not(.gotya-post-delete):not(:disabled) .gotya-menu-icon,
+button.gotya-post-menu-label .gotya-menu-icon {
+    color:var(--muted);
+}
+
+.gotya-post-menu-item:not(:disabled):hover .gotya-menu-icon,
+button.gotya-post-menu-label:hover .gotya-menu-icon {
+    color:var(--text);
+    opacity:1;
+}
+
+.gotya-post-menu-item:focus-visible,
+button.gotya-post-menu-label:focus-visible {
+    outline:2px solid rgba(117,85,232,.45);
+    outline-offset:1px;
+}
+
+.gotya-post-menu-item.gotya-post-delete {
+    color:var(--text);
+}
+
+.gotya-post-menu-item.gotya-post-delete:hover {
+    background:var(--page,#f6f3fc);
+}
+
+.gotya-post-menu-item:disabled {
+    opacity:.55;
+    cursor:not-allowed;
+}
+
 </style>
 
 </head>
@@ -570,116 +771,7 @@
                     </div>
                 </dialog>
             {% elif friendship and friendship.status == "pending" and friendship.requester_id == current_user.id %}
-                <button class="secondary" type="button" disabled>Request sent</button>
-            {% elif friendship and friendship.status == "pending" and friendship.recipient_id == current_user.id %}
-                <a class="button" href="{{ url_for('friends') }}">Respond to request</a>
-            {% else %}
-                <form method="post" action="{{ url_for('send_friend_request', user_id=profile_user.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit">Add Friend</button>
-                </form>
-            {% endif %}
-
-            {% if is_following %}
-                <form method="post" action="{{ url_for('unfollow_user', user_id=profile_user.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="secondary" type="submit">Unfollow</button>
-                </form>
-            {% else %}
-                <form method="post" action="{{ url_for('follow_user', user_id=profile_user.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="secondary" type="submit">Follow</button>
-                </form>
-            {% endif %}
-        </div>
-        {% endif %}
-    </section>
-
-    {% set active_tab = request.args.get('tab', 'all') %}
-    <nav class="profile-tabs" aria-label="Profile sections">
-        <a class="profile-tab{% if active_tab == 'all' %} active{% endif %}" href="{{ url_for('public_profile', user_id=profile_user.id, tab='all') }}">All</a>
-        <a class="profile-tab{% if active_tab == 'about' %} active{% endif %}" href="{{ url_for('public_profile', user_id=profile_user.id, tab='about') }}">About</a>
-        <a class="profile-tab{% if active_tab == 'friends' %} active{% endif %}" href="{{ url_for('public_profile', user_id=profile_user.id, tab='friends') }}">Friends</a>
-        <a class="profile-tab{% if active_tab == 'photos' %} active{% endif %}" href="{{ url_for('public_profile', user_id=profile_user.id, tab='photos') }}">Photos</a>
-    </nav>
-
-    {% if active_tab == 'about' %}
-        <section class="card">
-            <h2>About {{ profile_user.username }}</h2>
-            {% if profile_user.bio %}
-                <p class="post-content">{{ profile_user.bio }}</p>
-            {% else %}
-                <p class="muted">No bio has been shared on this profile.</p>
-            {% endif %}
-        </section>
-    {% elif active_tab == 'friends' %}
-        <section class="card">
-            <h2>Friends</h2>
-            <p>{{ friend_count }} friends</p>
-            <p class="muted">Only the friend count is shown here. A friends list can be added with its own privacy checks.</p>
-        </section>
-    {% elif active_tab == 'photos' %}
-        <section class="card">
-            <h2>Photos</h2>
-            <p class="muted">A public post-photo gallery is not available yet. Private-message photos are not shown here.</p>
-        </section>
-    {% else %}
-    <section class="card">
-    <h2>Posts</h2>
-    {% for post in profile_posts %}
-        <article class="profile-post" id="post-{{ post.id }}">
-            <div class="profile-post-header">
-                <div class="profile-post-avatar">
-                    {% if post.author.profile_picture %}
-                        <img src="{{ url_for('profile_picture_file', filename=post.author.profile_picture) }}" alt="{{ post.author.username }}'s profile picture">
-                    {% else %}
-                        {{ post.author.username[0]|upper }}
-                    {% endif %}
-                </div>
-                <div class="profile-post-author">
-                    <div>
-                        {{ post.author.username }}
-                        {{ gotya_badge_html(post.author) }}
-                    </div>
-                    <div class="profile-post-time">
-                        <time datetime="{{ post.created_at.isoformat() if post.created_at else '' }}">{{ post.created_at.strftime('%b %d, %Y at %I:%M %p') if post.created_at else 'Date unavailable' }}</time>
-                        &middot; {{ 'Friends' if post.audience == 'friends' else 'Public' }}
-                    </div>
-                </div>
-                <div class="profile-post-menu">
-    <button type="button" aria-label="Post options" title="Post options" aria-expanded="false">&#8942;</button>
-    <div class="profile-post-menu-panel" hidden>
-        {% if post.user_id == current_user.id %}
-        <button class="gotya-post-menu-item" type="button" data-edit-post>&#9998; Edit post</button>
-        <div class="gotya-post-audience">
-            <span class="gotya-post-menu-label">&#9673; Set audience</span>
-            <form method="POST" action="{{ url_for('set_post_audience', post_id=post.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="return_to" value="{{ request.full_path }}">
-                <input type="hidden" name="audience" value="public">
-                <button class="gotya-post-menu-item" type="submit">Public</button>
-            </form>
-            <form method="POST" action="{{ url_for('set_post_audience', post_id=post.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="return_to" value="{{ request.full_path }}">
-                <input type="hidden" name="audience" value="friends">
-                <button class="gotya-post-menu-item" type="submit">Friends</button>
-            </form>
-        </div>
-        <form method="POST" action="{{ url_for('delete_post', post_id=post.id) }}"
-              onsubmit="return confirm('Delete this post? This cannot be undone.');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="return_to" value="{{ request.full_path }}">
-            <button class="gotya-post-menu-item gotya-post-delete" type="submit">&#128465; Delete post</button>
-        </form>
-        <form method="POST" action="{{ url_for('edit_post', post_id=post.id) }}"
-              data-post-edit-form hidden>
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="return_to" value="{{ request.full_path }}">
-            <input type="hidden" name="content" value="{{ post.content|e }}">
-        </form>
-        {% else %}
-        <button class="gotya-post-menu-item" type="button" disabled>Report post (Coming soon)</button>
+                <button class="secondary" type="button" disabled><svg class="gotya-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4m0 1c5-4 9 4 14 0v11c-5 4-9-4-14 0"/></svg> Report post (Coming soon)</button>
         {% endif %}
     </div>
 </div>
@@ -776,33 +868,297 @@ document.addEventListener("click", function (event) {
 
 <script id="gotya-post-menu-edit-handler">
 document.addEventListener("click", function(event) {
-    const button = event.target.closest("[data-edit-post]");
-    if (button) {
-        const menu = button.closest(".post-menu-wrap,.profile-post-menu,.gotya-watch-post-menu");
-        const form = menu && menu.querySelector("[data-post-edit-form]");
-        const field = form && form.querySelector('input[name="content"]');
-        if (!form || !field) return;
-        const updated = window.prompt("Edit post", field.value);
-        if (updated !== null) {
-            field.value = updated;
-            form.submit();
-        }
-    }
-    const trigger = event.target.closest(".gotya-watch-post-menu>button");
-    if (trigger) {
-        const panel = trigger.parentElement.querySelector(".gotya-post-menu-panel");
-        const opening = panel.hidden;
-        document.querySelectorAll(".gotya-watch-post-menu .gotya-post-menu-panel").forEach(p => p.hidden = true);
-        panel.hidden = !opening;
-        trigger.setAttribute("aria-expanded", String(opening));
+    const editButton = event.target.closest("[data-edit-post]");
+
+    if (editButton) {
+        event.preventDefault();
         event.stopPropagation();
+
+        const menu = editButton.closest(
+            ".post-menu-wrap,.profile-post-menu,.gotya-watch-post-menu"
+        );
+        const editForm = menu && menu.querySelector("[data-post-edit-form]");
+        const contentField = editForm &&
+            editForm.querySelector('input[name="content"]');
+
+        if (!editForm || !contentField) return;
+
+        const panel = editButton.closest(
+            ".post-menu-panel,.profile-post-menu-panel,.gotya-post-menu-panel"
+        );
+        if (panel) panel.hidden = true;
+
+        const trigger = menu.querySelector(":scope > button");
+        if (trigger) trigger.setAttribute("aria-expanded", "false");
+
+        const overlay = document.createElement("div");
+        overlay.setAttribute("role", "presentation");
+        Object.assign(overlay.style, {
+            position: "fixed",
+            inset: "0",
+            zIndex: "1000000",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+            boxSizing: "border-box",
+            background: "rgba(0,0,0,.35)"
+        });
+
+        const dialog = document.createElement("section");
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "gotya-edit-post-title");
+
+        Object.assign(dialog.style, {
+            width: "min(520px, 100%)",
+            boxSizing: "border-box",
+            padding: "18px",
+            border: "1px solid #c8c8c8",
+            borderRadius: "14px",
+            background: "#f2f2f2",
+            color: "#222",
+            boxShadow: "0 12px 32px rgba(0,0,0,.16)"
+        });
+
+        const heading = document.createElement("h2");
+        heading.id = "gotya-edit-post-title";
+        heading.textContent = "Edit post";
+        Object.assign(heading.style, {
+            margin: "0 0 12px",
+            color: "#222",
+            fontSize: "17px",
+            fontWeight: "650"
+        });
+
+        const textarea = document.createElement("textarea");
+        textarea.value = contentField.value;
+        textarea.maxLength = 2000;
+        textarea.setAttribute("aria-label", "Post content");
+        textarea.placeholder = "Write your post...";
+
+        Object.assign(textarea.style, {
+            display: "block",
+            width: "100%",
+            minHeight: "150px",
+            resize: "vertical",
+            boxSizing: "border-box",
+            padding: "12px",
+            border: "1px solid #bdbdbd",
+            borderRadius: "9px",
+            outlineOffset: "2px",
+            background: "#f2f2f2",
+            color: "#222",
+            font: "inherit",
+            lineHeight: "1.5"
+        });
+
+        const footer = document.createElement("div");
+        Object.assign(footer.style, {
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "9px",
+            marginTop: "14px"
+        });
+
+        function makeButton(label) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = label;
+            Object.assign(button.style, {
+                minWidth: "78px",
+                padding: "9px 15px",
+                border: "1px solid #bdbdbd",
+                borderRadius: "8px",
+                background: "#f2f2f2",
+                color: "#222",
+                font: "inherit",
+                fontWeight: "600",
+                cursor: "pointer"
+            });
+            return button;
+        }
+
+        const cancelButton = makeButton("Cancel");
+        const saveButton = makeButton("Save");
+
+        function closeEditor() {
+            document.removeEventListener("keydown", onKeyDown);
+            overlay.remove();
+        }
+
+        function onKeyDown(keyEvent) {
+            if (keyEvent.key === "Escape") {
+                keyEvent.preventDefault();
+                closeEditor();
+            }
+        }
+
+        cancelButton.addEventListener("click", closeEditor);
+
+        saveButton.addEventListener("click", function() {
+            contentField.value = textarea.value;
+            closeEditor();
+
+            if (typeof editForm.requestSubmit === "function") {
+                editForm.requestSubmit();
+            } else {
+                editForm.submit();
+            }
+        });
+
+        overlay.addEventListener("click", function(clickEvent) {
+            if (clickEvent.target === overlay) closeEditor();
+        });
+
+        footer.append(cancelButton, saveButton);
+        dialog.append(heading, textarea, footer);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        document.addEventListener("keydown", onKeyDown);
+        textarea.focus();
+        textarea.setSelectionRange(
+            textarea.value.length,
+            textarea.value.length
+        );
         return;
     }
+
+    const trigger = event.target.closest(".gotya-watch-post-menu>button");
+    if (trigger) {
+        const panel = trigger.parentElement.querySelector(
+            ".gotya-post-menu-panel"
+        );
+        if (panel) {
+            panel.hidden = !panel.hidden;
+            trigger.setAttribute("aria-expanded", String(!panel.hidden));
+        }
+        return;
+    }
+
     if (!event.target.closest(".gotya-watch-post-menu")) {
-        document.querySelectorAll(".gotya-watch-post-menu .gotya-post-menu-panel").forEach(p => p.hidden = true);
-        document.querySelectorAll(".gotya-watch-post-menu>button").forEach(b => b.setAttribute("aria-expanded","false"));
+        document.querySelectorAll(".gotya-watch-post-menu>button").forEach(
+            button => button.setAttribute("aria-expanded", "false")
+        );
+        document.querySelectorAll(
+            ".gotya-watch-post-menu .gotya-post-menu-panel"
+        ).forEach(panel => panel.hidden = true);
     }
 });
+</script>
+
+
+<script id="gotya-audience-toggle-handler">
+document.addEventListener("click", function(event) {
+    const toggle = event.target.closest("[data-audience-toggle]");
+    if (!toggle) return;
+
+    const section = toggle.closest(".gotya-post-audience");
+    if (!section) return;
+
+    const expanded = section.classList.toggle("is-expanded");
+    toggle.setAttribute("aria-expanded", String(expanded));
+    event.stopPropagation();
+});
+</script>
+
+
+<script id="gotya-post-menu-viewport-position">
+(function () {
+    let activePanel = null;
+
+    function positionMenu(panel) {
+        if (!panel || panel.hidden || !panel.isConnected) return;
+
+        const wrapper = panel.closest(
+            ".post-menu-wrap, .profile-post-menu, .gotya-watch-post-menu"
+        );
+        const trigger = wrapper && wrapper.querySelector(":scope > button");
+        if (!trigger) return;
+
+        panel.classList.add("gotya-viewport-menu");
+        panel.style.setProperty("position", "fixed", "important");
+        panel.style.setProperty("right", "auto", "important");
+        panel.style.setProperty("bottom", "auto", "important");
+        panel.style.setProperty("left", "0px", "important");
+        panel.style.setProperty("top", "0px", "important");
+        panel.style.setProperty("max-width", "calc(100vw - 16px)", "important");
+        panel.style.setProperty("max-height", "70vh", "important");
+        panel.style.setProperty("overflow-y", "auto", "important");
+
+        const anchor = trigger.getBoundingClientRect();
+        const menu = panel.getBoundingClientRect();
+        const gap = 8;
+        const margin = 8;
+
+        let left = anchor.right - menu.width;
+        left = Math.max(margin, Math.min(left, window.innerWidth - menu.width - margin));
+
+        const below = window.innerHeight - anchor.bottom;
+        const above = anchor.top;
+
+        let top;
+        if (below >= menu.height + gap) {
+            top = anchor.bottom + gap;
+        } else if (above >= menu.height + gap) {
+            top = anchor.top - menu.height - gap;
+        } else {
+            top = Math.max(
+                margin,
+                Math.min(anchor.bottom + gap, window.innerHeight - menu.height - margin)
+            );
+        }
+
+        top = Math.max(margin, Math.min(top, window.innerHeight - menu.height - margin));
+
+        panel.style.setProperty("left", left + "px", "important");
+        panel.style.setProperty("top", top + "px", "important");
+    }
+
+    document.addEventListener("click", function (event) {
+        const trigger = event.target.closest(
+            ".post-menu-wrap > button, .profile-post-menu > button, .gotya-watch-post-menu > button"
+        );
+
+        if (trigger) {
+            const wrapper = trigger.parentElement;
+            const panel = wrapper.querySelector(
+                ".post-menu-panel, .profile-post-menu-panel, .gotya-post-menu-panel"
+            );
+
+            requestAnimationFrame(function () {
+                if (panel && !panel.hidden) {
+                    activePanel = panel;
+                    positionMenu(panel);
+                } else {
+                    activePanel = null;
+                }
+            });
+            return;
+        }
+
+        if (event.target.closest("[data-audience-toggle]") && activePanel) {
+            requestAnimationFrame(function () {
+                positionMenu(activePanel);
+            });
+        }
+
+        if (!event.target.closest(
+            ".post-menu-wrap, .profile-post-menu, .gotya-watch-post-menu"
+        )) {
+            activePanel = null;
+        }
+    });
+
+    window.addEventListener("resize", function () {
+        if (activePanel && !activePanel.hidden) positionMenu(activePanel);
+    });
+
+    window.addEventListener("scroll", function () {
+        if (activePanel && !activePanel.hidden) positionMenu(activePanel);
+    }, true);
+})();
 </script>
 
 </body>
