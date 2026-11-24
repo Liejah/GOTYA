@@ -686,6 +686,38 @@ body.gotya-feed {
 
     <link rel="stylesheet" href="{{ url_for('static', filename='mobile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='gotya-laptop.css') }}?v=2">
+
+<style id="gotya-post-menu-actions">
+.post-menu-panel,.profile-post-menu-panel,.gotya-post-menu-panel {
+    width:142px;min-width:142px;padding:5px;border:1px solid var(--line);
+    border-radius:11px;background:var(--surface,var(--card));
+    box-shadow:0 8px 24px rgba(0,0,0,.14);z-index:50;
+}
+.post-menu-panel[hidden],.profile-post-menu-panel[hidden],.gotya-post-menu-panel[hidden] {display:none!important}
+.gotya-post-menu-item {
+    display:block;width:100%;padding:7px 8px;border:0;border-radius:7px;
+    background:transparent;color:var(--text);font-size:12px;font-weight:600;
+    line-height:1.25;text-align:left;white-space:nowrap;cursor:pointer;
+}
+.gotya-post-menu-item:hover {background:var(--page,#f6f3fc)}
+.gotya-post-menu-item:disabled {opacity:.55;cursor:not-allowed}
+.gotya-post-menu-label {
+    display:block;padding:7px 8px 4px;color:var(--muted);
+    font-size:11px;font-weight:700;
+}
+.gotya-post-audience form {margin:0}
+.gotya-post-delete {color:#d14343}
+.gotya-watch-post-menu {position:relative;margin-left:5px;flex-shrink:0}
+.gotya-watch-post-menu>button {
+    width:30px;height:30px;padding:0;border:0;border-radius:50%;
+    background:transparent;color:var(--muted);font-size:20px;cursor:pointer;
+}
+.gotya-watch-post-menu>button:hover {background:var(--page)}
+.gotya-watch-post-menu .gotya-post-menu-panel {
+    position:absolute;top:34px;right:0;
+}
+</style>
+
 </head>
 <body class="gotya-feed" data-theme="{{ gotya_theme|default("system") }}">
 {% set gotya_active_page = 'feed' %}
@@ -831,14 +863,42 @@ body.gotya-feed {
                 </div>
             </div>
             <div class="post-menu-wrap">
-                <button class="post-menu-button" type="button" aria-label="Post options" title="Post options" aria-expanded="false">
-                    &#8942;
-                </button>
-                <div class="post-menu-panel" hidden>
-                    <button class="post-menu-item" type="button" disabled>Save post (coming soon)</button>
-                    <button class="post-menu-item" type="button" disabled>Report post (coming soon)</button>
-                </div>
-            </div>
+    <button class="post-menu-button" type="button" aria-label="Post options" title="Post options" aria-expanded="false">&#8942;</button>
+    <div class="post-menu-panel" hidden>
+        {% if post.user_id == current_user.id %}
+        <button class="gotya-post-menu-item" type="button" data-edit-post>&#9998; Edit post</button>
+        <div class="gotya-post-audience">
+            <span class="gotya-post-menu-label">&#9673; Set audience</span>
+            <form method="POST" action="{{ url_for('set_post_audience', post_id=post.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="return_to" value="{{ request.full_path }}">
+                <input type="hidden" name="audience" value="public">
+                <button class="gotya-post-menu-item" type="submit">Public</button>
+            </form>
+            <form method="POST" action="{{ url_for('set_post_audience', post_id=post.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="return_to" value="{{ request.full_path }}">
+                <input type="hidden" name="audience" value="friends">
+                <button class="gotya-post-menu-item" type="submit">Friends</button>
+            </form>
+        </div>
+        <form method="POST" action="{{ url_for('delete_post', post_id=post.id) }}"
+              onsubmit="return confirm('Delete this post? This cannot be undone.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="{{ request.full_path }}">
+            <button class="gotya-post-menu-item gotya-post-delete" type="submit">&#128465; Delete post</button>
+        </form>
+        <form method="POST" action="{{ url_for('edit_post', post_id=post.id) }}"
+              data-post-edit-form hidden>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_to" value="{{ request.full_path }}">
+            <input type="hidden" name="content" value="{{ post.content|e }}">
+        </form>
+        {% else %}
+        <button class="gotya-post-menu-item" type="button" disabled>Report post (Coming soon)</button>
+        {% endif %}
+    </div>
+</div>
         </div>
         <div class="content post-caption">{{ post.content }}</div>
 
@@ -1424,6 +1484,38 @@ document.addEventListener("click", function (event) {
 
   showMessage("Type at least 2 characters to search.");
 })();
+</script>
+
+
+<script id="gotya-post-menu-edit-handler">
+document.addEventListener("click", function(event) {
+    const button = event.target.closest("[data-edit-post]");
+    if (button) {
+        const menu = button.closest(".post-menu-wrap,.profile-post-menu,.gotya-watch-post-menu");
+        const form = menu && menu.querySelector("[data-post-edit-form]");
+        const field = form && form.querySelector('input[name="content"]');
+        if (!form || !field) return;
+        const updated = window.prompt("Edit post", field.value);
+        if (updated !== null) {
+            field.value = updated;
+            form.submit();
+        }
+    }
+    const trigger = event.target.closest(".gotya-watch-post-menu>button");
+    if (trigger) {
+        const panel = trigger.parentElement.querySelector(".gotya-post-menu-panel");
+        const opening = panel.hidden;
+        document.querySelectorAll(".gotya-watch-post-menu .gotya-post-menu-panel").forEach(p => p.hidden = true);
+        panel.hidden = !opening;
+        trigger.setAttribute("aria-expanded", String(opening));
+        event.stopPropagation();
+        return;
+    }
+    if (!event.target.closest(".gotya-watch-post-menu")) {
+        document.querySelectorAll(".gotya-watch-post-menu .gotya-post-menu-panel").forEach(p => p.hidden = true);
+        document.querySelectorAll(".gotya-watch-post-menu>button").forEach(b => b.setAttribute("aria-expanded","false"));
+    }
+});
 </script>
 
 </body>

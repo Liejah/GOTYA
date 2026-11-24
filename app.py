@@ -4710,6 +4710,115 @@ def watch():
     return render_template("watch.html", posts=video_posts, external_videos=WATCH_EXTERNAL_VIDEOS)
 
 
+
+
+def _post_action_redirect():
+    """Redirect only to a safe local path supplied by the form."""
+    target = (request.form.get("return_to") or "").strip()
+    if target.startswith("/") and not target.startswith("//") and "\\" not in target:
+        return redirect(target)
+    return redirect(url_for("feed"))
+
+
+@app.route("/post/<int:post_id>/edit", methods=["POST"])
+@login_required
+def edit_post(post_id):
+    post = db.session.get(Post, post_id)
+    if post is None:
+        abort(404)
+    if post.user_id != current_user.id:
+        abort(403)
+
+    content = (request.form.get("content") or "").strip()
+    if len(content) > 2000:
+        flash("Posts cannot exceed 2000 characters.", "error")
+        return _post_action_redirect()
+    if not content and not post.media_filename:
+        flash("A text-only post cannot be empty.", "error")
+        return _post_action_redirect()
+
+    try:
+        post.content = content
+        db.session.commit()
+        flash("Post updated successfully.", "success")
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Post edit failed")
+        flash("The post could not be updated. Please try again.", "error")
+
+    return _post_action_redirect()
+
+
+@app.route("/post/<int:post_id>/audience", methods=["POST"])
+@login_required
+def set_post_audience(post_id):
+    post = db.session.get(Post, post_id)
+    if post is None:
+        abort(404)
+    if post.user_id != current_user.id:
+        abort(403)
+
+    audience = (request.form.get("audience") or "").strip().lower()
+    if audience not in {"public", "friends"}:
+        flash("Please choose a valid post audience.", "error")
+        return _post_action_redirect()
+
+    try:
+        post.audience = audience
+        db.session.commit()
+        flash("Post audience updated.", "success")
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Post audience update failed")
+        flash("The post audience could not be updated.", "error")
+
+    return _post_action_redirect()
+
+
+@app.route("/post/<int:post_id>/delete", methods=["POST"])
+@login_required
+def delete_post(post_id):
+    post = db.session.get(Post, post_id)
+    if post is None:
+        abort(404)
+    if post.user_id != current_user.id:
+        abort(403)
+
+    media_filename = post.media_filename
+    valid_media_filename = bool(
+        media_filename and re.fullmatch(r"[0-9a-f]{32}\.[a-z0-9]+", media_filename)
+    )
+
+    try:
+        PostLike.query.filter_by(post_id=post.id).delete(synchronize_session=False)
+        Comment.query.filter_by(post_id=post.id).delete(synchronize_session=False)
+        db.session.delete(post)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception("Post deletion failed")
+        flash("The post could not be deleted. Please try again.", "error")
+        return _post_action_redirect()
+
+    # Clean up media only after the database deletion has succeeded.
+    if valid_media_filename:
+        if supabase_storage is not None:
+            try:
+                supabase_storage.storage.from_(SUPABASE_BUCKET).remove(
+                    ["post_media/" + media_filename]
+                )
+            except Exception:
+                app.logger.exception("Could not remove deleted post media from Supabase.")
+
+        try:
+            (POST_MEDIA_DIR / media_filename).unlink(missing_ok=True)
+        except Exception:
+            app.logger.exception("Could not remove deleted post media from local storage.")
+
+    flash("Post deleted.", "success")
+    return _post_action_redirect()
+
+
 @app.route("/post/<int:post_id>/like", methods=["POST"])
 @login_required
 def toggle_like(post_id):
